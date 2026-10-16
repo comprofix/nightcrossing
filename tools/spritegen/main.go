@@ -19,10 +19,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/comprofix/gameskeleton/internal/bitfont"
-	"github.com/comprofix/gameskeleton/internal/config"
-	"github.com/comprofix/gameskeleton/internal/gfx/palettes"
-	"github.com/comprofix/gameskeleton/internal/spritegrid"
+	"github.com/comprofix/nightcrossing/internal/bitfont"
+	"github.com/comprofix/nightcrossing/internal/config"
+	"github.com/comprofix/nightcrossing/internal/gfx/palettes"
+	"github.com/comprofix/nightcrossing/internal/spritegrid"
 )
 
 type options struct {

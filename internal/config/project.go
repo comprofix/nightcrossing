@@ -4,7 +4,7 @@ package config
 
 // Title is the game's name, shown in the window title and on the title
 // screen.
-const Title = "Game Skeleton"
+const Title = "Night Crossing"
 
 // TPS is the game loop rate. Game logic counts in ticks of 1/TPS seconds.
 const TPS = 60

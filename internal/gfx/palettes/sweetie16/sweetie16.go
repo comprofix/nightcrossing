@@ -2,7 +2,7 @@
 // (lospec.com/palette-list/sweetie-16), used by the Classic PC preset.
 package sweetie16
 
-import "github.com/comprofix/gameskeleton/internal/gfx/palettes"
+import "github.com/comprofix/nightcrossing/internal/gfx/palettes"
 
 // Colour indices.
 const (

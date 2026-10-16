@@ -7,12 +7,12 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 
-	"github.com/comprofix/gameskeleton/internal/audio"
-	"github.com/comprofix/gameskeleton/internal/config"
-	"github.com/comprofix/gameskeleton/internal/gfx"
-	"github.com/comprofix/gameskeleton/internal/input"
-	"github.com/comprofix/gameskeleton/internal/score"
-	"github.com/comprofix/gameskeleton/internal/session"
+	"github.com/comprofix/nightcrossing/internal/audio"
+	"github.com/comprofix/nightcrossing/internal/config"
+	"github.com/comprofix/nightcrossing/internal/gfx"
+	"github.com/comprofix/nightcrossing/internal/input"
+	"github.com/comprofix/nightcrossing/internal/score"
+	"github.com/comprofix/nightcrossing/internal/session"
 )
 
 // Scene is one screen of the game.

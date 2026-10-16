@@ -8,8 +8,8 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 
-	"github.com/comprofix/gameskeleton/internal/bitfont"
-	"github.com/comprofix/gameskeleton/internal/config"
+	"github.com/comprofix/nightcrossing/internal/bitfont"
+	"github.com/comprofix/nightcrossing/internal/config"
 )
 
 // Font draws text in any palette colour.

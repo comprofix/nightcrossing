@@ -3,7 +3,7 @@
 package ui
 
 import (
-	"github.com/comprofix/gameskeleton/internal/input"
+	"github.com/comprofix/nightcrossing/internal/input"
 )
 
 // Item is one line of a Menu.

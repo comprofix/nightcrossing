@@ -19,10 +19,10 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 
-	"github.com/comprofix/gameskeleton/internal/config"
-	"github.com/comprofix/gameskeleton/internal/input"
-	"github.com/comprofix/gameskeleton/internal/scene"
-	"github.com/comprofix/gameskeleton/internal/score"
+	"github.com/comprofix/nightcrossing/internal/config"
+	"github.com/comprofix/nightcrossing/internal/input"
+	"github.com/comprofix/nightcrossing/internal/scene"
+	"github.com/comprofix/nightcrossing/internal/score"
 )
 
 var update = flag.Bool("update", false, "rewrite golden files with the current results")
