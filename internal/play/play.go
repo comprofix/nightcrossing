@@ -5,11 +5,13 @@ package play
 
 import (
 	"fmt"
+	"math/rand/v2"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 
 	"github.com/comprofix/nightcrossing/internal/config"
+	"github.com/comprofix/nightcrossing/internal/fx"
 	"github.com/comprofix/nightcrossing/internal/gfx"
 	"github.com/comprofix/nightcrossing/internal/gfx/palettes/resurrect64"
 	"github.com/comprofix/nightcrossing/internal/input"
@@ -41,6 +43,7 @@ const hint = "ARROWS/WASD: HOP   ESC: PAUSE   CTRL+R: RESTART"
 const (
 	shakeTicks     = 12
 	shakePx        = 3
+	softShakePx    = 2              // a death in the water, to a heron or the clock (DESIGN §3.3)
 	gameOverTicks  = 2 * config.TPS // the game over message shows this long
 	bannerTicks    = 2 * config.TPS // the level number shows this long at the start
 	levelHintTicks = 6 * config.TPS // a new level's hint shows this long
@@ -54,6 +57,10 @@ type Play struct {
 	levels config.ModeLevels
 	ticks  int // since the level started
 	clear  int // ticks since the level was cleared; 0 until then
+
+	light    *fx.Lighting
+	parts    *fx.Particles
+	nookGlow [len(config.Nooks)]int // ticks left of each nook's flare as a toad arrives
 }
 
 // New starts a game at a skill, on its first level.
@@ -70,10 +77,14 @@ func newLevel(ctx *scene.Context, levels config.ModeLevels, n int) *Play {
 // newPlay starts a given level for the game in progress, so tests can use
 // levels of their own.
 func newPlay(ctx *scene.Context, levels config.ModeLevels, level config.Level) *Play {
+	w := world.New(ctx.Session, level, ctx.RNG)
+	pr := config.Project
 	return &Play{
-		world:  world.New(ctx.Session, level, ctx.RNG),
+		world:  w,
 		hero:   Toad,
 		levels: levels,
+		light:  fx.NewLighting(pr.ScreenWidth, pr.ScreenHeight, true),
+		parts:  fx.NewParticles(rand.New(rand.NewPCG(ctx.RNG.Uint64(), ctx.RNG.Uint64()))),
 	}
 }
 
@@ -95,6 +106,7 @@ func (p *Play) Update(ctx *scene.Context) error {
 		return nil
 	}
 	p.ticks++
+	p.updateEffects()
 	if p.clear > 0 {
 		if p.clear++; p.clear > clearTicks {
 			ctx.Switch(p.tally(ctx))
@@ -102,6 +114,7 @@ func (p *Play) Update(ctx *scene.Context) error {
 		return nil
 	}
 	for _, e := range p.world.Update(pressed(in)) {
+		p.effects(e)
 		switch e {
 		case world.Hopped:
 			ctx.Audio.PlayEffect(p.hero.Hop)
@@ -111,10 +124,13 @@ func (p *Play) Update(ctx *scene.Context) error {
 		case world.Splashed, world.Swept:
 			ctx.Audio.PlayEffect(Splash)
 			ctx.Audio.PlayEffect(Bubbles)
+			ctx.Shake.Start(shakeTicks, softShakePx)
 		case world.Caught:
 			ctx.Audio.PlayEffect(Squawk)
+			ctx.Shake.Start(shakeTicks, softShakePx)
 		case world.TimeUp:
 			ctx.Audio.PlayEffect(Crash)
+			ctx.Shake.Start(shakeTicks, softShakePx)
 		case world.LowTime:
 			ctx.Audio.PlayEffect(TimeLow)
 		case world.Goal:
