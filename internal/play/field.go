@@ -82,6 +82,12 @@ func (p *Play) drawField(ctx *scene.Context, dst *ebiten.Image) {
 	if ctx.Settings.SmoothLight {
 		look.Bands = 0 // the Light option (Options: Light: Smooth)
 	}
+	if !ctx.Settings.Glow {
+		look.Glow = 0
+	}
+	if ctx.Settings.HighContrast {
+		look.Level = highContrastLevel
+	}
 	field := p.light.Begin(look).SubImage(bounds).(*ebiten.Image)
 
 	sheet := ctx.Sheet(Sheet)
@@ -117,6 +123,9 @@ func (p *Play) drawField(ctx *scene.Context, dst *ebiten.Image) {
 	p.addLights(ctx, p.light)
 	p.light.Draw(dst, 0, 0)
 	out := dst.SubImage(bounds).(*ebiten.Image)
+	if ctx.Settings.HighContrast {
+		p.drawOutlines(ctx, out)
+	}
 	p.parts.Draw(out, 0, 0)
 	if debug.Enabled {
 		p.drawHitBoxes(ctx, out)

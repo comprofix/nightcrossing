@@ -14,12 +14,12 @@ import (
 func testLevel() config.Level { return config.Level{Number: 1, TimerTicks: config.TimerTicks(1)} }
 
 // rich is a level with every kind of lane and platform: Stroll's level 8.
-var rich = config.Stroll.Level(8)
+var rich = config.StrollLevels.Level(8)
 
-// newWorld is a game at the second skill on an all-safe level, so only
+// newWorld is a Stroll game on an all-safe level, so only
 // the hero moves.
 func newWorld(seed uint64) *World {
-	return New(session.New(config.Skills[0], config.StartLives), testLevel(), rand.New(rand.NewPCG(seed, seed)))
+	return New(session.New(config.Modes[0], config.StartLives), testLevel(), rand.New(rand.NewPCG(seed, seed)))
 }
 
 // run updates w once with press, then n-1 more times with nothing pressed,

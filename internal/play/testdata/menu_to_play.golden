@@ -1,4 +1,4 @@
-grid 26x13  skill stroll  level 1
+grid 26x13  mode stroll  level 1
 tick 122  ticks left 2578
 score 0  lives 3
 hero cell 13,12  at 4992,4608  facing up  hopping false

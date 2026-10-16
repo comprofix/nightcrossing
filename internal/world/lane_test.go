@@ -78,19 +78,12 @@ func onField(v Entity) int {
 	return max(0, min(right, fieldWidth)-max(left, 0))
 }
 
-func abs(n int) int {
-	if n < 0 {
-		return -n
-	}
-	return n
-}
-
 // roadWorld is a game with one road lane on row 11, just above the start,
 // holding a single vehicle at u, moving dir at speed units a tick.
 func roadWorld(v config.Entity, u, dir, speed int) *World {
 	lv := testLevel()
 	lv.Lanes[11] = config.Lane{Kind: config.Road, Dir: dir, Speed: speed, Pattern: []config.Spawn{{Entity: v, Gap: 600}}}
-	w := New(session.New(config.Skills[0], config.StartLives), lv, rand.New(rand.NewPCG(1, 1)))
+	w := New(session.New(config.Modes[0], config.StartLives), lv, rand.New(rand.NewPCG(1, 1)))
 	lane := &w.Lanes[11]
 	lane.Speed = speed
 	lane.Entities = []Entity{{Kind: v, U: u}}
@@ -208,7 +201,7 @@ func TestLastLifeEndsTheGame(t *testing.T) {
 
 func TestLevelOneIsRandomPerSeedButRepeatable(t *testing.T) {
 	start := func(seed uint64) []Entity {
-		w := New(session.New(config.Skills[0], 3), rich, rand.New(rand.NewPCG(seed, seed)))
+		w := New(session.New(config.Modes[0], 3), rich, rand.New(rand.NewPCG(seed, seed)))
 		return w.Lanes[9].Entities
 	}
 	if !slices.Equal(start(5), start(5)) {

@@ -48,9 +48,12 @@ type Context struct {
 	Session               *session.Session // the game in progress, if any
 	Scores                *score.Tables
 
-	// NewPlay starts a game at the given skill. The game package sets it,
+	// NewPlay starts a game in the given mode. The game package sets it,
 	// so the shared scenes don't depend on the game's own packages.
-	NewPlay func(ctx *Context, skill config.Skill) Scene
+	NewPlay func(ctx *Context, mode config.Mode) Scene
+	// NewDemo, if set, starts the game playing itself, which the title
+	// shows behind its logo.
+	NewDemo func(ctx *Context) Scene
 
 	next            Scene
 	cut             bool

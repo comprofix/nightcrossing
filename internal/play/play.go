@@ -61,12 +61,13 @@ type Play struct {
 	light    *fx.Lighting
 	parts    *fx.Particles
 	nookGlow [len(config.Nooks)]int // ticks left of each nook's flare as a toad arrives
+	outline  *ebiten.Image          // a drawing buffer for high contrast's outlines
 }
 
-// New starts a game at a skill, on its first level.
-func New(ctx *scene.Context, skill config.Skill) scene.Scene {
-	ctx.Session = session.New(skill, config.StartLives)
-	return newLevel(ctx, config.Stroll, 1)
+// New starts a game in a mode, on its first level.
+func New(ctx *scene.Context, mode config.Mode) scene.Scene {
+	ctx.Session = session.New(mode, config.StartLives)
+	return newLevel(ctx, mode.Levels, 1)
 }
 
 // newLevel starts level n of levels for the game in progress.
@@ -77,14 +78,19 @@ func newLevel(ctx *scene.Context, levels config.ModeLevels, n int) *Play {
 // newPlay starts a given level for the game in progress, so tests can use
 // levels of their own.
 func newPlay(ctx *scene.Context, levels config.ModeLevels, level config.Level) *Play {
-	w := world.New(ctx.Session, level, ctx.RNG)
+	return build(ctx.Session, levels, level, ctx.RNG)
+}
+
+// build is a level of the game in s, its random choices from rng.
+func build(s *session.Session, levels config.ModeLevels, level config.Level, rng *rand.Rand) *Play {
+	w := world.New(s, level, rng)
 	pr := config.Project
 	return &Play{
 		world:  w,
 		hero:   Toad,
 		levels: levels,
 		light:  fx.NewLighting(pr.ScreenWidth, pr.ScreenHeight, true),
-		parts:  fx.NewParticles(rand.New(rand.NewPCG(ctx.RNG.Uint64(), ctx.RNG.Uint64()))),
+		parts:  fx.NewParticles(rand.New(rand.NewPCG(rng.Uint64(), rng.Uint64()))),
 	}
 }
 
@@ -102,7 +108,7 @@ func (p *Play) Update(ctx *scene.Context) error {
 		ctx.Switch(scene.NewMainMenu())
 		return nil
 	case in.JustPressed(input.Restart):
-		ctx.Switch(New(ctx, ctx.Session.Skill))
+		ctx.Switch(New(ctx, ctx.Session.Mode))
 		return nil
 	}
 	p.ticks++
@@ -129,6 +135,7 @@ func (p *Play) Update(ctx *scene.Context) error {
 		case world.LevelClear:
 			p.clear = 1
 			ctx.Audio.PlayTune(LevelClearJingle)
+			p.markCleared(ctx)
 		case world.GameOver:
 			ctx.Audio.PlayTune(GameOverJingle)
 			ctx.Cut(newEnded(p))
@@ -154,6 +161,14 @@ func (p *Play) tally(ctx *scene.Context) scene.Scene {
 	})
 }
 
+// markCleared records the mode as cleared once its last level, level 8,
+// is cleared, for the MODE menu (D24).
+func (p *Play) markCleared(ctx *scene.Context) {
+	if p.world.Level.Number >= len(p.levels.Levels) && ctx.Scores.MarkCleared(ctx.Session.Mode.ID) {
+		ctx.ScoresChanged()
+	}
+}
+
 // Ended holds the last moment of the game on screen under a GAME OVER
 // message, then goes on to the high scores. Confirm moves on sooner.
 type Ended struct {
@@ -168,7 +183,7 @@ func (e *Ended) Update(ctx *scene.Context) error {
 	e.ticks++
 	if e.ticks >= gameOverTicks || (e.ticks > config.TPS/2 && ctx.Input.JustPressed(input.Confirm)) {
 		s := ctx.Session
-		ctx.Switch(scene.AfterGame(ctx, s.Skill, s.Score))
+		ctx.Switch(scene.AfterGame(ctx, s.Mode, s.Score))
 	}
 	return nil
 }
@@ -269,9 +284,9 @@ func (p *Play) drawBanner(ctx *scene.Context, dst *ebiten.Image) {
 	ui.TextCentred(dst, f.Large, text, y, sc.Title, sc.Shadow)
 }
 
-// best is the top score in the current skill's table, or 0.
+// best is the top score in the current mode's table, or 0.
 func best(ctx *scene.Context) int {
-	if es := ctx.Scores.Table(ctx.Session.Skill.ID); len(es) > 0 {
+	if es := ctx.Scores.Table(ctx.Session.Mode.ID); len(es) > 0 {
 		return es[0].Score
 	}
 	return 0

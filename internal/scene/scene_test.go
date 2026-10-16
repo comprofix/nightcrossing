@@ -2,6 +2,7 @@ package scene
 
 import (
 	"math/rand/v2"
+	"strings"
 	"testing"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -31,7 +32,7 @@ func newHarness(t *testing.T, first Scene) *harness {
 			Input:    input.New(script),
 			RNG:      rand.New(rand.NewPCG(1, 2)),
 			Settings: &set,
-			NewPlay:  func(*Context, config.Skill) Scene { return &stubPlay{} },
+			NewPlay:  func(*Context, config.Mode) Scene { return &stubPlay{} },
 			Scores:   score.New(),
 		},
 	}
@@ -53,6 +54,13 @@ func (h *harness) ticks(n int) {
 // press presses keys for one tick, releases them, then waits out any fade.
 func (h *harness) press(keys ...ebiten.Key) {
 	h.in.Steps = append(h.in.Steps, input.Press(keys...), input.Idle(1))
+	h.ticks(2)
+	h.ticks(2 * FadeTicks)
+}
+
+// pad presses gamepad buttons for a tick, like press.
+func (h *harness) pad(buttons ...input.Button) {
+	h.in.Steps = append(h.in.Steps, input.Step{Buttons: buttons, Ticks: 1}, input.Idle(1))
 	h.ticks(2)
 	h.ticks(2 * FadeTicks)
 }
@@ -156,12 +164,46 @@ func TestMusicSwitchDimsItsSlider(t *testing.T) {
 	}
 }
 
-func TestSkillSelectStartsAGame(t *testing.T) {
+func TestModeSelectStartsAGame(t *testing.T) {
 	h := newHarness(t, NewMainMenu())
 	h.press(ebiten.KeyEnter) // Play
-	current[*SkillSelect](t, h)
-	h.press(ebiten.KeyEnter) // the first skill
+	current[*ModeSelect](t, h)
+	h.press(ebiten.KeyEnter) // the first mode
+	current[*Intro](t, h)
+	h.press(ebiten.KeyEnter) // play it
 	current[*stubPlay](t, h)
+}
+
+func TestIntroBackReturnsToItsMode(t *testing.T) {
+	h := newHarness(t, NewIntro(0))
+	h.press(ebiten.KeyEscape)
+	if s := current[*ModeSelect](t, h); s.menu.Cursor != 0 {
+		t.Errorf("cursor on mode %d, want 0", s.menu.Cursor)
+	}
+}
+
+func TestSuggestedMode(t *testing.T) {
+	tab := score.New()
+	if n := SuggestedMode(tab); n != -1 {
+		t.Errorf("nothing cleared: suggested %d, want none", n)
+	}
+	tab.MarkCleared(config.Modes[0].ID)
+	want := -1 // every built mode cleared
+	if len(config.Modes) > 1 {
+		want = 1
+	}
+	if n := SuggestedMode(tab); n != want {
+		t.Errorf("first mode cleared: suggested %d, want %d", n, want)
+	}
+}
+
+func TestModeSelectMarksClearedModes(t *testing.T) {
+	h := newHarness(t, NewModeSelect())
+	h.ctx.Scores.MarkCleared(config.Modes[0].ID)
+	h.ticks(1)
+	if l := current[*ModeSelect](t, h).menu.Items[0].Label; !strings.HasSuffix(l, "CLEARED") {
+		t.Errorf("label %q, want it marked cleared", l)
+	}
 }
 
 func TestPlayDisabledWithoutAGame(t *testing.T) {
@@ -326,11 +368,26 @@ func TestGameTunes(t *testing.T) {
 	if got := h.ctx.Audio.Tune(); got != title {
 		t.Errorf("title plays %v, want the game's own", got)
 	}
-	h = newHarness(t, NewHighScoreTable(config.Skills[0], -1))
+	h = newHarness(t, NewHighScoreTable(config.Modes[0], -1))
 	h.ctx.Audio = audio.NewSynth(config.Chip4)
 	h.ctx.TitleTune, h.ctx.ScoresTune = title, scores
 	h.ticks(1)
 	if got := h.ctx.Audio.Tune(); got != scores {
 		t.Errorf("high score table plays %v, want the game's own", got)
 	}
+}
+
+func TestOptionsWithAGamepad(t *testing.T) {
+	h := newHarness(t, NewOptions(func() Scene { return NewMainMenu() }))
+	h.ticks(1)
+	opts := current[*Options](t, h)
+	for opts.menu.Items[opts.menu.Cursor].Label != "High contrast" {
+		h.pad(input.PadDown)
+	}
+	h.pad(input.PadRight)
+	if !h.ctx.Settings.HighContrast {
+		t.Error("Right on the pad did not turn high contrast on")
+	}
+	h.pad(input.PadB)
+	current[*MainMenu](t, h)
 }

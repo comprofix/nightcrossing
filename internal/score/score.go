@@ -1,5 +1,5 @@
 // Package score keeps the high score tables: the best config.TableSize
-// scores for each skill, with initials, saved between runs.
+// scores for each mode, with initials, saved between runs.
 package score
 
 import (
@@ -17,19 +17,21 @@ type Entry struct {
 	Score    int    `json:"score"`
 }
 
-// Tables holds a table for each skill, keyed by Skill.ID, best first.
+// Tables holds a table for each mode, keyed by Mode.ID, best first, and
+// which modes have been cleared.
 type Tables struct {
-	BySkill map[string][]Entry `json:"tables"`
+	ByMode  map[string][]Entry `json:"tables"`
+	Cleared map[string]bool    `json:"cleared,omitempty"`
 }
 
 // New returns empty tables.
-func New() *Tables { return &Tables{BySkill: map[string][]Entry{}} }
+func New() *Tables { return &Tables{ByMode: map[string][]Entry{}, Cleared: map[string]bool{}} }
 
 // Load reads the tables at path. A missing or broken file gives empty
-// tables, and every entry is checked: tables for unknown skills are
+// tables, and every entry is checked: tables for unknown modes are
 // dropped, initials are cleaned up, scores are clamped, and each table is
 // sorted and cut to size. So it never fails.
-func Load(path string, skills []config.Skill) *Tables {
+func Load(path string, modes []config.Mode) *Tables {
 	t := New()
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -39,9 +41,9 @@ func Load(path string, skills []config.Skill) *Tables {
 	if json.Unmarshal(data, &f) != nil {
 		return t
 	}
-	for _, sk := range skills {
+	for _, sk := range modes {
 		var es []Entry
-		for _, e := range f.BySkill[sk.ID] {
+		for _, e := range f.ByMode[sk.ID] {
 			if e.Score <= 0 {
 				continue
 			}
@@ -49,7 +51,10 @@ func Load(path string, skills []config.Skill) *Tables {
 		}
 		slices.SortStableFunc(es, func(a, b Entry) int { return b.Score - a.Score })
 		if len(es) > 0 {
-			t.BySkill[sk.ID] = es[:min(len(es), config.TableSize)]
+			t.ByMode[sk.ID] = es[:min(len(es), config.TableSize)]
+		}
+		if f.Cleared[sk.ID] {
+			t.Cleared[sk.ID] = true
 		}
 	}
 	return t
@@ -64,31 +69,44 @@ func (t *Tables) Save(path string) error {
 	return config.WriteFile(path, append(data, '\n'))
 }
 
-// Table is a skill's table, best first.
-func (t *Tables) Table(skill string) []Entry { return t.BySkill[skill] }
+// Table is a mode's table, best first.
+func (t *Tables) Table(mode string) []Entry { return t.ByMode[mode] }
 
-// Qualifies reports whether score would make a skill's table.
-func (t *Tables) Qualifies(skill string, score int) bool {
-	es := t.BySkill[skill]
+// Qualifies reports whether score would make a mode's table.
+func (t *Tables) Qualifies(mode string, score int) bool {
+	es := t.ByMode[mode]
 	return score > 0 && (len(es) < config.TableSize || score > es[len(es)-1].Score)
 }
 
-// Add puts a score in a skill's table and returns its place, 0 for the
+// Add puts a score in a mode's table and returns its place, 0 for the
 // top, or -1 if it didn't make the table. A score equal to one already
 // there goes below it: the earlier score keeps its place.
-func (t *Tables) Add(skill, initials string, score int) int {
-	if !t.Qualifies(skill, score) {
+func (t *Tables) Add(mode, initials string, score int) int {
+	if !t.Qualifies(mode, score) {
 		return -1
 	}
 	score = min(score, config.MaxScore)
-	es := t.BySkill[skill]
+	es := t.ByMode[mode]
 	i := 0
 	for i < len(es) && es[i].Score >= score {
 		i++
 	}
 	es = slices.Insert(es, i, Entry{Initials: CleanInitials(initials), Score: score})
-	t.BySkill[skill] = es[:min(len(es), config.TableSize)]
+	t.ByMode[mode] = es[:min(len(es), config.TableSize)]
 	return i
+}
+
+// IsCleared reports whether a mode has been cleared.
+func (t *Tables) IsCleared(mode string) bool { return t.Cleared[mode] }
+
+// MarkCleared records that a mode has been cleared, and reports whether
+// that is new.
+func (t *Tables) MarkCleared(mode string) bool {
+	if t.Cleared[mode] {
+		return false
+	}
+	t.Cleared[mode] = true
+	return true
 }
 
 // Letters are the characters initials may use.

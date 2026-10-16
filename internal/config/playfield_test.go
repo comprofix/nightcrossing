@@ -15,14 +15,14 @@ func TestPlayfieldFillsTheScreen(t *testing.T) {
 	}
 }
 
-func TestSkills(t *testing.T) {
+func TestModes(t *testing.T) {
 	ids := map[string]bool{}
-	for i, s := range Skills {
+	for i, s := range Modes {
 		if s.ID == "" || s.Name == "" || s.Desc == "" {
-			t.Errorf("skill %d is missing an ID, name or description: %+v", i, s)
+			t.Errorf("mode %d is missing an ID, name or description: %+v", i, s)
 		}
 		if ids[s.ID] {
-			t.Errorf("skill ID %q is used twice", s.ID)
+			t.Errorf("mode ID %q is used twice", s.ID)
 		}
 		ids[s.ID] = true
 	}
@@ -74,8 +74,8 @@ func TestDiveCycle(t *testing.T) {
 }
 
 func TestLevels(t *testing.T) {
-	for i := range Stroll.Levels {
-		lv := Stroll.Level(i + 1)
+	for i := range StrollLevels.Levels {
+		lv := StrollLevels.Level(i + 1)
 		for r, l := range lv.Lanes {
 			switch {
 			case r == GoalRow && l.Kind != Bank:

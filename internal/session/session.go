@@ -1,4 +1,4 @@
-// Package session holds one game in progress: the skill, the score and the
+// Package session holds one game in progress: the mode, the score and the
 // lives. Games add their own fields.
 package session
 
@@ -6,14 +6,14 @@ import "github.com/comprofix/nightcrossing/internal/config"
 
 // Session is one game in progress.
 type Session struct {
-	Skill config.Skill
+	Mode  config.Mode
 	Score int
 	Lives int
 }
 
-// New starts a game at a skill with the given lives.
-func New(skill config.Skill, lives int) *Session {
-	return &Session{Skill: skill, Lives: lives}
+// New starts a game in a mode with the given lives.
+func New(mode config.Mode, lives int) *Session {
+	return &Session{Mode: mode, Lives: lives}
 }
 
 // AddScore adds points, keeping the score between 0 and config.MaxScore.

@@ -14,7 +14,7 @@ import (
 func bankWorld(col int) *World {
 	lv := testLevel()
 	lv.Lanes[config.GoalRow] = config.Lane{Kind: config.Bank}
-	w := New(session.New(config.Skills[0], config.StartLives), lv, rand.New(rand.NewPCG(1, 1)))
+	w := New(session.New(config.Modes[0], config.StartLives), lv, rand.New(rand.NewPCG(1, 1)))
 	w.Player = newPlayer(col, 1)
 	w.furthest = 1
 	return w

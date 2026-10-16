@@ -21,7 +21,7 @@ func riverWorld(p config.Entity, dives bool, x, dir, speed int) *World {
 	lv := testLevel()
 	lv.Lanes[riverRow] = config.Lane{Kind: config.River, Dir: dir, Speed: speed,
 		Pattern: []config.Spawn{{Entity: p, Gap: 600, Dives: dives}}}
-	w := New(session.New(config.Skills[0], config.StartLives), lv, rand.New(rand.NewPCG(1, 1)))
+	w := New(session.New(config.Modes[0], config.StartLives), lv, rand.New(rand.NewPCG(1, 1)))
 	lane := &w.Lanes[riverRow]
 	lane.Speed = speed
 	lane.Entities = []Entity{{Kind: p, U: x + Buffer, Dives: dives}}
@@ -223,7 +223,7 @@ func TestADiveTakesTheHeroUnder(t *testing.T) {
 
 func TestDivesAreRandomPerSeedButRepeatable(t *testing.T) {
 	phases := func(seed uint64) []int {
-		w := New(session.New(config.Skills[0], 3), rich, rand.New(rand.NewPCG(seed, seed)))
+		w := New(session.New(config.Modes[0], 3), rich, rand.New(rand.NewPCG(seed, seed)))
 		var ps []int
 		for _, l := range w.Lanes {
 			for _, e := range l.Entities {
@@ -249,8 +249,7 @@ func TestDivesAreRandomPerSeedButRepeatable(t *testing.T) {
 // waits on the verge, hops up only when a platform that won't dive soon
 // will be under it on landing, and steps back along its platform when it
 // nears the edge. It must reach the far bank without a death, for several
-// seeds at every skill. This is a first look at the crossing check (D21),
-// which comes in M4.
+// seeds. The full crossing check (D21) is in package config.
 func TestRiverCanBeCrossed(t *testing.T) {
 	lv := testLevel()
 	for r := config.GoalRow + 1; r < config.StartRow; r++ {
@@ -259,7 +258,7 @@ func TestRiverCanBeCrossed(t *testing.T) {
 		}
 	}
 	const verge = riverRow + 1
-	for _, sk := range config.Skills {
+	for _, sk := range config.Modes {
 		for seed := uint64(1); seed <= 8; seed++ {
 			w := New(session.New(sk, config.StartLives), lv, rand.New(rand.NewPCG(seed, seed)))
 			w.Player = newPlayer(config.StartCol, verge)

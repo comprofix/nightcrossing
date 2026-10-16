@@ -14,11 +14,17 @@ import (
 // night is how Stroll's fixed night looks (DESIGN §3.3: the whole scene is
 // darkened to a fixed night level, and light sources are drawn on top).
 var night = fx.Look{
-	Ambient: gfx.RGBA(resurrect64.Sky),
-	Level:   0.6,
-	Max:     1.15,
-	Bands:   6,
+	Ambient:  gfx.RGBA(resurrect64.Sky),
+	Level:    0.6,
+	Max:      1.15,
+	Bands:    6,
+	Glow:     1.5, // the Glow option turns it off (DESIGN §8)
+	GlowFrom: 0.5,
 }
+
+// highContrastLevel is the night's light in high contrast: the darkness
+// turned down (DESIGN §8).
+const highContrastLevel = 0.85
 
 // Lamps along the verge and the start row: scenery that lights the edges of
 // the road and river (DESIGN §3.3: street lamps).

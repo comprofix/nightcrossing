@@ -29,11 +29,11 @@ func lastLevel(m config.ModeLevels) int {
 // level can be crossed; this shows the whole level plays through.
 func TestEveryLevelCanBeCleared(t *testing.T) {
 	const limit = 5 * 60 * config.TPS
-	for n := 1; n <= lastLevel(config.Stroll); n++ {
-		lv := config.Stroll.Level(n)
+	for n := 1; n <= lastLevel(config.StrollLevels); n++ {
+		lv := config.StrollLevels.Level(n)
 		deaths := 0
 		for seed := uint64(1); seed <= 3; seed++ {
-			w := New(session.New(config.Skills[0], config.StartLives), lv, rand.New(rand.NewPCG(seed, seed)))
+			w := New(session.New(config.Modes[0], config.StartLives), lv, rand.New(rand.NewPCG(seed, seed)))
 			for !w.Cleared {
 				if w.Tick > limit {
 					t.Fatalf("level %d seed %d: %d nooks filled after %d ticks; hero in row %d at %d, filled %v, dying %d home %d", n, seed, w.Stats.Goals, limit, w.Player.Row, w.Player.X/config.SubPx, w.Filled, w.Dying, w.Home)
@@ -45,7 +45,7 @@ func TestEveryLevelCanBeCleared(t *testing.T) {
 				}
 			}
 		}
-		_, speed := config.Stroll.Def(n)
+		_, speed := config.StrollLevels.Def(n)
 		t.Logf("level %2d (%3d%% speed): cleared from 3 seeds with %d deaths", n, speed, deaths)
 	}
 }
