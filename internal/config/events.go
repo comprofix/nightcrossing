@@ -7,9 +7,11 @@ package config
 // EventKind is a kind of random event.
 type EventKind int
 
-// The kinds. Fog and rain come in M12.
+// The kinds.
 const (
 	Wave EventKind = iota // a rush hour wave on one road lane (D43)
+	Fog                   // fog over the road (D29, D44)
+	Rain                  // rain: the road is slippery (D31, D44)
 	NumEventKinds
 )
 
@@ -30,6 +32,7 @@ func (t EventTiming) On() bool { return t.QuietMax > 0 }
 type EventDef struct {
 	WarnTicks  int
 	Message    string
+	Weather    bool // only one weather at a time (D42)
 	First, Top EventTiming
 }
 
@@ -40,6 +43,20 @@ var Events = [NumEventKinds]EventDef{
 		Message:   "TRAFFIC BUILDING: A RUSH IS COMING",
 		First:     EventTiming{QuietMin: 16 * TPS, QuietMax: 22 * TPS, Last: 8 * TPS},
 		Top:       EventTiming{QuietMin: 7 * TPS, QuietMax: 11 * TPS, Last: 12 * TPS},
+	},
+	Fog: {
+		WarnTicks: 2 * TPS,
+		Message:   "FOG ROLLING IN: WATCH FOR HEADLIGHTS",
+		Weather:   true,
+		First:     EventTiming{QuietMin: 24 * TPS, QuietMax: 32 * TPS, Last: 10 * TPS},
+		Top:       EventTiming{QuietMin: 14 * TPS, QuietMax: 20 * TPS, Last: 14 * TPS},
+	},
+	Rain: {
+		WarnTicks: 2 * TPS,
+		Message:   "RAIN: ROADS SLIPPERY",
+		Weather:   true,
+		First:     EventTiming{QuietMin: 24 * TPS, QuietMax: 32 * TPS, Last: 10 * TPS},
+		Top:       EventTiming{QuietMin: 14 * TPS, QuietMax: 20 * TPS, Last: 14 * TPS},
 	},
 }
 
@@ -92,3 +109,8 @@ func GapOpenTicks(gap, speed int) int {
 func WaveFits(gap, n, speed int) bool {
 	return GapOpenTicks((gap-n)/2, speed) >= CrossOpenTicks
 }
+
+// OvercastTicks is how long fog or rain takes to darken the light, and to
+// lift it again (D44): as long as its warning, so it is overcast by the
+// time it starts.
+const OvercastTicks = 2 * TPS

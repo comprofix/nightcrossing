@@ -1,6 +1,9 @@
 package config
 
-import "testing"
+import (
+	"slices"
+	"testing"
+)
 
 // TestLastTrainBringsItsMechanicsIn: trains from level 1, the combo from
 // level 2, day and night from level 3, each with a hint where it starts,
@@ -34,9 +37,14 @@ func TestLastTrainBringsItsMechanicsIn(t *testing.T) {
 	}
 }
 
-func TestLastTrainIsInTheMenu(t *testing.T) {
-	if len(Modes) != 2 || Modes[0].ID != Stroll.ID || Modes[1].ID != LastTrain.ID {
-		t.Errorf("modes %v, want Stroll then Last Train", Modes)
+// TestTheBuiltModesAreInTheMenu: the built modes, in order (D23, D26).
+func TestTheBuiltModesAreInTheMenu(t *testing.T) {
+	var ids []string
+	for _, m := range Modes {
+		ids = append(ids, m.ID)
+	}
+	if want := []string{Stroll.ID, LastTrain.ID, RushHour.ID}; !slices.Equal(ids, want) {
+		t.Errorf("modes %v, want %v", ids, want)
 	}
 }
 

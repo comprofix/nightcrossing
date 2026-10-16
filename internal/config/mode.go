@@ -36,7 +36,7 @@ var Stroll = Mode{
 
 // Modes are the built modes, in order: only built modes are shown, and the
 // list grows with each version (D26).
-var Modes = []Mode{Stroll, LastTrain}
+var Modes = []Mode{Stroll, LastTrain, RushHour}
 
 // LastTrain is Stroll plus trains on the track, the hop combo and the day
 // and night cycle (DESIGN §6.2). Its own mechanics come in one level at a
@@ -68,12 +68,12 @@ func lastTrainLevels() ModeLevels {
 	return m
 }
 
-// ModesInProgress are modes being built and not yet in Modes. Debug
-// builds can play them with -mode (D37).
-var ModesInProgress = []Mode{RushHour}
+// ModesInProgress are modes being built and not yet in Modes. The -mode
+// flag adds one to the menus, for testing (D37). None just now.
+var ModesInProgress []Mode
 
 // RushHour is Last Train plus the road in bad weather (DESIGN §6.3): rush
-// hour waves from level 1, then fog and rain (M12). It keeps the trains,
+// hour waves from level 1, fog from level 2 and rain from level 3. It keeps the trains,
 // the combo and the day and night cycle from its level 1 (D27, D41).
 var RushHour = Mode{
 	ID:   "rushhour",
@@ -81,8 +81,10 @@ var RushHour = Mode{
 	Desc: "Last Train, plus the road in bad weather.",
 	New: []Mechanic{
 		{"Rush hour", "a red light: a wave of traffic is coming"},
+		{"Fog", "it hides the cars: watch for headlights"},
+		{"Rain", "on the road you slide one more cell"},
 	},
-	Also:   []string{"Trains, hop combo, day and night", "Road, river, diving platforms, herons"},
+	Also:   []string{"Everything in Stroll and Last Train"},
 	Levels: rushHourLevels(),
 }
 
@@ -92,8 +94,9 @@ func rushHourLevels() ModeLevels {
 	m := lastTrainLevels()
 	m.Levels = append([]LevelDef(nil), m.Levels...)
 	m.Levels[0].Hint = "A RED LIGHT ON A LANE: A RUSH OF TRAFFIC IS COMING"
-	m.Levels[1].Hint, m.Levels[2].Hint = "", "" // Last Train's, already known
+	m.Levels[1].Hint = "FOG HIDES THE CARS: WATCH FOR THEIR HEADLIGHTS"
+	m.Levels[2].Hint = "RAIN: ON THE ROAD YOU SLIDE ONE MORE CELL"
 	m.ComboFrom, m.CycleFrom = 1, 1
-	m.EventsFrom[Wave] = 1
+	m.EventsFrom[Wave], m.EventsFrom[Fog], m.EventsFrom[Rain] = 1, 2, 3
 	return m
 }

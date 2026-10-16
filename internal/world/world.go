@@ -39,6 +39,13 @@ const (
 	WaveWarning                   // a rush hour wave is announced on a lane (D43)
 	WaveStart                     // the wave begins: its traffic comes on
 	WaveEnd                       // the wave ends: its extra traffic goes as it leaves
+	FogWarning                    // fog is announced (D29)
+	FogStart                      // the fog is in
+	FogEnd                        // the fog clears
+	RainWarning                   // rain is announced (D31)
+	RainStart                     // it rains: the road is slippery
+	RainEnd                       // the rain stops
+	Slid                          // the hero began a rain slide (D31)
 )
 
 // Stats are the points earned on this level, for the level-clear tally.
@@ -165,7 +172,9 @@ func (w *World) score(points int) {
 func (w *World) landed() {
 	if r := w.Player.Row; r < w.furthest {
 		w.furthest = r
-		w.countHop()
+		if !w.Player.Sliding {
+			w.countHop() // a slide is not a hop (D31)
+		}
 		w.score(w.comboPoints(config.PointsHop))
 		w.Stats.Hops += config.PointsHop
 	}

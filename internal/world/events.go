@@ -89,6 +89,10 @@ func (w *World) warn(s *Spell) {
 		s.Left = config.EventRetryTicks
 		return
 	}
+	if config.Events[s.Kind].Weather && w.weatherBut(s.Kind) {
+		s.Left = config.EventRetryTicks // one weather at a time (D42)
+		return
+	}
 	switch s.Kind {
 	case config.Wave:
 		var lanes []int
@@ -103,6 +107,10 @@ func (w *World) warn(s *Spell) {
 		}
 		s.Lane = lanes[w.rng.IntN(len(lanes))]
 		w.emit(WaveWarning)
+	case config.Fog:
+		w.emit(FogWarning)
+	case config.Rain:
+		w.emit(RainWarning)
 	}
 	s.Phase, s.Left = SpellWarning, config.Events[s.Kind].WarnTicks
 }
@@ -113,6 +121,10 @@ func (w *World) start(s *Spell) {
 	case config.Wave:
 		w.Lanes[s.Lane].Waving = true
 		w.emit(WaveStart)
+	case config.Fog:
+		w.emit(FogStart)
+	case config.Rain:
+		w.emit(RainStart)
 	}
 }
 
@@ -122,6 +134,10 @@ func (w *World) end(s *Spell) {
 	case config.Wave:
 		w.Lanes[s.Lane].Waving = false
 		w.emit(WaveEnd)
+	case config.Fog:
+		w.emit(FogEnd)
+	case config.Rain:
+		w.emit(RainEnd)
 	}
 }
 
@@ -149,4 +165,20 @@ func (l *Lane) canWave() bool {
 		}
 	}
 	return false
+}
+
+// weatherBut reports whether a weather other than k is announced or on.
+func (w *World) weatherBut(k config.EventKind) bool {
+	for _, s := range w.Spells {
+		if s.Kind != k && config.Events[s.Kind].Weather && s.Phase != SpellQuiet {
+			return true
+		}
+	}
+	return false
+}
+
+// Raining reports whether it is raining: the road is slippery (D31).
+func (w *World) Raining() bool {
+	s := w.Spell(config.Rain)
+	return s != nil && s.Phase == SpellOn
 }

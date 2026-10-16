@@ -73,9 +73,9 @@ func (p *Play) addLights(ctx *scene.Context, l *fx.Lighting) {
 				Radius: moonR, Colour: gfx.RGBA(resurrect64.Sky), Strength: moonLight * fade})
 		}
 	}
-	for _, lp := range lamps {
+	for i, lp := range lamps {
 		l.Add(fx.Light{X: cellX(lp.col) + cell/2, Y: cellY(lp.row) + lampHeadY,
-			Radius: lampR, Colour: gfx.RGBA(resurrect64.Honey), Strength: lampLight * fade})
+			Radius: lampR, Colour: gfx.RGBA(resurrect64.Honey), Strength: lampLight * p.streetLampK(i)})
 	}
 	for r := range w.Lanes {
 		lane := &w.Lanes[r]

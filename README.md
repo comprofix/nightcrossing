@@ -32,6 +32,13 @@ left, 1000 for the fifth nook. An extra life every 20,000.
     dying ends it; riding a log or a boat keeps it.
   - **Day and night,** from level 3. Each level runs from dawn to night as
     you fill the nooks.
+- **Rush Hour:** Last Train, plus the road in bad weather:
+  - **Rush hour waves.** When a lane's traffic light turns amber, then red,
+    a wave of traffic is coming down it. It always leaves a way across.
+  - **Fog,** from level 2. It hides the cars inside it, but not their
+    headlights.
+  - **Rain,** from level 3. A hop that lands on the road slides one more
+    cell the same way: plan for it.
 
 ![The intro shown before a mode starts](docs/screenshots/intro.png)
 

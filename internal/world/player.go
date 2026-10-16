@@ -48,6 +48,7 @@ type Player struct {
 	Facing   Dir
 	Still    int   // ticks since the last landing, up to config.LandTicks
 	Death    Event // how the hero died, or 0 while alive
+	Sliding  bool  // the move under way is a rain slide, not a hop (D31)
 
 	fromX, toX int // where the current hop began and lands, in SubPx units
 	hopLeft    int // ticks left in the current hop; 0 when not hopping
@@ -134,11 +135,20 @@ func (w *World) updatePlayer(press Dir) {
 	p.FromRow = p.Row
 	p.fromX = p.toX
 	p.Still = 0
+	slid := p.Sliding
 	w.emit(Landed)
 	w.landed()
+	p.Sliding = false
 	// Where it landed counts before a queued hop can carry it on, so a
 	// quick press never skips a splash or the bank.
 	w.checkHazards()
+	// In the rain a hop that lands on the road slides one more cell the
+	// same way; a slide never slides again (D31).
+	if !slid && w.playing() && w.Raining() && w.Lanes[p.Row].Kind == config.Road {
+		if w.move(p.Facing, true) {
+			return
+		}
+	}
 	if d := p.queued; d != None && w.playing() {
 		p.queued = None
 		w.startHop(d)
@@ -148,12 +158,18 @@ func (w *World) updatePlayer(press Dir) {
 // startHop begins a hop in d, unless it would leave the playfield: below
 // the start row, past the far bank, or with the hero's middle off either
 // side. A hop onto any row but the river lands on the nearest column.
-func (w *World) startHop(d Dir) {
+func (w *World) startHop(d Dir) { w.move(d, false) }
+
+// move begins a hop in d, or a rain slide if slide is true, unless it
+// would leave the playfield, and reports whether it began. A slide takes
+// a hop's time but is not a hop: it keeps the facing and the combo, and
+// gives out Slid rather than Hopped (D31).
+func (w *World) move(d Dir, slide bool) bool {
 	p := &w.Player
 	dc, dr := d.step()
 	row := p.Row + dr
 	if row < 0 || row >= w.Rows {
-		return
+		return false
 	}
 	x := p.X
 	if w.Lanes[row].Kind != config.River {
@@ -161,17 +177,23 @@ func (w *World) startHop(d Dir) {
 	}
 	x += dc * cellUnits
 	if m := x + cellUnits/2; m < 0 || m >= fieldWidth {
-		return
+		return false
 	}
 	p.FromRow, p.Row = p.Row, row
 	p.fromX, p.toX = p.X, x
-	p.Facing = d
 	p.hopLeft = config.HopTicks
+	p.Sliding = slide
 	p.place()
+	if slide {
+		w.emit(Slid)
+		return true
+	}
+	p.Facing = d
 	w.emit(Hopped)
 	if d == Down {
 		w.Combo = Combo{} // a hop back ends the combo (D38)
 	}
+	return true
 }
 
 // ride carries the hero with the river row it counts as being in
