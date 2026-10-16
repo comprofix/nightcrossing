@@ -834,3 +834,85 @@ recolour ferry_cabin_deep from ferry_cabin k=z D=j S=j h=j C=j c=z v=j M=j t=z y
 recolour ferry_front_flash from ferry_front D=v S=h c=D v=M t=r M=w
 recolour ferry_front_low from ferry_front D=z S=O h=S C=n c=k v=D M=v t=A y=a o=A
 recolour ferry_front_deep from ferry_front k=z D=j S=j h=j C=j c=z v=j M=j t=z y=j o=z
+
+; The far bank (DESIGN §5.3): a stone quay wall, one cell, which tiles
+; along the row, and a nook in it, two cells wide, where a toad gets home.
+sprite bank 24 24
+vDDDDDDDDDDzvDDDDDDDDDDz
+DDDDDDDDDDDzDDDDDDDDDDDz
+DDDDDDDDDDDzDDDDDDDDDDDz
+DDDDDDDDDDDzDDDDDDDDDDDz
+ccccccccccczcccccccccccz
+zzzzzzzzzzzzzzzzzzzzzzzz
+DDDDDzvDDDDDDDDDDzvDDDDD
+DDDDDzDDDDDDDDDDDzDDDDDD
+DDDDDzDDDDDDDDDDDzDDDDDD
+DDDDDzDDDDDDDDDDDzDDDDDD
+ccccczccccccccccczcccccc
+zzzzzzzzzzzzzzzzzzzzzzzz
+vDDDDDDDDDDzvDDDDDDDDDDz
+DDDDDDDDDDDzDDDDDDDDDDDz
+DDDDDDDDDDDzDDDDDDDDDDDz
+DDDDDDDDDDDzDDDDDDDDDDDz
+ccccccccccczcccccccccccz
+zzzzzzzzzzzzzzzzzzzzzzzz
+DDDDDzvDDDDDDDDDDzvDDDDD
+DDDDDzDDDDDDDDDDDzDDDDDD
+DDDDDzDDDDDDDDDDDzDDDDDD
+DDDDDzDDDDDDDDDDDzDDDDDD
+ccccczccccccccccczcccccc
+zzzzzzzzzzzzzzzzzzzzzzzz
+
+sprite nook 48 24
+DDzffffffffffffffffffffffffffffffffffffffffffzDD
+DDzffffffffffffffffffffffffffffffffffffffffffzDD
+DDzffffffffffffffffffffffffffffffffffffffffffzDD
+DDzppppppppppppppppppppppppppppppppppppppppppzDD
+DDzppppppppppppppppppppppppppppppppppppppppppzDD
+DDzppppppppppppppppppppppppppppppppppppppppppzDD
+DDzpppppfppppppppppmpppppppppppppppppppppppppzDD
+DDzppppppppppppppppppppppppppppppppppppppppppzDD
+DDzppppppppppppppppppppppppppppppppppppppppppzDD
+DDzppppppppppppppppppppppppppppppppppppppppppzDD
+DDzppppppppppppppppppppppppppppppppppppppppppzDD
+DDzpppfpppmppppppppppppppppppppppppppppppppppzDD
+DDzppppppppppppppppppppppppppppppppppppppppppzDD
+DDzppppppppppppppppppppppppppppppppppppppppppzDD
+DDzppppppppppppppppppppppppppppppppppppppppppzDD
+DDzppppppppppppppppppppppppppppppppppppppppppzDD
+DDzpfpppppppppppppppppppppppppppppppppmppppppzDD
+DDzppppppppppppppppppppppppppppppppppppppppppzDD
+DDzppppppppppppppppppppppppppppppppppppppppppzDD
+DDzppppppppppppppppppppppppppppppppppppppppppzDD
+DDzppppppppppppppppppppppppppppppppppppppppppzDD
+DDzppppppppppppppppppppppppppmpppppppppfpppppzDD
+DDzppppppppppppppppppppppppppppppppppppppppppzDD
+DDzppppppppppppppppppppppppppppppppppppppppppzDD
+
+; A heron on a log (D34), seen from above, facing right, the way its log
+; moves. Lanes moving left mirror it.
+sprite heron 24 24
+........................
+........................
+........................
+........................
+........................
+....kkkkkkk.............
+..kkvvvvvvvkk...........
+.kvvvvvvvvvvvk..........
+kDvvvvvvvvvvvvk.........
+kDDvvvvvvvvvvvvk..kkk...
+kDDDvvvvvvvvvvvkkkMMMk..
+kDDDDvvvvvvvvvvMMMMkMkaa
+kDDDDvvvvvvvvvvMMMMMMkaa
+kDDDvvvvvvvvvvvkkkMMMk..
+kDDvvvvvvvvvvvvk..kkk...
+kDvvvvvvvvvvvvk.........
+.kvvvvvvvvvvvk..........
+..kkDDvvvvvkk...........
+....kkkkkkk.............
+........................
+........................
+........................
+........................
+........................

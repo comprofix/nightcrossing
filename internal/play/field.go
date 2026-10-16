@@ -86,6 +86,8 @@ func (p *Play) drawField(ctx *scene.Context, dst *ebiten.Image) {
 		switch w.Lanes[r].Kind {
 		case config.Safe:
 			p.drawTiles(field, sheet.Sprite("verge"), r)
+		case config.Bank:
+			p.drawBank(ctx, field, r)
 		case config.Rail:
 			p.drawTiles(field, sheet.Sprite("track"), r)
 		case config.Road:
@@ -96,6 +98,7 @@ func (p *Play) drawField(ctx *scene.Context, dst *ebiten.Image) {
 	}
 	for r := range w.Lanes {
 		p.drawEntities(ctx, field, r)
+		p.drawHerons(ctx, field, r)
 	}
 	p.drawHero(ctx, field)
 
@@ -222,6 +225,9 @@ func (p *Play) drawShipPiece(ctx *scene.Context, dst *ebiten.Image, e world.Enti
 // splashes where it went in the water.
 func (p *Play) drawHero(ctx *scene.Context, dst *ebiten.Image) {
 	pl := &p.world.Player
+	if p.world.Home > 0 {
+		return // it is in its nook, drawn with the bank
+	}
 	sheet := ctx.Sheet(Sheet)
 	sp := sheet.Sprite(p.hero.Sprite)
 
@@ -266,7 +272,7 @@ func (p *Play) drawHitBoxes(ctx *scene.Context, dst *ebiten.Image) {
 	debug.Box(dst, hx+config.Cell/2, cellY(pl.LaneRow()), 1, config.Cell, c) // its middle
 	for r := range w.Lanes {
 		lane := &w.Lanes[r]
-		hm := w.Skill.HitMargin
+		hm := config.HitMargin
 		if lane.Kind == config.River {
 			hm = -config.StandGrace
 		}
@@ -310,3 +316,32 @@ func facing(d world.Dir, w, h int) ebiten.GeoM {
 // cellX and cellY are the screen position of a grid cell's top-left corner.
 func cellX(c int) float64 { return float64(config.FieldX + c*config.Cell) }
 func cellY(r int) float64 { return float64(config.FieldY + r*config.Cell) }
+
+// drawBank draws row r as the far bank: the stone quay with its nooks, and
+// a toad sitting in each nook that has been filled (DESIGN §5.3).
+func (p *Play) drawBank(ctx *scene.Context, dst *ebiten.Image, r int) {
+	sheet := ctx.Sheet(Sheet)
+	p.drawTiles(dst, sheet.Sprite("bank"), r)
+	nook, toad := sheet.Sprite("nook"), sheet.Sprite(p.hero.Sprite)
+	for i, c := range config.Nooks {
+		nook.Draw(dst, 0, cellX(c), cellY(r), false)
+		if p.world.Filled[i] {
+			x := cellX(c) + float64(config.NookWidth*config.Cell-toad.W)/2
+			toad.Draw(dst, frameRest, x, cellY(r), false)
+		}
+	}
+}
+
+// drawHerons draws the herons standing on row r's logs, facing the way
+// the logs move (DESIGN §5.2, D34).
+func (p *Play) drawHerons(ctx *scene.Context, dst *ebiten.Image, r int) {
+	lane := &p.world.Lanes[r]
+	heron := ctx.Sheet(Sheet).Sprite("heron")
+	for _, e := range lane.Entities {
+		if !e.Heron {
+			continue
+		}
+		x := float64(config.FieldX) + math.Floor(float64(e.X())/config.SubPx) + float64(e.HeronCell*config.Cell)
+		heron.Draw(dst, 0, x, cellY(r), lane.Dir < 0)
+	}
+}

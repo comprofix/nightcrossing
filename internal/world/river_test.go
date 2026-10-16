@@ -18,10 +18,10 @@ const riverRow = 5
 // field's left edge), moving dir at speed units a tick. The rows on either
 // side are safe.
 func riverWorld(p config.Entity, dives bool, x, dir, speed int) *World {
-	var lv config.Level
+	lv := testLevel()
 	lv.Lanes[riverRow] = config.Lane{Kind: config.River, Dir: dir, Speed: speed,
 		Pattern: []config.Spawn{{Entity: p, Gap: 600, Dives: dives}}}
-	w := New(session.New(config.Skills[1], config.StartLives), lv, rand.New(rand.NewPCG(1, 1)))
+	w := New(session.New(config.Skills[0], config.StartLives), lv, rand.New(rand.NewPCG(1, 1)))
 	lane := &w.Lanes[riverRow]
 	lane.Speed = speed
 	lane.Entities = []Entity{{Kind: p, U: x + Buffer, Dives: dives}}
@@ -223,7 +223,7 @@ func TestADiveTakesTheHeroUnder(t *testing.T) {
 
 func TestDivesAreRandomPerSeedButRepeatable(t *testing.T) {
 	phases := func(seed uint64) []int {
-		w := New(session.New(config.Skills[1], 3), config.Levels[0], rand.New(rand.NewPCG(seed, seed)))
+		w := New(session.New(config.Skills[0], 3), rich, rand.New(rand.NewPCG(seed, seed)))
 		var ps []int
 		for _, l := range w.Lanes {
 			for _, e := range l.Entities {
@@ -252,9 +252,9 @@ func TestDivesAreRandomPerSeedButRepeatable(t *testing.T) {
 // seeds at every skill. This is a first look at the crossing check (D21),
 // which comes in M4.
 func TestRiverCanBeCrossed(t *testing.T) {
-	var lv config.Level
+	lv := testLevel()
 	for r := config.GoalRow + 1; r < config.StartRow; r++ {
-		if l := config.Levels[0].Lanes[r]; l.Kind == config.River {
+		if l := rich.Lanes[r]; l.Kind == config.River {
 			lv.Lanes[r] = l
 		}
 	}
@@ -278,14 +278,33 @@ func TestRiverCanBeCrossed(t *testing.T) {
 // carefulMove is the careful player's press for this tick.
 func carefulMove(w *World) Dir {
 	p := &w.Player
-	if p.Hopping() {
+	if p.Hopping() || !w.playing() || p.Row == config.GoalRow {
 		return None
 	}
 	up := p.Row - 1
-	if w.Lanes[up].Kind != config.River || landsSafely(w, up, p.X) {
+	switch w.Lanes[up].Kind {
+	case config.Bank:
+		if n := NookAt(columnOf(p.X)); n >= 0 && !w.Filled[n] {
+			return Up
+		}
+	case config.River:
+		if landsSafely(w, up, p.X) && (w.Lanes[up-1].Kind != config.Bank || nookAhead(w, up, p.X)) {
+			return Up
+		}
+	case config.Road:
+		if roadClear(w, up, columnOf(p.X)*cellUnits, 3*config.HopTicks) {
+			return Up
+		}
+	default:
 		return Up
 	}
 	lane := &w.Lanes[p.Row]
+	if lane.Kind == config.Road && !roadClear(w, p.Row, p.X, 2*config.HopTicks) {
+		// Something is coming and the way up is not clear: step back.
+		if down := p.Row + 1; w.Lanes[down].Kind != config.Road || roadClear(w, down, p.X, 3*config.HopTicks) {
+			return Down
+		}
+	}
 	if lane.Kind != config.River {
 		return None
 	}
@@ -302,6 +321,16 @@ func carefulMove(w *World) Dir {
 			return Right
 		}
 	}
+	// Below the bank: walk along the platform towards the nearest empty
+	// nook.
+	if w.Lanes[up].Kind == config.Bank {
+		if d := towardsNook(w); d != None {
+			dc, _ := d.step()
+			if landsSafely(w, p.Row, p.X+dc*cellUnits) {
+				return d
+			}
+		}
+	}
 	// Nearing the edge it drifts to: step back the other way, if the
 	// platform is still under that cell.
 	mid, edge := p.Middle(), 2*cellUnits
@@ -312,6 +341,9 @@ func carefulMove(w *World) Dir {
 		}
 		if landsSafely(w, p.Row, p.X-lane.Dir*cellUnits) {
 			return back
+		}
+		if down := p.Row + 1; w.Lanes[down].Kind != config.River || landsSafely(w, down, p.X) {
+			return Down
 		}
 	}
 	return None
@@ -342,6 +374,11 @@ func landsSafely(w *World, row, x int) bool {
 		}
 		left, right := e.span(0)
 		move := to.Step() * (config.HopTicks + 1)
+		if e.Heron {
+			if hm := e.X() + move + e.HeronCell*cellUnits + cellUnits/2; abs(hm-mid) < cellUnits+spare {
+				continue
+			}
+		}
 		if left+move+spare <= mid && mid < right+move-spare {
 			return true
 		}
@@ -397,7 +434,7 @@ func TestShipSinksBowFirst(t *testing.T) {
 func TestShipStagesInOrder(t *testing.T) {
 	w := sinkingShip(1)
 	var order []Stage
-	for range 2 * sinkTicks(config.Barge) {
+	for range 2 * config.SinkTicks(config.Barge) {
 		w.Update(None)
 		w.Player.Death, w.Dying = 0, 0 // the hero is not the point here
 		if st := w.Lanes[riverRow].Entities[0].Stage(); len(order) == 0 || order[len(order)-1] != st {
@@ -434,7 +471,7 @@ func TestSunkShipIsReplaced(t *testing.T) {
 	const speed = 8 * config.SubPx
 	w := riverWorld(config.Barge, false, fieldWidth-config.Barge.Length*config.SubPx-speed, 1, speed)
 	e := &w.Lanes[riverRow].Entities[0]
-	e.Sinks, e.Sink = true, sinkTicks(config.Barge)
+	e.Sinks, e.Sink = true, config.SinkTicks(config.Barge)
 	if e.Stage() != Sunk {
 		t.Fatal("did not start sunk")
 	}
@@ -457,6 +494,65 @@ func sinkingUnder(w *World) bool {
 	lane := &w.Lanes[p.Row]
 	for _, e := range lane.Entities {
 		if left, right := e.span(-config.StandGrace); e.Sinks && e.Stage() != Afloat && left <= p.Middle() && p.Middle() < right {
+			return true
+		}
+	}
+	return false
+}
+
+// roadClear reports whether no vehicle in road row will touch a hero at x
+// over the next ticks, with a few pixels to spare.
+func roadClear(w *World, row, x, ticks int) bool {
+	const spare = 4 * config.SubPx
+	l := &w.Lanes[row]
+	m := config.HeroMargin * config.SubPx
+	left, right := x+m-spare, x+cellUnits-m+spare
+	for t := 0; t <= ticks; t++ {
+		for _, e := range l.Entities {
+			el, er := e.span(config.HitMargin)
+			if el+l.Step()*t < right && left < er+l.Step()*t {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// towardsNook is the way along the row to the nearest empty nook, or None
+// when the hero is below one.
+func towardsNook(w *World) Dir {
+	col := columnOf(w.Player.X)
+	best, dir := config.Cols, None
+	for i, c := range config.Nooks {
+		if w.Filled[i] {
+			continue
+		}
+		for dc := range config.NookWidth {
+			d := c + dc - col
+			if d == 0 {
+				return None
+			}
+			if abs(d) < best {
+				best, dir = abs(d), Right
+				if d < 0 {
+					dir = Left
+				}
+			}
+		}
+	}
+	return dir
+}
+
+// nookAhead reports whether an empty nook is still to come for a hero
+// landing at x in river row, which flows one way: it can be carried to it.
+func nookAhead(w *World, row, x int) bool {
+	dir := w.Lanes[row].Dir
+	for i, c := range config.Nooks {
+		if w.Filled[i] {
+			continue
+		}
+		left, right := c*cellUnits, (c+config.NookWidth)*cellUnits
+		if (dir > 0 && right > x+cellUnits) || (dir < 0 && left < x) {
 			return true
 		}
 	}

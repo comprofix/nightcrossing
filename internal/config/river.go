@@ -32,3 +32,12 @@ const (
 	SinkBreakTicks    = 30
 	SinkPieceTicks    = 40
 )
+
+// Pieces is how many one-cell pieces a ship has.
+func Pieces(ship Entity) int { return ship.Length / Cell }
+
+// SinkTicks is how long a ship takes from the start of its warning until
+// its stern has gone under.
+func SinkTicks(ship Entity) int {
+	return SinkWarnTicks + SinkBreakTicks + Pieces(ship)*SinkPieceTicks
+}

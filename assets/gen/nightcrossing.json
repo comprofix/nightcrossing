@@ -1,4 +1,11 @@
 {
+  "bank": {
+    "x": 0,
+    "y": 516,
+    "w": 24,
+    "h": 24,
+    "frames": 1
+  },
   "barge_back": {
     "x": 0,
     "y": 300,
@@ -8,21 +15,21 @@
   },
   "barge_back_deep": {
     "x": 0,
-    "y": 612,
+    "y": 684,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "barge_back_flash": {
     "x": 0,
-    "y": 564,
+    "y": 636,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "barge_back_low": {
     "x": 0,
-    "y": 588,
+    "y": 660,
     "w": 24,
     "h": 24,
     "frames": 1
@@ -36,21 +43,21 @@
   },
   "barge_front_deep": {
     "x": 0,
-    "y": 756,
+    "y": 828,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "barge_front_flash": {
     "x": 0,
-    "y": 708,
+    "y": 780,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "barge_front_low": {
     "x": 0,
-    "y": 732,
+    "y": 804,
     "w": 24,
     "h": 24,
     "frames": 1
@@ -64,21 +71,21 @@
   },
   "barge_mid_deep": {
     "x": 0,
-    "y": 684,
+    "y": 756,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "barge_mid_flash": {
     "x": 0,
-    "y": 636,
+    "y": 708,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "barge_mid_low": {
     "x": 0,
-    "y": 660,
+    "y": 732,
     "w": 24,
     "h": 24,
     "frames": 1
@@ -92,7 +99,7 @@
   },
   "car_blue": {
     "x": 0,
-    "y": 516,
+    "y": 588,
     "w": 32,
     "h": 24,
     "frames": 1
@@ -106,7 +113,7 @@
   },
   "car_yellow": {
     "x": 0,
-    "y": 540,
+    "y": 612,
     "w": 32,
     "h": 24,
     "frames": 1
@@ -120,21 +127,21 @@
   },
   "ferry_back_deep": {
     "x": 0,
-    "y": 828,
+    "y": 900,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "ferry_back_flash": {
     "x": 0,
-    "y": 780,
+    "y": 852,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "ferry_back_low": {
     "x": 0,
-    "y": 804,
+    "y": 876,
     "w": 24,
     "h": 24,
     "frames": 1
@@ -148,21 +155,21 @@
   },
   "ferry_cabin_deep": {
     "x": 0,
-    "y": 972,
+    "y": 1044,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "ferry_cabin_flash": {
     "x": 0,
-    "y": 924,
+    "y": 996,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "ferry_cabin_low": {
     "x": 0,
-    "y": 948,
+    "y": 1020,
     "w": 24,
     "h": 24,
     "frames": 1
@@ -176,21 +183,21 @@
   },
   "ferry_deck_deep": {
     "x": 0,
-    "y": 900,
+    "y": 972,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "ferry_deck_flash": {
     "x": 0,
-    "y": 852,
+    "y": 924,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "ferry_deck_low": {
     "x": 0,
-    "y": 876,
+    "y": 948,
     "w": 24,
     "h": 24,
     "frames": 1
@@ -204,21 +211,28 @@
   },
   "ferry_front_deep": {
     "x": 0,
-    "y": 1044,
+    "y": 1116,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "ferry_front_flash": {
     "x": 0,
-    "y": 996,
+    "y": 1068,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "ferry_front_low": {
     "x": 0,
-    "y": 1020,
+    "y": 1092,
+    "w": 24,
+    "h": 24,
+    "frames": 1
+  },
+  "heron": {
+    "x": 0,
+    "y": 564,
     "w": 24,
     "h": 24,
     "frames": 1
@@ -248,6 +262,13 @@
     "x": 0,
     "y": 252,
     "w": 24,
+    "h": 24,
+    "frames": 1
+  },
+  "nook": {
+    "x": 0,
+    "y": 540,
+    "w": 48,
     "h": 24,
     "frames": 1
   },

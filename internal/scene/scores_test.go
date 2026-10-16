@@ -54,7 +54,7 @@ func TestAfterGame(t *testing.T) {
 }
 
 func TestEnterInitials(t *testing.T) {
-	sk := config.Skills[1]
+	sk := config.Skills[len(config.Skills)-1]
 	entry := NewHighScoreEntry(sk, 420)
 	h := newHarness(t, entry)
 	h.ctx.Scores.Add(sk.ID, "TOP", 999)
@@ -93,8 +93,8 @@ func TestHighScoreTableFromTheMenu(t *testing.T) {
 	h.press(ebiten.KeyEnter)
 	table := current[*HighScoreTable](t, h)
 	h.press(ebiten.KeyArrowRight)
-	if table.skill != 1 {
-		t.Errorf("Right went to skill %d, want 1", table.skill)
+	if want := 1 % len(config.Skills); table.skill != want {
+		t.Errorf("Right went to skill %d, want %d", table.skill, want)
 	}
 	for range len(config.Skills) - 1 {
 		h.press(ebiten.KeyArrowRight)
