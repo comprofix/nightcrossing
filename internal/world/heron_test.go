@@ -86,7 +86,7 @@ func TestLandingOnAHeron(t *testing.T) {
 }
 
 func TestHeronsOnlyOnLogs(t *testing.T) {
-	w := New(session.New(config.Skills[0], 3), rich, rand.New(rand.NewPCG(4, 4)))
+	w := New(session.New(config.Modes[0], 3), rich, rand.New(rand.NewPCG(4, 4)))
 	for range 6000 {
 		w.Update(None)
 		for r, l := range w.Lanes {

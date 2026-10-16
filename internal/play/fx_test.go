@@ -47,10 +47,10 @@ func TestWheelsTurnAsTheyGo(t *testing.T) {
 // and that both run down.
 func TestEffectsFollowEvents(t *testing.T) {
 	h := scenetest.New(t, 5)
-	h.Ctx.Session = session.New(config.Skills[0], config.StartLives)
+	h.Ctx.Session = session.New(config.Modes[0], config.StartLives)
 	lv := config.Level{Number: 1, TimerTicks: config.TimerTicks(1)}
 	lv.Lanes[config.GoalRow].Kind = config.Bank
-	p := newPlay(h.Ctx, config.Stroll, lv)
+	p := newPlay(h.Ctx, config.StrollLevels, lv)
 
 	p.effects(world.Splashed)
 	if p.parts.Len() == 0 {

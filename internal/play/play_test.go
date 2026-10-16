@@ -10,6 +10,7 @@ import (
 
 	"github.com/comprofix/nightcrossing/internal/config"
 	"github.com/comprofix/nightcrossing/internal/gfx/palettes/resurrect64"
+	"github.com/comprofix/nightcrossing/internal/input"
 	"github.com/comprofix/nightcrossing/internal/scene"
 	"github.com/comprofix/nightcrossing/internal/scene/scenetest"
 	"github.com/comprofix/nightcrossing/internal/session"
@@ -93,10 +94,10 @@ func TestSprites(t *testing.T) {
 }
 
 func TestNewGame(t *testing.T) {
-	for _, sk := range config.Skills {
+	for _, sk := range config.Modes {
 		h := scenetest.New(t, 1)
 		p := New(h.Ctx, sk).(*Play)
-		if s := h.Ctx.Session; s.Skill.ID != sk.ID || s.Lives != config.StartLives || s.Score != 0 {
+		if s := h.Ctx.Session; s.Mode.ID != sk.ID || s.Lives != config.StartLives || s.Score != 0 {
 			t.Errorf("%s: session %+v", sk.ID, s)
 		}
 		if got, want := p.World().TicksLeft, config.TimerTicks(1); got != want {
@@ -109,7 +110,7 @@ func TestNewGame(t *testing.T) {
 func summary(p *Play, ctx *scene.Context) string {
 	w, s := p.World(), ctx.Session
 	var b strings.Builder
-	fmt.Fprintf(&b, "grid %dx%d  skill %s  level %d\n", w.Cols, w.Rows, s.Skill.ID, w.Level.Number)
+	fmt.Fprintf(&b, "grid %dx%d  mode %s  level %d\n", w.Cols, w.Rows, s.Mode.ID, w.Level.Number)
 	fmt.Fprintf(&b, "tick %d  ticks left %d\n", w.Tick, w.TicksLeft)
 	fmt.Fprintf(&b, "score %d  lives %d\n", s.Score, s.Lives)
 	pl := w.Player
@@ -124,8 +125,8 @@ func summary(p *Play, ctx *scene.Context) string {
 func TestHopRoute(t *testing.T) {
 	h := scenetest.New(t, 42)
 	h.Ctx.NewPlay = New
-	h.Ctx.Session = session.New(config.Skills[0], config.StartLives)
-	p := newPlay(h.Ctx, config.Stroll, config.Level{Number: 1, TimerTicks: config.TimerTicks(1)})
+	h.Ctx.Session = session.New(config.Modes[0], config.StartLives)
+	p := newPlay(h.Ctx, config.StrollLevels, config.Level{Number: 1, TimerTicks: config.TimerTicks(1)})
 	h.Start(p)
 	h.Ticks(scene.FadeTicks)
 
@@ -174,8 +175,9 @@ func TestFacingKeepsTheSpriteInItsBox(t *testing.T) {
 	}
 }
 
-// TestMenuToPlayAndPause goes from the main menu to the skill select, plays
-// a little, pauses, waits and resumes. The world must not run while paused.
+// TestMenuToPlayAndPause goes from the main menu to the mode select and
+// the intro, plays a little, pauses, waits and resumes. The world must
+// not run while paused.
 func TestMenuToPlayAndPause(t *testing.T) {
 	h := scenetest.New(t, 42)
 	h.Ctx.NewPlay = New
@@ -183,11 +185,13 @@ func TestMenuToPlayAndPause(t *testing.T) {
 	h.Ticks(scene.FadeTicks)
 
 	h.Press(ebiten.KeyEnter) // Play
-	scenetest.Current[*scene.SkillSelect](h)
-	h.Press(ebiten.KeyEnter) // Stroll, the only skill so far
+	scenetest.Current[*scene.ModeSelect](h)
+	h.Press(ebiten.KeyEnter) // Stroll, the only mode so far
+	scenetest.Current[*scene.Intro](h)
+	h.Press(ebiten.KeyEnter) // play it
 	p := scenetest.Current[*Play](h)
-	if h.Ctx.Session.Skill.ID != config.Skills[0].ID {
-		t.Fatalf("started at %s, want %s", h.Ctx.Session.Skill.ID, config.Skills[0].ID)
+	if h.Ctx.Session.Mode.ID != config.Modes[0].ID {
+		t.Fatalf("started at %s, want %s", h.Ctx.Session.Mode.ID, config.Modes[0].ID)
 	}
 
 	h.Ticks(60)
@@ -205,11 +209,11 @@ func TestMenuToPlayAndPause(t *testing.T) {
 	scenetest.Golden(t, "menu_to_play", summary(p, h.Ctx))
 }
 
-// TestRestart starts a fresh game at the same skill.
+// TestRestart starts a fresh game in the same mode.
 func TestRestart(t *testing.T) {
 	h := scenetest.New(t, 7)
 	h.Ctx.NewPlay = New
-	first := New(h.Ctx, config.Skills[0]).(*Play)
+	first := New(h.Ctx, config.Modes[0]).(*Play)
 	h.Start(first)
 	h.Ticks(scene.FadeTicks + 30)
 	h.Press(ebiten.KeyControl, ebiten.KeyR)
@@ -217,8 +221,8 @@ func TestRestart(t *testing.T) {
 	if p == first {
 		t.Fatal("restart kept the old game")
 	}
-	if h.Ctx.Session.Skill.ID != config.Skills[0].ID || p.World().Level.Number != 1 {
-		t.Errorf("restarted at %s level %d, want %s level 1", h.Ctx.Session.Skill.ID, p.World().Level.Number, config.Skills[0].ID)
+	if h.Ctx.Session.Mode.ID != config.Modes[0].ID || p.World().Level.Number != 1 {
+		t.Errorf("restarted at %s level %d, want %s level 1", h.Ctx.Session.Mode.ID, p.World().Level.Number, config.Modes[0].ID)
 	}
 }
 
@@ -234,7 +238,7 @@ func TestRoadReplay(t *testing.T) {
 		pressEvery = 12
 		verge      = 6 // the safe row above level 1's road
 	)
-	for _, sk := range config.Skills {
+	for _, sk := range config.Modes {
 		t.Run(sk.ID, func(t *testing.T) {
 			h := scenetest.New(t, 42)
 			h.Ctx.NewPlay = New
@@ -287,10 +291,10 @@ func TestRoadReplay(t *testing.T) {
 func TestLevelClear(t *testing.T) {
 	h := scenetest.New(t, 3)
 	h.Ctx.NewPlay = New
-	h.Ctx.Session = session.New(config.Skills[0], config.StartLives)
+	h.Ctx.Session = session.New(config.Modes[0], config.StartLives)
 	lv := config.Level{Number: 1, TimerTicks: config.TimerTicks(1)}
 	lv.Lanes[config.GoalRow].Kind = config.Bank
-	p := newPlay(h.Ctx, config.Stroll, lv)
+	p := newPlay(h.Ctx, config.StrollLevels, lv)
 	n := world.NookAt(config.StartCol)
 	if n < 0 {
 		t.Fatalf("the start column %d is not under a nook", config.StartCol)
@@ -326,4 +330,121 @@ func TestLevelClear(t *testing.T) {
 	if next.World().Level.TimerTicks != config.TimerTicks(2) {
 		t.Errorf("level 2 timer %d, want %d", next.World().Level.TimerTicks, config.TimerTicks(2))
 	}
+}
+
+// TestClearingLevel8ClearsTheMode checks clearing a mode's last level marks
+// the mode cleared and asks for the scores to be saved, and an earlier
+// level does not.
+func TestClearingLevel8ClearsTheMode(t *testing.T) {
+	for _, n := range []int{7, 8} {
+		h := scenetest.New(t, 3)
+		h.Ctx.NewPlay = New
+		h.Ctx.Session = session.New(config.Modes[0], config.StartLives)
+		lv := config.Level{Number: n, TimerTicks: config.TimerTicks(n)}
+		lv.Lanes[config.GoalRow].Kind = config.Bank
+		p := newPlay(h.Ctx, config.Modes[0].Levels, lv)
+		nook := world.NookAt(config.StartCol)
+		for i := range p.World().Filled {
+			p.World().Filled[i] = i != nook
+		}
+		h.Start(p)
+		h.Ticks(scene.FadeTicks)
+		for range config.StartRow - config.GoalRow {
+			h.Run(scenetest.Hold(1, ebiten.KeyArrowUp), scenetest.Hold(config.HopTicks+1))
+		}
+		want := n == 8
+		if got := h.Ctx.Scores.IsCleared(config.Modes[0].ID); got != want || h.Ctx.TakeScoresChanged() != want {
+			t.Errorf("level %d cleared: mode cleared %v, want %v", n, got, want)
+		}
+	}
+}
+
+// TestTitleDemo runs the title over the demo: the demo must leave the
+// game's RNG and the game in progress alone, and play the same every time.
+func TestTitleDemo(t *testing.T) {
+	run := func(demo bool) (uint64, *Demo) {
+		h := scenetest.New(t, 42)
+		if demo {
+			h.Ctx.NewDemo = NewDemo
+		}
+		title := scene.NewTitle()
+		h.Start(title)
+		h.Ticks(20 * config.TPS)
+		if h.Ctx.Session != nil {
+			t.Errorf("the demo started a game")
+		}
+		d, _ := title.Demo().(*Demo)
+		return h.Ctx.RNG.Uint64(), d
+	}
+	r1, d1 := run(true)
+	_, d2 := run(true)
+	r0, _ := run(false)
+	if r1 != r0 {
+		t.Errorf("the demo used the game's RNG")
+	}
+	if d1 == nil || d2 == nil {
+		t.Fatalf("no demo ran")
+	}
+	w1, w2 := d1.World(), d2.World()
+	if w1.Tick != w2.Tick || w1.Player != w2.Player || w1.Filled != w2.Filled {
+		t.Errorf("two demos differ")
+	}
+	if w1.Filled == [len(config.Nooks)]bool{} {
+		t.Errorf("no toad home after 20 s of the demo")
+	}
+}
+
+// TestGamepadOnly goes through every screen of a game with a gamepad alone:
+// title, menus, the intro and back, play, pause, options and the high
+// scores.
+func TestGamepadOnly(t *testing.T) {
+	h := scenetest.New(t, 42)
+	h.Ctx.NewPlay, h.Ctx.NewDemo = New, NewDemo
+	h.Start(scene.NewTitle())
+	h.Ticks(scene.FadeTicks)
+	pad := func(b input.Button) {
+		t.Helper()
+		h.Run(input.Step{Buttons: []input.Button{b}, Ticks: 1}, input.Idle(1))
+		h.Ticks(2 * scene.FadeTicks)
+	}
+
+	pad(input.PadA) // any button
+	scenetest.Current[*scene.MainMenu](h)
+	pad(input.PadA) // Play
+	scenetest.Current[*scene.ModeSelect](h)
+	pad(input.PadA)
+	scenetest.Current[*scene.Intro](h)
+	pad(input.PadB)
+	scenetest.Current[*scene.ModeSelect](h)
+	pad(input.PadA)
+	pad(input.PadA) // play
+	p := scenetest.Current[*Play](h)
+	h.Ticks(bannerTicks)
+	pad(input.PadUp)
+	if row := p.World().Player.Row; row != config.StartRow-1 {
+		t.Fatalf("hero on row %d after Up, want %d", row, config.StartRow-1)
+	}
+
+	pad(input.PadStart)
+	scenetest.Current[*scene.Pause](h)
+	pad(input.PadB) // resume
+	scenetest.Current[*Play](h)
+	pad(input.PadStart)
+	pad(input.PadDown) // Options
+	pad(input.PadA)
+	scenetest.Current[*scene.Options](h)
+	pad(input.PadB)
+	scenetest.Current[*scene.Pause](h)
+	pad(input.PadDown) // the cursor is still on Options: Quit to menu
+	pad(input.PadA)
+	scenetest.Current[*scene.MainMenu](h)
+
+	pad(input.PadDown) // High scores
+	pad(input.PadDown)
+	pad(input.PadA)
+	scenetest.Current[*scene.HighScoreTable](h)
+	pad(input.PadB)
+	scenetest.Current[*scene.MainMenu](h)
+	pad(input.PadB)
+	scenetest.Current[*scene.Title](h)
 }

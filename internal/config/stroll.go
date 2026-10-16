@@ -78,10 +78,10 @@ var (
 	strollFlood   = strollLayout("Flood", [5]Lane{logsRight, pads(14, false, true), ships(true), pads(16, true, false), logsShort})
 )
 
-// Stroll is the Stroll mode's levels (DESIGN §5.7, D14). Sinking ships come
+// StrollLevels is the Stroll mode's levels (DESIGN §5.7, D14). Sinking ships come
 // only in its later levels, and never between rows of diving pads before
 // the last (D33). Herons from level 6 (D34). Starting values, tuned in M4.
-var Stroll = ModeLevels{
+var StrollLevels = ModeLevels{
 	Levels: []LevelDef{
 		{Layout: strollLogs, SpeedPct: 100, GapPct: 100, Hint: "RIDE THE LOGS TO THE NOOKS ON THE FAR BANK"},
 		{Layout: strollLogs, SpeedPct: 110, GapPct: 95},

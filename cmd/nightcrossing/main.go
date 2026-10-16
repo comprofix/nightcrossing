@@ -28,7 +28,7 @@ func main() {
 	dir := config.SaveDir()
 	saved := game.Saved{
 		Settings: config.LoadSettings(filepath.Join(dir, config.SettingsFile), p),
-		Scores:   score.Load(filepath.Join(dir, config.ScoresFile), config.Skills),
+		Scores:   score.Load(filepath.Join(dir, config.ScoresFile), config.Modes),
 		Dir:      dir,
 	}
 

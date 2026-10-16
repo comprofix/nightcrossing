@@ -3,7 +3,7 @@
 // also compares results with golden files.
 //
 //	h := scenetest.New(t, 42)
-//	h.Start(play.New(h.Ctx, config.Skills[0]))
+//	h.Start(play.New(h.Ctx, config.Modes[0]))
 //	h.Run(scenetest.Hold(30, ebiten.KeyArrowRight))
 //	scenetest.Golden(t, "run", summary(h))
 //

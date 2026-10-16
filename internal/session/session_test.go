@@ -7,7 +7,7 @@ import (
 )
 
 func TestScoreStaysInRange(t *testing.T) {
-	s := New(config.Skills[0], 3)
+	s := New(config.Modes[0], 3)
 	s.AddScore(50)
 	s.AddScore(-80)
 	if s.Score != 0 {
@@ -20,7 +20,7 @@ func TestScoreStaysInRange(t *testing.T) {
 }
 
 func TestLoseLife(t *testing.T) {
-	s := New(config.Skills[0], 2)
+	s := New(config.Modes[0], 2)
 	if s.LoseLife() {
 		t.Error("game over with a life left")
 	}

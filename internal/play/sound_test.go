@@ -71,10 +71,10 @@ func TestMusicFollowsTheGame(t *testing.T) {
 	h := scenetest.New(t, 3)
 	h.Ctx.Audio = audio.NewSynth(config.Chip4)
 	h.Ctx.NewPlay = New
-	h.Ctx.Session = session.New(config.Skills[0], config.StartLives)
+	h.Ctx.Session = session.New(config.Modes[0], config.StartLives)
 	lv := config.Level{Number: 1, TimerTicks: config.TimerTicks(1)}
 	lv.Lanes[config.GoalRow].Kind = config.Bank
-	p := newPlay(h.Ctx, config.Stroll, lv)
+	p := newPlay(h.Ctx, config.StrollLevels, lv)
 	n := world.NookAt(config.StartCol)
 	for i := range p.World().Filled {
 		p.World().Filled[i] = i != n

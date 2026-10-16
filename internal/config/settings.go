@@ -27,7 +27,10 @@ type Settings struct {
 	MusicVolume   float64   `json:"music_volume"`  // 0–1
 	SFXVolume     float64   `json:"sfx_volume"`    // 0–1
 	ReducedMotion bool      `json:"reduced_motion"`
-	SmoothLight   bool      `json:"smooth_light"` // smooth light instead of pixel steps
+	SmoothLight   bool      `json:"smooth_light"`  // smooth light instead of pixel steps
+	CRT           bool      `json:"crt"`           // the CRT shader (DESIGN §8, D10)
+	Glow          bool      `json:"glow"`          // a glow around bright light sources (DESIGN §8)
+	HighContrast  bool      `json:"high_contrast"` // outlined hazards and a lighter night (DESIGN §8)
 }
 
 // DefaultSettings are the settings for preset p with no saved file.
@@ -38,6 +41,7 @@ func DefaultSettings(p Preset) Settings {
 		WindowW:   w, WindowH: h,
 		SoundOn: true, MusicOn: true, SFXOn: true,
 		SmoothLight:  true,
+		Glow:         true,
 		MasterVolume: 0.8, MusicVolume: 0.8, SFXVolume: 0.8,
 	}
 }

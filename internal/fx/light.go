@@ -16,6 +16,9 @@ import (
 //go:embed light.kage
 var lightKage []byte
 
+//go:embed bright.kage
+var brightKage []byte
+
 // Shape is the shape of a light.
 type Shape int
 
@@ -38,10 +41,12 @@ type Light struct {
 // Look is how the night looks: the light everywhere and how sources add to
 // it.
 type Look struct {
-	Ambient color.RGBA // the light everywhere
-	Level   float64    // how much of Ambient (0–1)
-	Max     float64    // the most light a pixel can take
-	Bands   int        // light steps, for a pixel-art look; 0 is smooth
+	Ambient  color.RGBA // the light everywhere
+	Level    float64    // how much of Ambient (0–1)
+	Max      float64    // the most light a pixel can take
+	Bands    int        // light steps, for a pixel-art look; 0 is smooth
+	Glow     float64    // how strongly bright parts glow onto what is round them; 0 is none
+	GlowFrom float64    // the brightness where the glow starts (0–1)
 }
 
 // Lighting lights a scene: draw the scene into Scene, add lights, then Draw
@@ -58,7 +63,12 @@ type Lighting struct {
 	scene, lights, out *ebiten.Image
 	shader             *ebiten.Shader
 	glow, beam         *ebiten.Image
-	look               Look
+	// The glow: the bright parts, then smaller and smaller copies of them,
+	// which blur them as they are scaled back up.
+	bright       *ebiten.Image
+	blur         [3]*ebiten.Image
+	brightShader *ebiten.Shader
+	look         Look
 }
 
 // NewLighting lights scenes w×h pixels. useShader false always takes the
@@ -89,6 +99,15 @@ func (l *Lighting) ensure() {
 			log.Printf("lighting shader: %v; using the fallback", err)
 		}
 		l.shader = s
+		if b, err := ebiten.NewShader(brightKage); err == nil {
+			l.brightShader = b
+		} else {
+			log.Printf("glow shader: %v; no glow", err)
+		}
+		l.bright = ebiten.NewImage(l.w, l.h)
+		for i := range l.blur {
+			l.blur[i] = ebiten.NewImage(max(l.w>>(i+1), 1), max(l.h>>(i+1), 1))
+		}
 	}
 }
 
@@ -158,6 +177,9 @@ func (l *Lighting) Draw(dst *ebiten.Image, x, y float64) {
 		}
 		l.out.Clear()
 		l.out.DrawRectShader(l.w, l.h, l.shader, sop)
+		if l.look.Glow > 0 && l.brightShader != nil {
+			l.addGlow()
+		}
 		dst.DrawImage(l.out, &op)
 		return
 	}
@@ -219,4 +241,36 @@ func falloff(d float64) float64 {
 	}
 	v := 1 - d*d
 	return v * v
+}
+
+// addGlow spreads the bright parts of the lit scene onto what is round
+// them (DESIGN §3.3: a light glow around bright sources). The bright parts
+// are halved in size three times, which blurs them, and each is scaled
+// back up and added on: the larger give a tight halo, the smaller a wide one.
+func (l *Lighting) addGlow() {
+	sop := &ebiten.DrawRectShaderOptions{}
+	sop.Images[0] = l.out
+	sop.Uniforms = map[string]any{"From": float32(l.look.GlowFrom)}
+	l.bright.Clear()
+	l.bright.DrawRectShader(l.w, l.h, l.brightShader, sop)
+	src := l.bright
+	for _, b := range l.blur {
+		b.Clear()
+		b.DrawImage(src, resize(src, b, ebiten.BlendSourceOver))
+		src = b
+	}
+	for _, b := range l.blur {
+		op := resize(b, l.out, ebiten.BlendLighter)
+		k := float32(l.look.Glow)
+		op.ColorScale.Scale(k, k, k, k)
+		l.out.DrawImage(b, op)
+	}
+}
+
+// resize is options that draw src over the whole of dst, smoothly.
+func resize(src, dst *ebiten.Image, blend ebiten.Blend) *ebiten.DrawImageOptions {
+	op := &ebiten.DrawImageOptions{Filter: ebiten.FilterLinear, Blend: blend}
+	op.GeoM.Scale(float64(dst.Bounds().Dx())/float64(src.Bounds().Dx()),
+		float64(dst.Bounds().Dy())/float64(src.Bounds().Dy()))
+	return op
 }

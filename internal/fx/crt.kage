@@ -1,0 +1,49 @@
+//kage:unit pixels
+
+package main
+
+// Scale is how many output pixels each screen pixel covers.
+var Scale float
+
+// Scanline is how dark the gaps between scanlines are (0–1).
+var Scanline float
+
+// Mask is how strong the aperture grille's red, green and blue columns
+// are (0–1).
+var Mask float
+
+// Vignette is how much the corners darken (0–1).
+var Vignette float
+
+// Boost brightens the picture to make up for the scanlines.
+var Boost float
+
+// Fragment draws the screen (image 0, already scaled up by Scale) as a CRT
+// would: dark gaps between each screen row, a faint grille, and darker
+// corners.
+func Fragment(dst vec4, src vec2, color vec4) vec4 {
+	o := imageSrc0Origin()
+	p := src - o
+	c := imageSrc0UnsafeAt(src).rgb * Boost
+
+	// Each screen row is brightest in its middle.
+	if Scale >= 2 {
+		f := fract(p.y / Scale)
+		c *= 1 - Scanline*(1-sin(3.14159265*f))
+	}
+	// The grille: every third output column favours red, green or blue.
+	m := mod(floor(p.x), 3)
+	g := vec3(1 - Mask)
+	if m < 1 {
+		g.r = 1
+	} else if m < 2 {
+		g.g = 1
+	} else {
+		g.b = 1
+	}
+	c *= g
+	// The corners.
+	d := p/imageSrc0Size()*2 - 1
+	c *= 1 - Vignette*dot(d, d)/2
+	return vec4(min(c, vec3(1)), 1)
+}

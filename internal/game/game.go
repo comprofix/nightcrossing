@@ -18,6 +18,7 @@ import (
 	"github.com/comprofix/nightcrossing/internal/audio"
 	"github.com/comprofix/nightcrossing/internal/config"
 	"github.com/comprofix/nightcrossing/internal/debug"
+	"github.com/comprofix/nightcrossing/internal/fx"
 	"github.com/comprofix/nightcrossing/internal/gfx"
 	"github.com/comprofix/nightcrossing/internal/input"
 	"github.com/comprofix/nightcrossing/internal/scene"
@@ -37,7 +38,9 @@ type Saved struct {
 // about: how to start a game, its sounds, and the sprite sheets to load
 // from assets/gen.
 type Content struct {
-	NewPlay func(ctx *scene.Context, skill config.Skill) scene.Scene
+	NewPlay func(ctx *scene.Context, mode config.Mode) scene.Scene
+	// NewDemo, if set, runs behind the title (see scene.Context).
+	NewDemo func(ctx *scene.Context) scene.Scene
 	Sounds  audio.Bank
 	Sheets  []string
 	// The game's title and high score tunes, if it has its own (see
@@ -53,7 +56,8 @@ var content Content
 type Game struct {
 	preset   config.Preset
 	screen   *ebiten.Image // the internal screen
-	prescale *ebiten.Image // whole-number upscale used for CRT presentation
+	prescale *ebiten.Image // whole-number upscale used for CRT presentation and the CRT option
+	crt      fx.CRT
 	outW     int
 	outH     int
 
@@ -99,6 +103,7 @@ func New(seed uint64, saved Saved, synth *audio.Synth) (*Game, error) {
 		Scheme:     gfx.SchemeFor(p.Palette),
 		Sheets:     sheets,
 		NewPlay:    content.NewPlay,
+		NewDemo:    content.NewDemo,
 		Audio:      synth,
 		Sounds:     audio.Join(scene.Sounds, content.Sounds),
 		TitleTune:  content.TitleTune,
@@ -247,7 +252,8 @@ func (g *Game) present(out *ebiten.Image) {
 	sw, sh := g.preset.ScreenWidth, g.preset.ScreenHeight
 	out.Fill(color.Black)
 	r := gfx.Fit(g.settings.ScaleMode, sw, sh, g.outW, g.outH)
-	if g.settings.ScaleMode != config.ScaleCRT {
+	crt := g.settings.CRT
+	if g.settings.ScaleMode != config.ScaleCRT && !crt {
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Scale(r.W/float64(sw), r.H/float64(sh))
 		op.GeoM.Translate(r.X, r.Y)
@@ -257,7 +263,8 @@ func (g *Game) present(out *ebiten.Image) {
 	}
 
 	// Upscale by a whole number with nearest-neighbour, then resample
-	// smoothly to the 4:3 size so rows stay even and sharp.
+	// smoothly to the 4:3 size so rows stay even and sharp. The CRT option
+	// draws that upscale through its shader instead.
 	k := gfx.PrescaleFactor(r, sw, sh)
 	w, h := sw*k, sh*k
 	if g.prescale == nil || g.prescale.Bounds().Dx() != w || g.prescale.Bounds().Dy() != h {
@@ -274,6 +281,9 @@ func (g *Game) present(out *ebiten.Image) {
 	op = &ebiten.DrawImageOptions{}
 	op.GeoM.Scale(r.W/float64(w), r.H/float64(h))
 	op.GeoM.Translate(r.X, r.Y)
+	if crt && g.crt.Draw(out, g.prescale, k, op.GeoM) {
+		return
+	}
 	op.Filter = ebiten.FilterLinear
 	out.DrawImage(g.prescale, op)
 }

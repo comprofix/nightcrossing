@@ -65,10 +65,16 @@ func TestLightTextures(t *testing.T) {
 	}
 }
 
-// TestShaderCompiles checks the lighting shader is valid Kage, so the
+// TestShaderCompiles checks the lighting, glow and CRT shaders are valid Kage, so the
 // fallback is only for drivers that can't run it.
 func TestShaderCompiles(t *testing.T) {
 	if _, err := ebiten.NewShader(lightKage); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ebiten.NewShader(brightKage); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ebiten.NewShader(crtKage); err != nil {
 		t.Fatal(err)
 	}
 }

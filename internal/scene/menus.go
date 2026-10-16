@@ -8,6 +8,7 @@ import (
 	"github.com/comprofix/nightcrossing/internal/config"
 	"github.com/comprofix/nightcrossing/internal/gfx"
 	"github.com/comprofix/nightcrossing/internal/input"
+	"github.com/comprofix/nightcrossing/internal/score"
 	"github.com/comprofix/nightcrossing/internal/ui"
 )
 
@@ -50,9 +51,9 @@ func (s *MainMenu) Update(ctx *Context) error {
 	playTitleTune(ctx)
 	if s.menu.Items == nil {
 		s.menu.Items = []ui.Item{
-			{Label: "Play", Disabled: ctx.NewPlay == nil, Confirm: func() { ctx.Switch(NewSkillSelect()) }},
+			{Label: "Play", Disabled: ctx.NewPlay == nil, Confirm: func() { ctx.Switch(NewModeSelect()) }},
 			{Label: "Options", Confirm: func() { ctx.Switch(NewOptions(func() Scene { return NewMainMenu() })) }},
-			{Label: "High scores", Confirm: func() { ctx.Switch(NewHighScoreTable(config.Skills[0], -1)) }},
+			{Label: "High scores", Confirm: func() { ctx.Switch(NewHighScoreTable(config.Modes[0], -1)) }},
 			{Label: "Quit", Confirm: ctx.Quit},
 		}
 		menuSounds(ctx, &s.menu)
@@ -70,21 +71,56 @@ func (s *MainMenu) Draw(ctx *Context, dst *ebiten.Image) {
 	drawMenuScreen(ctx, dst, config.Title, &s.menu, "Enter: choose   Esc: back")
 }
 
-// SkillSelect chooses the skill level and starts a game.
-type SkillSelect struct {
-	menu ui.Menu
+// ModeSelect chooses the mode, then shows its intro. Cleared modes are
+// marked, and once any mode is cleared the first one not yet cleared is
+// suggested and the cursor starts on it.
+type ModeSelect struct {
+	menu  ui.Menu
+	start int // the mode the cursor starts on; -1 for the suggested one
 }
 
-// NewSkillSelect returns the skill menu.
-func NewSkillSelect() *SkillSelect { return &SkillSelect{} }
+// NewModeSelect returns the mode menu with the cursor on the suggested mode.
+func NewModeSelect() *ModeSelect { return &ModeSelect{start: -1} }
+
+// NewModeSelectAt returns the mode menu with the cursor on mode i, e.g. when
+// coming back from that mode's intro.
+func NewModeSelectAt(i int) *ModeSelect { return &ModeSelect{start: i} }
+
+// SuggestedMode is the mode to play next: the first one not yet cleared,
+// once any has been. It is -1 if none is cleared, or all are.
+func SuggestedMode(t *score.Tables) int {
+	next, any := -1, false
+	for i, m := range config.Modes {
+		switch {
+		case t.IsCleared(m.ID):
+			any = true
+		case next < 0:
+			next = i
+		}
+	}
+	if !any {
+		return -1
+	}
+	return next
+}
 
 // Update implements Scene.
-func (s *SkillSelect) Update(ctx *Context) error {
+func (s *ModeSelect) Update(ctx *Context) error {
 	if s.menu.Items == nil {
-		for _, sk := range config.Skills {
-			s.menu.Items = append(s.menu.Items, ui.Item{Label: sk.Name, Confirm: func() {
-				ctx.Switch(ctx.NewPlay(ctx, sk))
-			}})
+		next := SuggestedMode(ctx.Scores)
+		for i, m := range config.Modes {
+			label := m.Name
+			switch {
+			case ctx.Scores.IsCleared(m.ID):
+				label += "  CLEARED"
+			case i == next:
+				label += "  NEXT"
+			}
+			s.menu.Items = append(s.menu.Items, ui.Item{Label: label, Confirm: func() { ctx.Switch(NewIntro(i)) }})
+		}
+		s.menu.Cursor = max(next, 0)
+		if s.start >= 0 {
+			s.menu.Cursor = s.start
 		}
 		menuSounds(ctx, &s.menu)
 	}
@@ -97,8 +133,8 @@ func (s *SkillSelect) Update(ctx *Context) error {
 }
 
 // Draw implements Scene.
-func (s *SkillSelect) Draw(ctx *Context, dst *ebiten.Image) {
-	drawMenuScreen(ctx, dst, "SKILL", &s.menu, config.Skills[s.menu.Cursor].Desc)
+func (s *ModeSelect) Draw(ctx *Context, dst *ebiten.Image) {
+	drawMenuScreen(ctx, dst, "MODE", &s.menu, config.Modes[s.menu.Cursor].Desc)
 }
 
 // Options changes the saved settings. Changes apply at
@@ -170,6 +206,9 @@ func (s *Options) items(ctx *Context) []ui.Item {
 		}},
 		{Label: "Reduced motion", Value: ui.OnOff(&set.ReducedMotion), Adjust: toggle(&set.ReducedMotion)},
 		{Label: "Light", Value: func() string { return LightName(set.SmoothLight) }, Adjust: toggle(&set.SmoothLight)},
+		{Label: "Glow", Value: ui.OnOff(&set.Glow), Adjust: toggle(&set.Glow)},
+		{Label: "CRT", Value: ui.OnOff(&set.CRT), Adjust: toggle(&set.CRT)},
+		{Label: "High contrast", Value: ui.OnOff(&set.HighContrast), Adjust: toggle(&set.HighContrast)},
 		{Label: "Back", Confirm: func() { ctx.Switch(s.back()) }},
 	}
 }

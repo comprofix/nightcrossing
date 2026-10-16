@@ -11,16 +11,16 @@ func TestTimerPerLevel(t *testing.T) {
 }
 
 func TestEightLevels(t *testing.T) {
-	if len(Stroll.Levels) != 8 {
-		t.Errorf("%d levels, want 8 (D14)", len(Stroll.Levels))
+	if len(StrollLevels.Levels) != 8 {
+		t.Errorf("%d levels, want 8 (D14)", len(StrollLevels.Levels))
 	}
-	for i, d := range Stroll.Levels {
+	for i, d := range StrollLevels.Levels {
 		if d.Layout == nil || d.SpeedPct <= 0 || d.GapPct <= 0 || d.HeronPct < 0 || d.HeronPct >= 100 {
 			t.Errorf("level %d: %+v", i+1, d)
 		}
 	}
-	if Stroll.Levels[0].SpeedPct != 100 {
-		t.Errorf("level 1 at %d%% speed, want the base 100%% (D13)", Stroll.Levels[0].SpeedPct)
+	if StrollLevels.Levels[0].SpeedPct != 100 {
+		t.Errorf("level 1 at %d%% speed, want the base 100%% (D13)", StrollLevels.Levels[0].SpeedPct)
 	}
 }
 
@@ -28,7 +28,7 @@ func TestEightLevels(t *testing.T) {
 // LoopSpeedStepPct, up to the ceiling; the road gaps stay as on level 8
 // (D19, D20).
 func TestLoops(t *testing.T) {
-	m := Stroll
+	m := StrollLevels
 	last := len(m.Levels)
 	l8 := m.Levels[last-1]
 	for n := last + 1; n <= last+60; n++ {
@@ -54,8 +54,8 @@ func TestLoops(t *testing.T) {
 }
 
 func TestLevelSpeedsAndGaps(t *testing.T) {
-	lv := Stroll.Level(2)
-	def := Stroll.Levels[1]
+	lv := StrollLevels.Level(2)
+	def := StrollLevels.Levels[1]
 	for r, l := range def.Layout.Lanes {
 		got := lv.Lanes[r]
 		if len(l.Pattern) == 0 {
@@ -75,7 +75,7 @@ func TestLevelSpeedsAndGaps(t *testing.T) {
 		}
 	}
 	// The layout itself is left as it was.
-	if Stroll.Levels[1].Layout.Lanes[9].Pattern[0].Gap != strollRoad[9].Pattern[0].Gap {
+	if StrollLevels.Levels[1].Layout.Lanes[9].Pattern[0].Gap != strollRoad[9].Pattern[0].Gap {
 		t.Error("making a level changed its layout")
 	}
 }
@@ -85,7 +85,7 @@ func TestLevelSpeedsAndGaps(t *testing.T) {
 // the later levels too (D34).
 func TestSinkersComeLater(t *testing.T) {
 	const firstSinking = 7
-	for i, d := range Stroll.Levels {
+	for i, d := range StrollLevels.Levels {
 		n := i + 1
 		for r, l := range d.Layout.Lanes {
 			for _, s := range l.Pattern {
@@ -95,7 +95,7 @@ func TestSinkersComeLater(t *testing.T) {
 				if n < firstSinking {
 					t.Errorf("level %d row %d: a sinking ship before level %d", n, r, firstSinking)
 				}
-				if n < len(Stroll.Levels) && dives(d.Layout.Lanes[r-1]) && dives(d.Layout.Lanes[r+1]) {
+				if n < len(StrollLevels.Levels) && dives(d.Layout.Lanes[r-1]) && dives(d.Layout.Lanes[r+1]) {
 					t.Errorf("level %d row %d: a sinking ship between rows of diving pads", n, r)
 				}
 			}

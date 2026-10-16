@@ -19,8 +19,8 @@ import (
 //
 // A failure names the mode, the level and the row.
 func TestEveryLevelCanBeCrossed(t *testing.T) {
-	modes := map[string]ModeLevels{"Stroll": Stroll}
-	for name, m := range modes {
+	for _, mode := range Modes {
+		name, m := mode.Name, mode.Levels
 		last := len(m.Levels) + 1
 		for ; ; last++ {
 			if _, s := m.Def(last); s >= m.CeilingPct {

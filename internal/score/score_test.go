@@ -9,7 +9,7 @@ import (
 	"github.com/comprofix/nightcrossing/internal/config"
 )
 
-var skills = []config.Skill{{ID: "easy"}, {ID: "hard"}}
+var modes = []config.Mode{{ID: "easy"}, {ID: "hard"}}
 
 func TestAddKeepsOrderAndSize(t *testing.T) {
 	tb := New()
@@ -61,10 +61,11 @@ func TestSaveAndLoad(t *testing.T) {
 	tb.Add("easy", "ABC", 300)
 	tb.Add("easy", "DEF", 200)
 	tb.Add("hard", "GHI", 50)
+	tb.MarkCleared("hard")
 	if err := tb.Save(path); err != nil {
 		t.Fatal(err)
 	}
-	got := Load(path, skills)
+	got := Load(path, modes)
 	if !reflect.DeepEqual(got, tb) {
 		t.Errorf("loaded %+v, want %+v", got, tb)
 	}
@@ -75,8 +76,8 @@ func TestLoadMissingOrBroken(t *testing.T) {
 	broken := filepath.Join(dir, "broken.json")
 	os.WriteFile(broken, []byte("{not json"), 0o644)
 	for _, path := range []string{filepath.Join(dir, "missing.json"), broken} {
-		if got := Load(path, skills); len(got.BySkill) != 0 {
-			t.Errorf("%s: got %v, want empty tables", filepath.Base(path), got.BySkill)
+		if got := Load(path, modes); len(got.ByMode) != 0 {
+			t.Errorf("%s: got %v, want empty tables", filepath.Base(path), got.ByMode)
 		}
 	}
 }
@@ -95,9 +96,9 @@ func TestLoadChecksEveryEntry(t *testing.T) {
 		],
 		"nightmare": [{"initials": "XYZ", "score": 1}]
 	}}`), 0o644)
-	got := Load(path, skills)
-	if _, ok := got.BySkill["nightmare"]; ok {
-		t.Error("kept a table for an unknown skill")
+	got := Load(path, modes)
+	if _, ok := got.ByMode["nightmare"]; ok {
+		t.Error("kept a table for an unknown mode")
 	}
 	es := got.Table("easy")
 	if len(es) != config.TableSize {
@@ -111,5 +112,23 @@ func TestLoadChecksEveryEntry(t *testing.T) {
 		if e.Score <= 0 || e.Initials == "ZZA" {
 			t.Errorf("kept %v, which should be gone (negative, or cut by size)", e)
 		}
+	}
+}
+
+// TestCleared checks a mode is marked cleared once, and a cleared mark for
+// a mode the game doesn't have is dropped on loading.
+func TestCleared(t *testing.T) {
+	tb := New()
+	if tb.IsCleared("easy") {
+		t.Fatal("cleared before playing")
+	}
+	if !tb.MarkCleared("easy") || tb.MarkCleared("easy") {
+		t.Error("MarkCleared should report new only the first time")
+	}
+	path := filepath.Join(t.TempDir(), config.ScoresFile)
+	os.WriteFile(path, []byte(`{"tables": {}, "cleared": {"easy": true, "gone": true}}`), 0o644)
+	got := Load(path, modes)
+	if !got.IsCleared("easy") || got.IsCleared("gone") {
+		t.Errorf("loaded cleared %v, want only easy", got.Cleared)
 	}
 }
