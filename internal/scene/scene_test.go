@@ -288,3 +288,28 @@ func TestSoundTest(t *testing.T) {
 		t.Error("leaving the sound test did not stop the sound")
 	}
 }
+
+// TestLightOption checks the Light option starts at Pixel, switches to
+// Smooth and back, and reports the change for saving.
+func TestLightOption(t *testing.T) {
+	h := newHarness(t, NewOptions(func() Scene { return NewMainMenu() }))
+	h.ticks(1)
+	opts := current[*Options](t, h)
+	for range len(opts.menu.Items) {
+		if opts.menu.Items[opts.menu.Cursor].Label == "Light" {
+			break
+		}
+		h.press(ebiten.KeyArrowDown)
+	}
+	if got := opts.menu.Text(opts.menu.Cursor); got != "Light: Pixel" {
+		t.Fatalf("shows %q, want Light: Pixel by default", got)
+	}
+	h.press(ebiten.KeyArrowRight)
+	if !h.ctx.Settings.SmoothLight || !h.ctx.TakeSettingsChanged() || opts.menu.Text(opts.menu.Cursor) != "Light: Smooth" {
+		t.Errorf("after Right: smooth %v, shows %q", h.ctx.Settings.SmoothLight, opts.menu.Text(opts.menu.Cursor))
+	}
+	h.press(ebiten.KeyArrowLeft)
+	if h.ctx.Settings.SmoothLight {
+		t.Error("Left did not switch back to Pixel")
+	}
+}
