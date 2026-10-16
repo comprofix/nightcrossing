@@ -37,6 +37,7 @@ func DefaultSettings(p Preset) Settings {
 		ScaleMode: p.ScaleModes[0],
 		WindowW:   w, WindowH: h,
 		SoundOn: true, MusicOn: true, SFXOn: true,
+		SmoothLight:  true,
 		MasterVolume: 0.8, MusicVolume: 0.8, SFXVolume: 0.8,
 	}
 }
