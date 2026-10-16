@@ -1,0 +1,4 @@
+grid 26x13  skill dash  level 1
+tick 93  ticks left 2700
+score 0  lives 3
+hero cell 12,8  at 4608,3072  facing down  hopping false
