@@ -88,9 +88,22 @@ func menuSounds(ctx *Context, m *ui.Menu) {
 	m.OnConfirm = func() { ctx.Audio.PlayEffect(MenuConfirm) }
 }
 
-// playTitleTune starts the title tune unless it is already playing.
+// playTitleTune starts the title tune, the game's own if it has one,
+// unless it is already playing.
 func playTitleTune(ctx *Context) {
-	if ctx.Audio.Tune() != TitleTune {
-		ctx.Audio.PlayTune(TitleTune)
+	t := ctx.TitleTune
+	if t == nil {
+		t = TitleTune
+	}
+	if ctx.Audio.Tune() != t {
+		ctx.Audio.PlayTune(t)
+	}
+}
+
+// playScoresTune starts the game's high score tune, if it has one, unless
+// it is already playing.
+func playScoresTune(ctx *Context) {
+	if t := ctx.ScoresTune; t != nil && ctx.Audio.Tune() != t {
+		ctx.Audio.PlayTune(t)
 	}
 }

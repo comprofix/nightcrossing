@@ -38,11 +38,15 @@ type Context struct {
 	Sheets   map[string]*gfx.Sheet
 	Settings *config.Settings
 	Shake    Shaker
-	Tick     int64            // ticks since the game started
-	Audio    *audio.Synth     // nil in tests: every call is then ignored
-	Sounds   audio.Bank       // every tune and effect, for the sound test
-	Session  *session.Session // the game in progress, if any
-	Scores   *score.Tables
+	Tick     int64        // ticks since the game started
+	Audio    *audio.Synth // nil in tests: every call is then ignored
+	Sounds   audio.Bank   // every tune and effect, for the sound test
+	// The game's own music for the shared scenes: the title and menus, and
+	// the high score screens. A nil TitleTune plays the shared TitleTune; a
+	// nil ScoresTune leaves the music as it is.
+	TitleTune, ScoresTune *audio.Tune
+	Session               *session.Session // the game in progress, if any
+	Scores                *score.Tables
 
 	// NewPlay starts a game at the given skill. The game package sets it,
 	// so the shared scenes don't depend on the game's own packages.

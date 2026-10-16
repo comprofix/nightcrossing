@@ -313,3 +313,24 @@ func TestLightOption(t *testing.T) {
 		t.Error("Left did not switch back to Smooth")
 	}
 }
+
+// TestGameTunes checks the title plays the game's own title tune when it
+// has one, and the high score table its high score tune.
+func TestGameTunes(t *testing.T) {
+	title := &audio.Tune{Name: "own title", Parts: []audio.Part{{Notes: audio.Notes("C4:12")}}}
+	scores := &audio.Tune{Name: "own scores", Parts: []audio.Part{{Notes: audio.Notes("E4:12")}}}
+	h := newHarness(t, NewTitle())
+	h.ctx.Audio = audio.NewSynth(config.Chip4)
+	h.ctx.TitleTune, h.ctx.ScoresTune = title, scores
+	h.ticks(1)
+	if got := h.ctx.Audio.Tune(); got != title {
+		t.Errorf("title plays %v, want the game's own", got)
+	}
+	h = newHarness(t, NewHighScoreTable(config.Skills[0], -1))
+	h.ctx.Audio = audio.NewSynth(config.Chip4)
+	h.ctx.TitleTune, h.ctx.ScoresTune = title, scores
+	h.ticks(1)
+	if got := h.ctx.Audio.Tune(); got != scores {
+		t.Errorf("high score table plays %v, want the game's own", got)
+	}
+}
