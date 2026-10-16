@@ -106,7 +106,7 @@ func TestSaveAndLoadSettings(t *testing.T) {
 	want.WindowW, want.WindowH = 1600, 1000
 	want.MusicVolume = 0.25
 	want.ReducedMotion = true
-	want.SmoothLight = true
+	want.SmoothLight = false
 	if err := SaveSettings(path, want); err != nil {
 		t.Fatal(err)
 	}
