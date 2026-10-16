@@ -96,7 +96,9 @@ func TestHighScoreTableFromTheMenu(t *testing.T) {
 	if table.skill != 1 {
 		t.Errorf("Right went to skill %d, want 1", table.skill)
 	}
-	h.press(ebiten.KeyArrowRight)
+	for range len(config.Skills) - 1 {
+		h.press(ebiten.KeyArrowRight)
+	}
 	if table.skill != 0 {
 		t.Errorf("Right from the last skill went to %d, want 0", table.skill)
 	}

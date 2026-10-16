@@ -1,0 +1,73 @@
+; Night Crossing sprites (DESIGN §3.3). Placeholders until M6.
+; Drawn for the Modern preset's Resurrect 64 palette.
+; The hero faces up; other directions are made when drawn.
+colours k=Ink g=Forest G=Emerald l=Leaf y=Gold p=Sage f=Pine m=Moss
+
+; The hero: a toad seen from above, facing up.
+sprite toad 24 24
+........................
+........................
+......kkk......kkk......
+.....kyyyk....kyyyk.....
+.....kykyk....kykyk.....
+.....kGGGGGGGGGGGGk.....
+....kGGGGGGGGGGGGGGk....
+..k.kGGGGGGGGGGGGGGk.k..
+..kGkGGGGllllllGGGGkGk..
+...kGkGGGllllllGGGkGk...
+....kkGGGllllllGGGkk....
+....kgGGGllllllGGGgk....
+....kgGGGllllllGGGgk....
+....kgGGGGGllGGGGGgk....
+....kggGGGGGGGGGGggk....
+...kkggGGGGGGGGGGggkk...
+..kGkggggGGGGGGggggkGk..
+.kGGkkggggggggggggkkGGk.
+.kGGGkkkkkkkkkkkkkkGGGk.
+..kGGGk..........kGGGk..
+..kkkkk..........kkkkk..
+........................
+........................
+........................
+
+; The safe verge: night grass, one cell. Tiles in both directions.
+sprite verge 24 24
+pppppppppppppppppppppppp
+ppfppppppppppppppfpppppp
+pfmfppppppppppppfmfppppp
+pppppppppppppppppppppppp
+pppppppppfpppppppppppppp
+ppppppppfmfpppppppppfppp
+pppppppppppppppppppfmfpp
+pppppppppppppppppppppppp
+pppfpppppppppppppppppppp
+ppfmfppppppppppfpppppppp
+pppppppppppppfmfpppppppp
+pppppppppppppppppppppppp
+ppppppppppfppppppppppppp
+pppppppppfmfppppppppppfp
+pppppppppppppppppppppfmf
+pppppppppppppppppppppppp
+ppppfppppppppppppppppppp
+pppfmfppppppppppfppppppp
+ppppppppppppppppfmfppppp
+pppppppppppppppppppppppp
+ppppppppppppfppppppppppp
+pppppppppppfmfpppppppfpp
+ppppppppppppppppppppfmfp
+pppppppppppppppppppppppp
+
+; A life, for the status bar: a small toad.
+sprite life 12 12
+..kk....kk..
+.kyyk..kyyk.
+.kkGGkkGGkk.
+kGkGGGGGGkGk
+.kGGllllGGk.
+..kGGllGGk..
+..kggGGggk..
+.kGkggggkGk.
+kGGkkkkkkGGk
+kGk......kGk
+.k........k.
+............
