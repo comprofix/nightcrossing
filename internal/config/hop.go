@@ -21,3 +21,12 @@ const StartCol = Cols / 2
 // SubPx is the number of position units in a pixel. Positions are whole
 // numbers of these, so the game stays deterministic (PLAN §3).
 const SubPx = 16
+
+// HeroMargin is how many pixels are trimmed from each side of the hero's
+// collision box, so a graze at the very edge of the art is not a death
+// (DESIGN §1).
+const HeroMargin = 3
+
+// DeathTicks is how long the hero's death shows before the next attempt
+// or game over (DESIGN §5.4).
+const DeathTicks = 60

@@ -36,3 +36,40 @@ func TestSkills(t *testing.T) {
 		}
 	}
 }
+
+func TestVehicles(t *testing.T) {
+	longest := 0
+	for _, v := range Vehicles() {
+		if v.ID == "" || v.Length <= 0 {
+			t.Errorf("vehicle %+v has no ID or length", v)
+		}
+		longest = max(longest, v.Length)
+	}
+	if longest != LongestVehicle {
+		t.Errorf("LongestVehicle is %d, the longest vehicle is %d", LongestVehicle, longest)
+	}
+}
+
+func TestLevels(t *testing.T) {
+	for i, lv := range Levels {
+		for r, l := range lv.Lanes {
+			if (r == GoalRow || r == StartRow) && l.Kind != Safe {
+				t.Errorf("level %d row %d must be safe", i+1, r)
+			}
+			if l.Kind == Safe {
+				continue
+			}
+			if l.Dir != 1 && l.Dir != -1 {
+				t.Errorf("level %d row %d: direction %d", i+1, r, l.Dir)
+			}
+			if l.Speed <= 0 || len(l.Pattern) == 0 {
+				t.Errorf("level %d row %d: no speed or pattern", i+1, r)
+			}
+			for _, s := range l.Pattern {
+				if s.Gap < Cell {
+					t.Errorf("level %d row %d: a gap of %dpx is too small to stand in", i+1, r, s.Gap)
+				}
+			}
+		}
+	}
+}
