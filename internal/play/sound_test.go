@@ -49,10 +49,12 @@ func TestLoopsAreWholeBars(t *testing.T) {
 func TestEveryEventHasASound(t *testing.T) {
 	p := &Play{hero: Toad}
 	// The crossing bell rings through the warning (railEffect), not just on
-	// the event, and a train leaving is quiet.
+	// the event, and a train leaving is quiet. A wave starting or ending is
+	// quiet too: its traffic light shows it.
 	quiet := map[world.Event]bool{world.Landed: true, world.Respawned: true, world.LevelClear: true, world.GameOver: true,
-		world.TrainWarning: true, world.TrainGone: true}
-	for e := world.Hopped; e <= world.ComboUp; e++ {
+		world.TrainWarning: true, world.TrainGone: true,
+		world.WaveStart: true, world.WaveEnd: true}
+	for e := world.Hopped; e <= world.WaveEnd; e++ {
 		got := p.soundsFor(e)
 		switch {
 		case quiet[e] && len(got) > 0:

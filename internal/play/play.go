@@ -43,11 +43,11 @@ const hint = "ARROWS/WASD: HOP   ESC: PAUSE   CTRL+R: RESTART"
 const (
 	shakeTicks     = 12
 	shakePx        = 3
-	softShakePx    = 2              // a death in the water, to a heron or the clock (DESIGN §3.3)
-	gameOverTicks  = 2 * config.TPS // the game over message shows this long
-	bannerTicks    = 2 * config.TPS // the level number shows this long at the start
-	levelHintTicks = 6 * config.TPS // a new level's hint shows this long
-	clearTicks     = config.TPS     // the cleared level shows this long before the tally
+	softShakePx    = 2                     // a death in the water, to a heron or the clock (DESIGN §3.3)
+	gameOverTicks  = 2 * config.TPS        // the game over message shows this long
+	bannerTicks    = 2 * config.TPS        // the level number shows this long at the start
+	levelHintTicks = config.LevelCalmTicks // a new level's hint shows this long, before any event (DESIGN §6.1)
+	clearTicks     = config.TPS            // the cleared level shows this long before the tally
 )
 
 // Play is a level of a game in progress.
@@ -236,6 +236,7 @@ func pressed(in *input.Input) world.Dir {
 func (p *Play) Draw(ctx *scene.Context, dst *ebiten.Image) {
 	dst.Fill(gfx.RGBA(ctx.Scheme.Backdrop))
 	p.drawField(ctx, dst)
+	p.drawTrafficLights(ctx, dst)
 	p.drawPops(ctx, dst)
 	p.drawHUD(ctx, dst)
 	p.drawHint(ctx, dst)
@@ -283,6 +284,9 @@ func (p *Play) drawHint(ctx *scene.Context, dst *ebiten.Image) {
 	text, c := hint, sc.Dim
 	if h := p.world.Level.Hint; h != "" && p.ticks < levelHintTicks {
 		text, c = h, sc.Highlight
+	}
+	if m := p.eventMessage(); m != "" {
+		text, c = m, sc.Highlight // an event is announced (DESIGN §6.1)
 	}
 	ui.TextCentred(dst, f.Small, text, top+(config.HintHeight-f.Small.Size)/2, c, sc.Shadow)
 }

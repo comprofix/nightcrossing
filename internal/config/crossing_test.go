@@ -46,8 +46,7 @@ func crossingProblems(lv Level) []error {
 		switch l.Kind {
 		case Road:
 			for _, s := range l.Pattern {
-				free := (s.Gap + 2*HitMargin) - (Cell - 2*HeroMargin)
-				if open := free * sub / l.Speed; open < CrossOpenTicks {
+				if open := GapOpenTicks(s.Gap, l.Speed); open < CrossOpenTicks {
 					errs = append(errs, fmt.Errorf("row %d: a gap of %dpx behind a %s is open for %d ticks, want %d", r, s.Gap, s.Entity.ID, open, CrossOpenTicks))
 				}
 			}

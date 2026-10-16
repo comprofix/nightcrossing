@@ -173,6 +173,9 @@ func (p *Play) drawEntities(ctx *scene.Context, dst *ebiten.Image, r int) {
 	flip := lane.Dir < 0
 	y := cellY(r)
 	for _, e := range lane.Entities {
+		if e.Out {
+			continue // a wave vehicle between waves
+		}
 		x := float64(config.FieldX) + math.Floor(float64(e.X())/config.SubPx)
 		frame := stageFrame(e.Stage(), e.FlashPhase())
 		names := entitySprites(e.Kind)
@@ -287,6 +290,9 @@ func (p *Play) drawHitBoxes(ctx *scene.Context, dst *ebiten.Image) {
 			hm = -config.StandGrace
 		}
 		for _, e := range lane.Entities {
+			if e.Out {
+				continue
+			}
 			if st := e.Stage(); st == world.Under || st == world.Sunk {
 				continue
 			}

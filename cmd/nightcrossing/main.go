@@ -23,7 +23,7 @@ func main() {
 	level := flag.Int("level", 1, "start new games on this level, for testing; such games keep no high scores")
 	noShaders, extra := false, ""
 	if debug.Enabled {
-		flag.StringVar(&extra, "mode", "", "add a mode still being built to the MODE menu, by its ID, e.g. lasttrain (debug builds only)")
+		flag.StringVar(&extra, "mode", "", "add a mode still being built to the MODE menu, by its ID, e.g. rushhour (debug builds only)")
 		flag.BoolVar(&noShaders, "noshaders", false, "draw without shaders, as on a machine that can't run them (debug builds only)")
 	}
 	flag.Parse()

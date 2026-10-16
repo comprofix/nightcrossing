@@ -16,6 +16,7 @@ func (w *World) Clone(rng *rand.Rand) *World {
 	for r := range c.Lanes {
 		c.Lanes[r].Entities = slices.Clone(w.Lanes[r].Entities)
 	}
+	c.Spells = slices.Clone(w.Spells)
 	c.rng = rng
 	c.events = nil
 	return &c

@@ -69,5 +69,31 @@ func lastTrainLevels() ModeLevels {
 }
 
 // ModesInProgress are modes being built and not yet in Modes. Debug
-// builds can play them with -mode (D37). None just now.
-var ModesInProgress []Mode
+// builds can play them with -mode (D37).
+var ModesInProgress = []Mode{RushHour}
+
+// RushHour is Last Train plus the road in bad weather (DESIGN §6.3): rush
+// hour waves from level 1, then fog and rain (M12). It keeps the trains,
+// the combo and the day and night cycle from its level 1 (D27, D41).
+var RushHour = Mode{
+	ID:   "rushhour",
+	Name: "Rush Hour",
+	Desc: "Last Train, plus the road in bad weather.",
+	New: []Mechanic{
+		{"Rush hour", "a red light: a wave of traffic is coming"},
+	},
+	Also:   []string{"Trains, hop combo, day and night", "Road, river, diving platforms, herons"},
+	Levels: rushHourLevels(),
+}
+
+// rushHourLevels are Last Train's levels with its mechanics from level 1,
+// and Rush Hour's own coming in one a level (D41).
+func rushHourLevels() ModeLevels {
+	m := lastTrainLevels()
+	m.Levels = append([]LevelDef(nil), m.Levels...)
+	m.Levels[0].Hint = "A RED LIGHT ON A LANE: A RUSH OF TRAFFIC IS COMING"
+	m.Levels[1].Hint, m.Levels[2].Hint = "", "" // Last Train's, already known
+	m.ComboFrom, m.CycleFrom = 1, 1
+	m.EventsFrom[Wave] = 1
+	return m
+}
