@@ -12,27 +12,27 @@ import (
 func TestLaneLayout(t *testing.T) {
 	sk := config.Skills[1]
 	for r, l := range config.Levels[0].Lanes {
-		if l.Kind == config.Safe {
+		if len(l.Pattern) == 0 {
 			continue
 		}
 		lane := newLane(l, sk, rand.New(rand.NewPCG(3, 3)))
 		pattern := 0
 		for _, s := range l.Pattern {
-			pattern += (s.Vehicle.Length + s.Gap) * config.SubPx
+			pattern += (s.Entity.Length + s.Gap) * config.SubPx
 		}
 		if lane.Loop < fieldWidth+Buffer || lane.Loop%pattern != 0 {
 			t.Errorf("row %d: loop %d is not whole patterns of %d covering the field and buffer", r, lane.Loop, pattern)
 		}
-		if want := lane.Loop / pattern * len(l.Pattern); len(lane.Vehicles) != want {
-			t.Errorf("row %d: %d vehicles, want %d", r, len(lane.Vehicles), want)
+		if want := lane.Loop / pattern * len(l.Pattern); len(lane.Entities) != want {
+			t.Errorf("row %d: %d vehicles, want %d", r, len(lane.Entities), want)
 		}
 		// Each vehicle sits its pattern's length and gap behind the one
 		// before, all the way round the loop.
-		for i, v := range lane.Vehicles {
-			next := lane.Vehicles[(i+1)%len(lane.Vehicles)]
+		for i, v := range lane.Entities {
+			next := lane.Entities[(i+1)%len(lane.Entities)]
 			s := l.Pattern[i%len(l.Pattern)]
-			if got := ((next.U-v.U)%lane.Loop + lane.Loop) % lane.Loop; got != (s.Vehicle.Length+s.Gap)*config.SubPx {
-				t.Errorf("row %d vehicle %d: next one %d units on, want %d", r, i, got, (s.Vehicle.Length+s.Gap)*config.SubPx)
+			if got := ((next.U-v.U)%lane.Loop + lane.Loop) % lane.Loop; got != (s.Entity.Length+s.Gap)*config.SubPx {
+				t.Errorf("row %d vehicle %d: next one %d units on, want %d", r, i, got, (s.Entity.Length+s.Gap)*config.SubPx)
 			}
 		}
 	}
@@ -49,37 +49,42 @@ func TestSkillSetsLaneSpeed(t *testing.T) {
 }
 
 // TestLanesWrapWithoutPopping runs every lane of level 1 a full loop. Each
-// vehicle comes back to where it started, and a vehicle only wraps when at
+// entity comes back to where it started, and an entity only wraps when at
 // most one tick's movement of it is on the field, on either side.
 func TestLanesWrapWithoutPopping(t *testing.T) {
 	for r, l := range config.Levels[0].Lanes {
-		if l.Kind == config.Safe {
+		if len(l.Pattern) == 0 {
 			continue
 		}
-		lane := newLane(l, config.Skills[3], rand.New(rand.NewPCG(9, 9)))
-		start := slices.Clone(lane.Vehicles)
+		rng := rand.New(rand.NewPCG(9, 9))
+		lane := newLane(l, config.Skills[3], rng)
+		start := slices.Clone(lane.Entities)
 		for range lane.Loop {
-			before := slices.Clone(lane.Vehicles)
-			lane.update()
-			for i, v := range lane.Vehicles {
+			before := slices.Clone(lane.Entities)
+			lane.update(rng)
+			for i, v := range lane.Entities {
 				if abs(v.U-before[i].U) <= lane.Speed {
 					continue
 				}
-				for _, at := range []Vehicle{before[i], v} {
+				for _, at := range []Entity{before[i], v} {
 					if on := onField(at); on > lane.Speed {
-						t.Fatalf("row %d: vehicle %d wrapped with %d units on the field", r, i, on)
+						t.Fatalf("row %d: entity %d wrapped with %d units on the field", r, i, on)
 					}
 				}
 			}
 		}
-		if !slices.Equal(lane.Vehicles, start) {
-			t.Errorf("row %d: vehicles not back where they started after a full loop", r)
+		for i := range start {
+			e := lane.Entities[i] // only where they are counts here
+			start[i].Phase, start[i].Sink, start[i].Wait = e.Phase, e.Sink, e.Wait
+		}
+		if !slices.Equal(lane.Entities, start) {
+			t.Errorf("row %d: entities not back where they started after a full loop", r)
 		}
 	}
 }
 
 // onField is how much of v is on the field, in SubPx units.
-func onField(v Vehicle) int {
+func onField(v Entity) int {
 	left, right := v.span(0)
 	return max(0, min(right, fieldWidth)-max(left, 0))
 }
@@ -93,13 +98,13 @@ func abs(n int) int {
 
 // roadWorld is a game with one road lane on row 11, just above the start,
 // holding a single vehicle at u, moving dir at speed units a tick.
-func roadWorld(v config.Vehicle, u, dir, speed int) *World {
+func roadWorld(v config.Entity, u, dir, speed int) *World {
 	var lv config.Level
-	lv.Lanes[11] = config.Lane{Kind: config.Road, Dir: dir, Speed: speed, Pattern: []config.Spawn{{Vehicle: v, Gap: 600}}}
+	lv.Lanes[11] = config.Lane{Kind: config.Road, Dir: dir, Speed: speed, Pattern: []config.Spawn{{Entity: v, Gap: 600}}}
 	w := New(session.New(config.Skills[1], config.StartLives), lv, rand.New(rand.NewPCG(1, 1)))
 	lane := &w.Lanes[11]
 	lane.Speed = speed
-	lane.Vehicles = []Vehicle{{Kind: v, U: u}}
+	lane.Entities = []Entity{{Kind: v, U: u}}
 	return w
 }
 
@@ -111,7 +116,7 @@ func TestAVehicleSquashesTheHero(t *testing.T) {
 	// Start the car's trimmed nose 10px short of the hero's trimmed side.
 	heroLeft := w.Player.X + config.HeroMargin*config.SubPx
 	nose := (config.CarRed.Length - w.Skill.HitMargin) * config.SubPx
-	w.Lanes[11].Vehicles[0].U = heroLeft - nose - 10*config.SubPx + Buffer
+	w.Lanes[11].Entities[0].U = heroLeft - nose - 10*config.SubPx + Buffer
 
 	for tick := 1; ; tick++ {
 		ev := w.Update(None)
@@ -136,7 +141,7 @@ func TestAVehicleSquashesTheHero(t *testing.T) {
 func TestAVehicleInAnotherLaneIsHarmless(t *testing.T) {
 	w := roadWorld(config.Truck, 0, 1, 0)
 	w.Player = newPlayer(config.StartCol, config.StartRow)
-	w.Lanes[11].Vehicles[0].U = w.Player.X + Buffer // right above the hero
+	w.Lanes[11].Entities[0].U = w.Player.X + Buffer // right above the hero
 	if ev := run(w, None, 30); len(ev) != 0 {
 		t.Errorf("events %v standing below a vehicle", ev)
 	}
@@ -147,7 +152,7 @@ func TestAVehicleInAnotherLaneIsHarmless(t *testing.T) {
 // row.
 func TestHopCountsForTheNewRowFromHalfway(t *testing.T) {
 	w := roadWorld(config.Truck, 0, 1, 0)
-	w.Lanes[11].Vehicles[0].U = w.Player.X - config.Cell*config.SubPx + Buffer
+	w.Lanes[11].Entities[0].U = w.Player.X - config.Cell*config.SubPx + Buffer
 	for tick := 1; tick <= config.HopTicks; tick++ {
 		d := None
 		if tick == 1 {
@@ -167,12 +172,12 @@ func TestHopCountsForTheNewRowFromHalfway(t *testing.T) {
 func TestDeathThenRespawn(t *testing.T) {
 	w := roadWorld(config.Truck, 0, 1, 0)
 	w.Player = newPlayer(config.StartCol, 11)
-	w.Lanes[11].Vehicles[0].U = w.Player.X + Buffer
+	w.Lanes[11].Entities[0].U = w.Player.X + Buffer
 	w.TicksLeft = 100
 	if ev := w.Update(None); !slices.Equal(ev, []Event{Squashed}) {
 		t.Fatalf("events %v, want a squash", ev)
 	}
-	w.Lanes[11].Vehicles[0].U = 0 // move it off, so the respawn is safe
+	w.Lanes[11].Entities[0].U = 0 // move it off, so the respawn is safe
 
 	// Presses do nothing while dying.
 	if ev := run(w, Down, config.DeathTicks-1); len(ev) != 0 {
@@ -200,7 +205,7 @@ func TestLastLifeEndsTheGame(t *testing.T) {
 	w := roadWorld(config.Truck, 0, 1, 0)
 	w.Session.Lives = 1
 	w.Player = newPlayer(config.StartCol, 11)
-	w.Lanes[11].Vehicles[0].U = w.Player.X + Buffer
+	w.Lanes[11].Entities[0].U = w.Player.X + Buffer
 	w.Update(None)
 	ev := run(w, None, config.DeathTicks)
 	if !slices.Equal(ev, []Event{GameOver}) || !w.Over {
@@ -213,9 +218,9 @@ func TestLastLifeEndsTheGame(t *testing.T) {
 }
 
 func TestLevelOneIsRandomPerSeedButRepeatable(t *testing.T) {
-	start := func(seed uint64) []Vehicle {
+	start := func(seed uint64) []Entity {
 		w := New(session.New(config.Skills[1], 3), config.Levels[0], rand.New(rand.NewPCG(seed, seed)))
-		return w.Lanes[9].Vehicles
+		return w.Lanes[9].Entities
 	}
 	if !slices.Equal(start(5), start(5)) {
 		t.Error("one seed gave two layouts")

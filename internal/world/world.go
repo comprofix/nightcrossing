@@ -20,6 +20,8 @@ const (
 	Hopped    Event = iota + 1 // the hero left a cell
 	Landed                     // the hero arrived in a cell
 	Squashed                   // a vehicle hit the hero
+	Splashed                   // the hero landed in the water, or its platform went under
+	Swept                      // a platform carried the hero off the field
 	Respawned                  // a new attempt began on the start row
 	GameOver                   // the last life is gone
 )
@@ -76,8 +78,8 @@ func (w *World) Update(press Dir) []Event {
 	}
 	w.Tick++
 	for r := range w.Lanes {
-		if w.Lanes[r].Kind != config.Safe {
-			w.Lanes[r].update()
+		if len(w.Lanes[r].Entities) > 0 {
+			w.Lanes[r].update(w.rng)
 		}
 	}
 	if w.Dying > 0 {
@@ -85,31 +87,38 @@ func (w *World) Update(press Dir) []Event {
 		return w.events
 	}
 	w.updatePlayer(press)
+	w.ride()
 	w.checkHazards()
 	return w.events
 }
 
 func (w *World) emit(e Event) { w.events = append(w.events, e) }
 
-// inside reports whether a cell is on the playfield.
-func (w *World) inside(col, row int) bool {
-	return col >= 0 && col < w.Cols && row >= 0 && row < w.Rows
-}
-
-// checkHazards kills the hero if a vehicle in its lane overlaps it. Only
-// the lane the hero is over is checked (PLAN §3). The hero's box is a cell
-// trimmed by config.HeroMargin; vehicles are trimmed by the skill's
-// HitMargin (DESIGN §5.6).
+// checkHazards kills the hero if its row is a danger to it. Only the lane
+// the hero is over is checked (PLAN §3).
+//   - Road: a vehicle overlaps it. The hero's box is a cell trimmed by
+//     config.HeroMargin; vehicles are trimmed by the skill's HitMargin
+//     (DESIGN §5.1, §5.6).
+//   - River: a platform carried its middle off the field, or it has landed
+//     with no platform under its middle (DESIGN §5.2). Water only counts
+//     once the hero is down, so a hop over a gap onto a platform is safe.
 func (w *World) checkHazards() {
 	p := &w.Player
 	lane := &w.Lanes[p.LaneRow()]
-	if lane.Kind != config.Road {
-		return
-	}
-	m := config.HeroMargin * config.SubPx
-	left, right := p.X+m, p.X+config.Cell*config.SubPx-m
-	if lane.hits(left, right, w.Skill.HitMargin) {
-		w.die(Squashed)
+	switch lane.Kind {
+	case config.Road:
+		m := config.HeroMargin * config.SubPx
+		left, right := p.X+m, p.X+cellUnits-m
+		if lane.hits(left, right, w.Skill.HitMargin) {
+			w.die(Squashed)
+		}
+	case config.River:
+		switch mid := p.Middle(); {
+		case mid < 0 || mid >= fieldWidth:
+			w.die(Swept)
+		case !p.Hopping() && !lane.holds(mid):
+			w.die(Splashed)
+		}
 	}
 }
 
