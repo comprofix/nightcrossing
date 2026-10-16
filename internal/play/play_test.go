@@ -71,7 +71,64 @@ func summary(p *Play, ctx *scene.Context) string {
 	fmt.Fprintf(&b, "grid %dx%d  skill %s  level %d\n", w.Cols, w.Rows, w.Skill.ID, p.level)
 	fmt.Fprintf(&b, "tick %d  ticks left %d\n", w.Tick, w.TicksLeft)
 	fmt.Fprintf(&b, "score %d  lives %d\n", s.Score, s.Lives)
+	pl := w.Player
+	fmt.Fprintf(&b, "hero cell %d,%d  at %d,%d  facing %v  hopping %v\n", pl.Col, pl.Row, pl.X, pl.Y, pl.Facing, pl.Hopping())
 	return b.String()
+}
+
+// TestHopRoute plays a route of single presses through the real input,
+// some spaced out and some pressed just before landing, and checks where
+// the hero ends up against the golden file.
+func TestHopRoute(t *testing.T) {
+	h := scenetest.New(t, 42)
+	h.Ctx.NewPlay = New
+	p := New(h.Ctx, config.Skills[1]).(*Play)
+	h.Start(p)
+	h.Ticks(scene.FadeTicks)
+
+	hop := func(k ebiten.Key, gap int) {
+		h.Run(scenetest.Hold(1, k), scenetest.Hold(gap))
+	}
+	// Spaced out: each hop lands before the next press.
+	hop(ebiten.KeyArrowUp, config.HopTicks+2)
+	hop(ebiten.KeyW, config.HopTicks+2)
+	hop(ebiten.KeyArrowLeft, config.HopTicks+2)
+	hop(ebiten.KeyArrowLeft, config.HopTicks+2)
+	// Quick: each press lands in the last ticks of the hop before it.
+	for range 3 {
+		hop(ebiten.KeyArrowUp, config.HopTicks-2)
+	}
+	hop(ebiten.KeyD, config.HopTicks+2)
+	// And one back down. Route: up 2, left 2, up 3, right 1, down 1.
+	hop(ebiten.KeyArrowDown, 2*config.HopTicks)
+
+	scenetest.Golden(t, "hop_route", summary(p, h.Ctx))
+}
+
+func TestFacingKeepsTheSpriteInItsBox(t *testing.T) {
+	const w, h = 24, 24
+	// The sprite's top middle is the way it faces.
+	cases := []struct {
+		d      world.Dir
+		tx, ty float64 // where the top middle should end up
+	}{
+		{world.Up, w / 2, 0},
+		{world.Right, w, h / 2},
+		{world.Down, w / 2, h},
+		{world.Left, 0, h / 2},
+	}
+	for _, c := range cases {
+		g := facing(c.d, w, h)
+		if x, y := g.Apply(w/2, 0); x != c.tx || y != c.ty {
+			t.Errorf("%v: top middle goes to %v,%v, want %v,%v", c.d, x, y, c.tx, c.ty)
+		}
+		for _, corner := range [][2]float64{{0, 0}, {w, 0}, {0, h}, {w, h}} {
+			x, y := g.Apply(corner[0], corner[1])
+			if x < 0 || x > w || y < 0 || y > h || x != float64(int(x)) || y != float64(int(y)) {
+				t.Errorf("%v: corner %v goes to %v,%v, outside the box or between pixels", c.d, corner, x, y)
+			}
+		}
+	}
 }
 
 // TestMenuToPlayAndPause goes from the main menu to the second skill, plays
