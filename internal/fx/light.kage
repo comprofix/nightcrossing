@@ -1,0 +1,27 @@
+//kage:unit pixels
+
+package main
+
+// Ambient is the light everywhere, before any source (0–1 per channel).
+var Ambient vec3
+
+// Max is the most light a pixel can take, so a bright source can lift a
+// colour a little above its own value without washing it out.
+var Max float
+
+// Bands is how many steps the light falls off in, for a pixel-art look.
+// 0 leaves it smooth.
+var Bands float
+
+// Fragment lights the scene (image 0) by the light map (image 1).
+func Fragment(dst vec4, src vec2, color vec4) vec4 {
+	s := imageSrc0UnsafeAt(src)
+	l := imageSrc1UnsafeAt(src).rgb
+	// Step the brightness, keeping the colour, so pools of light keep their
+	// hue at each step.
+	if m := max(max(l.r, l.g), l.b); Bands > 0 && m > 0 {
+		l *= (floor(m*Bands+0.5) / Bands) / m
+	}
+	k := min(Ambient+l, vec3(Max))
+	return vec4(s.rgb*k, s.a)
+}

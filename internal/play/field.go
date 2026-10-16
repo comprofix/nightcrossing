@@ -15,14 +15,10 @@ import (
 	"github.com/comprofix/nightcrossing/internal/world"
 )
 
-// Road markings and water ripples, in pixels and ticks.
+// Road markings, in pixels.
 const (
 	dashLen = 12 // a lane dash and the gap after it
 	dashGap = 12
-
-	rippleLen    = 6  // a ripple on the water
-	rippleGap    = 18 // between ripples along a row
-	rippleSlowBy = 2  // ripples drift at this fraction of the row's speed
 
 	breakGapPx = 3 // how far apart a breaking ship's pieces drift
 )
@@ -74,12 +70,15 @@ func stageFrame(s world.Stage, phase int) int {
 }
 
 // drawField draws the rows (grass where it is safe, the track, road and
-// water), what moves along them, and the hero. Everything on the field is
-// clipped to it, so vehicles and platforms slide in and out at its edges.
+// water), the lamps, what moves along them, and the hero, then lights it
+// all for the night and draws the particles on top, so sparks and drops
+// stay bright (DESIGN §3.3). Everything on the field is clipped to it, so
+// vehicles and platforms slide in and out at its edges.
 func (p *Play) drawField(ctx *scene.Context, dst *ebiten.Image) {
 	w := p.world
-	field := dst.SubImage(image.Rect(config.FieldX, config.FieldY,
-		config.FieldX+w.Cols*config.Cell, config.FieldY+w.Rows*config.Cell)).(*ebiten.Image)
+	bounds := image.Rect(config.FieldX, config.FieldY,
+		config.FieldX+w.Cols*config.Cell, config.FieldY+w.Rows*config.Cell)
+	field := p.light.Begin(night).SubImage(bounds).(*ebiten.Image)
 
 	sheet := ctx.Sheet(Sheet)
 	for r := range w.Lanes {
@@ -96,14 +95,27 @@ func (p *Play) drawField(ctx *scene.Context, dst *ebiten.Image) {
 			p.drawWater(field, r)
 		}
 	}
+	lamp := sheet.Sprite("lamp")
+	for _, lp := range lamps {
+		lamp.Draw(field, 0, cellX(lp.col), cellY(lp.row), false)
+	}
+	for r := range w.Lanes {
+		if w.Lanes[r].Kind == config.River {
+			p.drawWakes(field, r)
+		}
+	}
 	for r := range w.Lanes {
 		p.drawEntities(ctx, field, r)
 		p.drawHerons(ctx, field, r)
 	}
 	p.drawHero(ctx, field)
 
+	p.addLights(ctx, p.light)
+	p.light.Draw(dst, 0, 0)
+	out := dst.SubImage(bounds).(*ebiten.Image)
+	p.parts.Draw(out, 0, 0)
 	if debug.Enabled {
-		p.drawHitBoxes(ctx, field)
+		p.drawHitBoxes(ctx, out)
 	}
 }
 
@@ -138,26 +150,6 @@ func (p *Play) drawTiles(dst *ebiten.Image, tile *gfx.Sprite, r int) {
 	}
 }
 
-// drawWater draws row r as dark water with ripples drifting the way the
-// row flows, slower than its platforms (DESIGN §3.3).
-func (p *Play) drawWater(dst *ebiten.Image, r int) {
-	w := p.world
-	lane := &w.Lanes[r]
-	x, y := float32(config.FieldX), float32(cellY(r))
-	width := float32(w.Cols * config.Cell)
-	vector.FillRect(dst, x, y, width, config.Cell, gfx.RGBA(resurrect64.Navy), false)
-
-	ripple := gfx.RGBA(resurrect64.Indigo)
-	const period = rippleLen + rippleGap
-	drift := int(w.Tick*int64(lane.Step())/(config.SubPx*rippleSlowBy)) % period
-	for i, ry := range []float32{6, 16} {
-		off := float32((drift+i*period/2)%period+period) - period // stagger the two lines
-		for dx := off; dx < width; dx += period {
-			vector.FillRect(dst, x+dx, y+ry, rippleLen, 1, ripple, false)
-		}
-	}
-}
-
 // drawEntities draws row r's vehicles or platforms, mirrored when the lane
 // moves left. Diving platforms show where they are in their dive.
 func (p *Play) drawEntities(ctx *scene.Context, dst *ebiten.Image, r int) {
@@ -184,7 +176,11 @@ func (p *Play) drawEntities(ctx *scene.Context, dst *ebiten.Image, r int) {
 				p.drawShipPiece(ctx, dst, e, name, fromBow, n, x+float64(i*config.Cell), y, flip)
 				continue
 			}
-			sp.Draw(dst, min(frame, sp.Frames()-1), x, y, flip)
+			f := frame
+			if lane.Kind == config.Road {
+				f = wheelFrame(e) // the wheels turn as it goes (DESIGN §3.3)
+			}
+			sp.Draw(dst, min(f, sp.Frames()-1), x, y, flip)
 			x += float64(sp.W)
 		}
 	}
@@ -244,9 +240,8 @@ func (p *Play) drawHero(ctx *scene.Context, dst *ebiten.Image) {
 	case pl.Death != 0:
 		frame = frameSquashed
 	case pl.Hopping():
-		frame = frameLeap
-		t := float64(pl.HopProgress()) / config.HopTicks
-		lift = math.Round(config.HopLiftPx * math.Sin(math.Pi*t))
+		frame = hopFrames[max(pl.HopProgress()-1, 0)] // a queued hop can show at 0
+		lift = p.heroLift()
 	case pl.Still < config.LandTicks:
 		frame = frameLand
 	}
@@ -344,4 +339,32 @@ func (p *Play) drawHerons(ctx *scene.Context, dst *ebiten.Image, r int) {
 		x := float64(config.FieldX) + math.Floor(float64(e.X())/config.SubPx) + float64(e.HeronCell*config.Cell)
 		heron.Draw(dst, 0, x, cellY(r), lane.Dir < 0)
 	}
+}
+
+// lampHeadY is how far down a lamp sprite its glowing head is, in pixels.
+const lampHeadY = 3
+
+// heroLift is how high the hero is off the ground mid-hop, in pixels.
+func (p *Play) heroLift() float64 {
+	pl := &p.world.Player
+	if !pl.Hopping() || pl.Death != 0 {
+		return 0
+	}
+	t := float64(pl.HopProgress()) / config.HopTicks
+	return math.Round(config.HopLiftPx * math.Sin(math.Pi*t))
+}
+
+// heroCentre is the middle of the hero on the screen, as drawn.
+func (p *Play) heroCentre() (x, y float64) {
+	pl := &p.world.Player
+	return float64(config.FieldX) + float64(pl.X)/config.SubPx + config.Cell/2,
+		float64(config.FieldY) + float64(pl.Y)/config.SubPx + config.Cell/2 - p.heroLift()
+}
+
+// wheelStepPx is how far a vehicle goes between its wheel frames.
+const wheelStepPx = 3
+
+// wheelFrame is the frame of a vehicle's wheels, which turn as it moves.
+func wheelFrame(e world.Entity) int {
+	return e.U / (wheelStepPx * config.SubPx) % 2
 }

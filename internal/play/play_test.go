@@ -55,8 +55,8 @@ func TestSprites(t *testing.T) {
 			t.Errorf("sprite %q is %d×%d, want %d×%d", name, got[0], got[1], wh[0], wh[1])
 		}
 	}
-	if n := frames[Toad.Sprite]; n != frameSquashed+1 {
-		t.Errorf("the hero sprite has %d frames, want %d", n, frameSquashed+1)
+	if n := frames[Toad.Sprite]; n != frameTuck+1 {
+		t.Errorf("the hero sprite has %d frames, want %d", n, frameTuck+1)
 	}
 	if n := frames["pad"]; n != frameRing+1 {
 		t.Errorf("the lily pad has %d frames, want %d", n, frameRing+1)
