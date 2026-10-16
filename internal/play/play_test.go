@@ -448,3 +448,18 @@ func TestGamepadOnly(t *testing.T) {
 	pad(input.PadB)
 	scenetest.Current[*scene.Title](h)
 }
+
+// TestStartLevel starts a test game part way (-level in debug builds): it
+// starts on that level and clears no mode.
+func TestStartLevel(t *testing.T) {
+	h := scenetest.New(t, 42)
+	h.Ctx.StartLevel = 38
+	p := New(h.Ctx, config.Stroll).(*Play)
+	if n := p.World().Level.Number; n != 38 {
+		t.Fatalf("started on level %d, want 38", n)
+	}
+	p.markCleared(h.Ctx)
+	if h.Ctx.Scores.IsCleared(config.Stroll.ID) {
+		t.Error("a test game cleared the mode")
+	}
+}

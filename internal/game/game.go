@@ -288,6 +288,10 @@ func (g *Game) present(out *ebiten.Image) {
 	out.DrawImage(g.prescale, op)
 }
 
+// StartAt makes new games start on level n, for testing (-level in debug
+// builds). Such games go on no high score table and clear no mode.
+func (g *Game) StartAt(n int) { g.ctx.StartLevel = n }
+
 // LayoutF makes the output surface match the window in device pixels, so
 // scaling is done by present rather than by Ebitengine.
 func (g *Game) LayoutF(outsideWidth, outsideHeight float64) (float64, float64) {

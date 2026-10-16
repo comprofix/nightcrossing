@@ -64,10 +64,11 @@ type Play struct {
 	outline  *ebiten.Image          // a drawing buffer for high contrast's outlines
 }
 
-// New starts a game in a mode, on its first level.
+// New starts a game in a mode, on its first level, or on ctx.StartLevel
+// in a debug build started with -level.
 func New(ctx *scene.Context, mode config.Mode) scene.Scene {
 	ctx.Session = session.New(mode, config.StartLives)
-	return newLevel(ctx, mode.Levels, 1)
+	return newLevel(ctx, mode.Levels, max(ctx.StartLevel, 1))
 }
 
 // newLevel starts level n of levels for the game in progress.
@@ -164,6 +165,9 @@ func (p *Play) tally(ctx *scene.Context) scene.Scene {
 // markCleared records the mode as cleared once its last level, level 8,
 // is cleared, for the MODE menu (D24).
 func (p *Play) markCleared(ctx *scene.Context) {
+	if ctx.StartLevel > 1 {
+		return // a test game, started part way
+	}
 	if p.world.Level.Number >= len(p.levels.Levels) && ctx.Scores.MarkCleared(ctx.Session.Mode.ID) {
 		ctx.ScoresChanged()
 	}
