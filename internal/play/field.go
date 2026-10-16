@@ -15,50 +15,87 @@ import (
 	"github.com/comprofix/nightcrossing/internal/world"
 )
 
-// Road markings, in pixels.
+// Road markings and water ripples, in pixels and ticks.
 const (
 	dashLen = 12 // a lane dash and the gap after it
 	dashGap = 12
+
+	rippleLen    = 6  // a ripple on the water
+	rippleGap    = 18 // between ripples along a row
+	rippleSlowBy = 2  // ripples drift at this fraction of the row's speed
+
+	breakGapPx = 3 // how far apart a breaking ship's pieces drift
 )
 
-// pieces are the sprites a vehicle is built from, left to right as it
-// faces right. Vehicles not listed are one sprite named by their ID
-// (DESIGN §3.3: long vehicles are built from end, middle and end pieces).
+// pieces are the sprites an entity is built from, left to right as it
+// faces right. Entities not listed are one sprite named by their ID
+// (DESIGN §3.3: long vehicles and platforms are built from end, middle and
+// end pieces).
 var pieces = map[string][]string{
-	config.Truck.ID: {"truck_back", "truck_mid", "truck_front"},
+	config.Truck.ID:    {"truck_back", "truck_mid", "truck_front"},
+	config.LogShort.ID: {"log_back", "log_mid", "log_front"},
+	config.LogLong.ID:  {"log_back", "log_mid", "log_mid", "log_mid", "log_front"},
+	config.Barge.ID:    {"barge_back", "barge_mid", "barge_mid", "barge_front"},
+	config.Ferry.ID:    {"ferry_back", "ferry_deck", "ferry_cabin", "ferry_cabin", "ferry_deck", "ferry_front"},
+	config.Pads2.ID:    {"pad", "pad"},
+	config.Pads3.ID:    {"pad", "pad", "pad"},
 }
 
-// vehicleSprites is the sprites for vehicle v, left to right facing right.
-func vehicleSprites(v config.Vehicle) []string {
-	if ps, ok := pieces[v.ID]; ok {
+// entitySprites is the sprites for entity e, left to right facing right.
+func entitySprites(e config.Entity) []string {
+	if ps, ok := pieces[e.ID]; ok {
 		return ps
 	}
-	return []string{v.ID}
+	return []string{e.ID}
 }
 
-// drawField draws the rows (grass where it is safe, road where it is
-// not), the traffic, and the hero. Everything on the field is clipped to
-// it, so vehicles slide in and out at its edges.
+// A diving platform's frames (DESIGN §3.3: they flash before going under).
+const (
+	frameAfloat = 0
+	frameFlash  = 1
+	frameHalf   = 2 // sinking or rising
+	frameRing   = 3 // under: only a ring on the water
+)
+
+// stageFrame is the frame for a platform at stage s; the warning flashes
+// between afloat and the flash frame.
+func stageFrame(s world.Stage, phase int) int {
+	switch s {
+	case world.Warning:
+		if (phase/config.DiveFlashTicks)%2 == 0 {
+			return frameFlash
+		}
+	case world.Sinking, world.Rising:
+		return frameHalf
+	case world.Under:
+		return frameRing
+	}
+	return frameAfloat
+}
+
+// drawField draws the rows (grass where it is safe, the track, road and
+// water), what moves along them, and the hero. Everything on the field is
+// clipped to it, so vehicles and platforms slide in and out at its edges.
 func (p *Play) drawField(ctx *scene.Context, dst *ebiten.Image) {
 	w := p.world
 	field := dst.SubImage(image.Rect(config.FieldX, config.FieldY,
 		config.FieldX+w.Cols*config.Cell, config.FieldY+w.Rows*config.Cell)).(*ebiten.Image)
 
-	verge := ctx.Sheet(Sheet).Sprite("verge")
+	sheet := ctx.Sheet(Sheet)
 	for r := range w.Lanes {
 		switch w.Lanes[r].Kind {
 		case config.Safe:
-			for c := range w.Cols {
-				verge.Draw(field, 0, cellX(c), cellY(r), false)
-			}
+			p.drawTiles(field, sheet.Sprite("verge"), r)
+		case config.Rail:
+			p.drawTiles(field, sheet.Sprite("track"), r)
 		case config.Road:
 			p.drawRoad(field, r)
+		case config.River:
+			p.drawWater(field, r)
 		}
 	}
 	for r := range w.Lanes {
-		if w.Lanes[r].Kind == config.Road {
-			p.drawTraffic(ctx, field, r)
-		}
+		p.drawEntities(ctx, field, r)
 	}
 	p.drawHero(ctx, field)
 
@@ -91,35 +128,112 @@ func (p *Play) drawRoad(dst *ebiten.Image, r int) {
 	}
 }
 
-// drawTraffic draws row r's vehicles, mirrored when the lane moves left.
-func (p *Play) drawTraffic(ctx *scene.Context, dst *ebiten.Image, r int) {
+// drawTiles fills row r with a one-cell tile.
+func (p *Play) drawTiles(dst *ebiten.Image, tile *gfx.Sprite, r int) {
+	for c := range p.world.Cols {
+		tile.Draw(dst, 0, cellX(c), cellY(r), false)
+	}
+}
+
+// drawWater draws row r as dark water with ripples drifting the way the
+// row flows, slower than its platforms (DESIGN §3.3).
+func (p *Play) drawWater(dst *ebiten.Image, r int) {
+	w := p.world
+	lane := &w.Lanes[r]
+	x, y := float32(config.FieldX), float32(cellY(r))
+	width := float32(w.Cols * config.Cell)
+	vector.FillRect(dst, x, y, width, config.Cell, gfx.RGBA(resurrect64.Navy), false)
+
+	ripple := gfx.RGBA(resurrect64.Indigo)
+	const period = rippleLen + rippleGap
+	drift := int(w.Tick*int64(lane.Step())/(config.SubPx*rippleSlowBy)) % period
+	for i, ry := range []float32{6, 16} {
+		off := float32((drift+i*period/2)%period+period) - period // stagger the two lines
+		for dx := off; dx < width; dx += period {
+			vector.FillRect(dst, x+dx, y+ry, rippleLen, 1, ripple, false)
+		}
+	}
+}
+
+// drawEntities draws row r's vehicles or platforms, mirrored when the lane
+// moves left. Diving platforms show where they are in their dive.
+func (p *Play) drawEntities(ctx *scene.Context, dst *ebiten.Image, r int) {
 	lane := &p.world.Lanes[r]
 	sheet := ctx.Sheet(Sheet)
 	flip := lane.Dir < 0
 	y := cellY(r)
-	for _, v := range lane.Vehicles {
-		x := float64(config.FieldX) + math.Floor(float64(v.X())/config.SubPx)
-		names := vehicleSprites(v.Kind)
+	for _, e := range lane.Entities {
+		x := float64(config.FieldX) + math.Floor(float64(e.X())/config.SubPx)
+		frame := stageFrame(e.Stage(), e.FlashPhase())
+		names := entitySprites(e.Kind)
+		n := len(names)
 		for i := range names {
 			name := names[i]
 			if flip {
-				name = names[len(names)-1-i]
+				name = names[n-1-i]
 			}
 			sp := sheet.Sprite(name)
-			sp.Draw(dst, 0, x, y, flip)
+			if e.Sinks {
+				fromBow := n - 1 - i // the bow leads, on the right facing right
+				if flip {
+					fromBow = i
+				}
+				p.drawShipPiece(ctx, dst, e, name, fromBow, n, x+float64(i*config.Cell), y, flip)
+				continue
+			}
+			sp.Draw(dst, min(frame, sp.Frames()-1), x, y, flip)
 			x += float64(sp.W)
 		}
 	}
 }
 
+// drawShipPiece draws piece fromBow of a ship that sinks, at x, y, as it
+// sinks (DESIGN §5.2, D33): flashing as a warning, then low in the water
+// and drifting apart from the other pieces as it breaks up, then darker as
+// each piece goes under, bow first. A piece that has gone is not drawn.
+func (p *Play) drawShipPiece(ctx *scene.Context, dst *ebiten.Image, e world.Entity, name string, fromBow, n int, x, y float64, flip bool) {
+	switch e.Stage() {
+	case world.Breaking, world.Sinking:
+		// Spread the pieces about the middle of the ship.
+		pos := n - 1 - fromBow // from the stern
+		if flip {
+			pos = fromBow
+		}
+		x += float64((2*pos - (n - 1)) * breakGapPx / 2)
+	}
+	switch e.PieceStage(fromBow) {
+	case world.Warning:
+		if stageFrame(world.Warning, e.FlashPhase()) == frameFlash {
+			name += "_flash"
+		}
+	case world.Breaking:
+		name += "_low"
+	case world.Sinking:
+		name += "_deep"
+	case world.Under, world.Sunk:
+		return
+	}
+	ctx.Sheet(Sheet).Sprite(name).Draw(dst, 0, x, y, flip)
+}
+
 // drawHero draws the hero turned to face its way, on its leap frame while
 // hopping, rising and falling over the hop, then squashed for a moment on
-// landing (DESIGN §3.3). A dead hero lies flat where it was hit.
+// landing (DESIGN §3.3). A dead hero lies flat where it was hit, or
+// splashes where it went in the water.
 func (p *Play) drawHero(ctx *scene.Context, dst *ebiten.Image) {
 	pl := &p.world.Player
-	sp := ctx.Sheet(Sheet).Sprite(p.hero.Sprite)
+	sheet := ctx.Sheet(Sheet)
+	sp := sheet.Sprite(p.hero.Sprite)
 
 	frame, lift := frameRest, 0.0
+	switch pl.Death {
+	case world.Splashed, world.Swept:
+		splash := sheet.Sprite(p.hero.Splash)
+		done := config.DeathTicks - p.world.Dying
+		f := min(done*splash.Frames()/config.DeathTicks, splash.Frames()-1)
+		splash.Draw(dst, f, float64(config.FieldX)+float64(pl.X)/config.SubPx, cellY(pl.LaneRow()), false)
+		return
+	}
 	switch {
 	case pl.Death != 0:
 		frame = frameSquashed
@@ -140,20 +254,28 @@ func (p *Play) drawHero(ctx *scene.Context, dst *ebiten.Image) {
 }
 
 // drawHitBoxes outlines what the rules see, in debug builds: the hero's
-// collision box in the row it counts as being in, and each vehicle's.
+// collision box in the row it counts as being in, each vehicle's, and
+// the stretch of each platform that holds the hero's middle.
 func (p *Play) drawHitBoxes(ctx *scene.Context, dst *ebiten.Image) {
 	w := p.world
 	pl := &w.Player
 	c := ctx.Scheme.Highlight
 	m := config.HeroMargin
-	debug.Box(dst, float64(config.FieldX)+float64(pl.X)/config.SubPx+float64(m), cellY(pl.LaneRow()),
-		float64(config.Cell-2*m), config.Cell, c)
+	hx := float64(config.FieldX) + float64(pl.X)/config.SubPx
+	debug.Box(dst, hx+float64(m), cellY(pl.LaneRow()), float64(config.Cell-2*m), config.Cell, c)
+	debug.Box(dst, hx+config.Cell/2, cellY(pl.LaneRow()), 1, config.Cell, c) // its middle
 	for r := range w.Lanes {
 		lane := &w.Lanes[r]
-		for _, v := range lane.Vehicles {
-			hm := w.Skill.HitMargin
-			x := float64(config.FieldX) + float64(v.X())/config.SubPx + float64(hm)
-			debug.Box(dst, x, cellY(r), float64(v.Kind.Length-2*hm), config.Cell, c)
+		hm := w.Skill.HitMargin
+		if lane.Kind == config.River {
+			hm = -config.StandGrace
+		}
+		for _, e := range lane.Entities {
+			if st := e.Stage(); st == world.Under || st == world.Sunk {
+				continue
+			}
+			x := float64(config.FieldX) + float64(e.X())/config.SubPx + float64(hm)
+			debug.Box(dst, x, cellY(r), float64(e.Kind.Length-2*hm), config.Cell, c)
 		}
 	}
 }

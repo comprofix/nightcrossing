@@ -1,8 +1,7 @@
-tick 68: crossed up
-tick 76: squashed in row 7 (was in 6), 2 lives left
-tick 148: squashed in row 11 (was in 12), 1 lives left
-tick 256: squashed in row 8 (was in 9), 0 lives left
+tick 19: squashed in row 10 (was in 10), 2 lives left
+tick 88: squashed in row 11 (was in 12), 1 lives left
+tick 181: squashed in row 10 (was in 10), 0 lives left
 grid 26x13  skill dash  level 1
-tick 316  ticks left 2700
+tick 241  ticks left 2700
 score 0  lives 0
-hero cell 13,8  at 4992,3264  facing up  hopping true
+hero cell 13,9  at 4992,3792  facing up  hopping true

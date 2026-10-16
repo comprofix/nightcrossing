@@ -9,8 +9,6 @@ import (
 	"github.com/comprofix/nightcrossing/internal/session"
 )
 
-const cellUnits = config.Cell * config.SubPx
-
 // newWorld is a game at the second skill on an all-safe level, so only
 // the hero moves.
 func newWorld(seed uint64) *World {

@@ -33,23 +33,30 @@ func (d Dir) String() string {
 	return [...]string{"none", "up", "down", "left", "right"}[d]
 }
 
-// Player is the hero. It moves one cell per hop (DESIGN §5.1). While
-// hopping, Col and Row are the cell it is hopping to, and X and Y move
-// from the old cell to the new one.
-type Player struct {
-	Col, Row         int // the cell the hero is in, or landing in
-	FromCol, FromRow int // the cell the current hop started from
-	X, Y             int // top-left corner from the field's, in config.SubPx units
-	Facing           Dir
-	Still            int   // ticks since the last landing, up to config.LandTicks
-	Death            Event // how the hero died, or 0 while alive
+// cellUnits is one cell in SubPx units.
+const cellUnits = config.Cell * config.SubPx
 
-	hopLeft int // ticks left in the current hop; 0 when not hopping
-	queued  Dir // a press kept for the landing
+// Player is the hero. It moves one cell per hop (DESIGN §5.1). While
+// hopping, Row is the row it is hopping to, and X and Y move from where
+// the hop began to where it lands. On the road and verge the hero keeps to
+// the grid; a platform carries it off the grid, and it comes back to the
+// nearest column when it hops off the river.
+type Player struct {
+	Col, Row int // the cell the hero is in, or landing in; Col is the column under its middle
+	FromRow  int // the row the current hop started from
+	X, Y     int // top-left corner from the field's, in config.SubPx units
+	Facing   Dir
+	Still    int   // ticks since the last landing, up to config.LandTicks
+	Death    Event // how the hero died, or 0 while alive
+
+	fromX, toX int // where the current hop began and lands, in SubPx units
+	hopLeft    int // ticks left in the current hop; 0 when not hopping
+	queued     Dir // a press kept for the landing
 }
 
 func newPlayer(col, row int) Player {
-	p := Player{Col: col, Row: row, FromCol: col, FromRow: row, Facing: Up, Still: config.LandTicks}
+	p := Player{Col: col, Row: row, FromRow: row, Facing: Up, Still: config.LandTicks}
+	p.fromX, p.toX = col*cellUnits, col*cellUnits
 	p.place()
 	return p
 }
@@ -76,12 +83,29 @@ func (p *Player) LaneRow() int {
 	return p.Row
 }
 
-// place sets X and Y from the hop's progress.
+// Middle is the hero's middle across the field, in SubPx units.
+func (p *Player) Middle() int { return p.X + cellUnits/2 }
+
+// place sets X, Y and Col from the hop's progress.
 func (p *Player) place() {
-	const cell = config.Cell * config.SubPx
 	done := config.HopTicks - p.hopLeft
-	p.X = p.FromCol*cell + (p.Col-p.FromCol)*cell*done/config.HopTicks
-	p.Y = p.FromRow*cell + (p.Row-p.FromRow)*cell*done/config.HopTicks
+	p.X = p.fromX + (p.toX-p.fromX)*done/config.HopTicks
+	p.Y = p.FromRow*cellUnits + (p.Row-p.FromRow)*cellUnits*done/config.HopTicks
+	p.Col = columnOf(p.toX)
+}
+
+// columnOf is the column under the middle of a hero at x, kept on the
+// field.
+func columnOf(x int) int {
+	return min(max(floorDiv(x+cellUnits/2, cellUnits), 0), config.Cols-1)
+}
+
+func floorDiv(a, b int) int {
+	q := a / b
+	if a%b != 0 && (a < 0) != (b < 0) {
+		q--
+	}
+	return q
 }
 
 // updatePlayer starts, moves and lands hops. A press starts a hop at once
@@ -107,7 +131,8 @@ func (w *World) updatePlayer(press Dir) {
 	if p.Hopping() {
 		return
 	}
-	p.FromCol, p.FromRow = p.Col, p.Row
+	p.FromRow = p.Row
+	p.fromX = p.toX
 	p.Still = 0
 	w.emit(Landed)
 	if d := p.queued; d != None {
@@ -116,17 +141,45 @@ func (w *World) updatePlayer(press Dir) {
 	}
 }
 
-// startHop begins a hop in d, unless it would leave the playfield.
+// startHop begins a hop in d, unless it would leave the playfield: below
+// the start row, past the far bank, or with the hero's middle off either
+// side. A hop onto any row but the river lands on the nearest column.
 func (w *World) startHop(d Dir) {
 	p := &w.Player
 	dc, dr := d.step()
-	col, row := p.Col+dc, p.Row+dr
-	if !w.inside(col, row) {
+	row := p.Row + dr
+	if row < 0 || row >= w.Rows {
 		return
 	}
-	p.FromCol, p.FromRow = p.Col, p.Row
-	p.Col, p.Row = col, row
+	x := p.X
+	if w.Lanes[row].Kind != config.River {
+		x = columnOf(x) * cellUnits
+	}
+	x += dc * cellUnits
+	if m := x + cellUnits/2; m < 0 || m >= fieldWidth {
+		return
+	}
+	p.FromRow, p.Row = p.Row, row
+	p.fromX, p.toX = p.X, x
 	p.Facing = d
 	p.hopLeft = config.HopTicks
+	p.place()
 	w.emit(Hopped)
+}
+
+// ride carries the hero with the river row it counts as being in
+// (DESIGN §5.2). A hop that lands on the river is carried along with it;
+// one that lands off the river still lands on its column.
+func (w *World) ride() {
+	p := &w.Player
+	lane := &w.Lanes[p.LaneRow()]
+	if lane.Kind != config.River {
+		return
+	}
+	step := lane.Step()
+	p.fromX += step
+	if !p.Hopping() || w.Lanes[p.Row].Kind == config.River {
+		p.toX += step
+	}
+	p.place()
 }

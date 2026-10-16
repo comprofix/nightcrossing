@@ -90,6 +90,9 @@ func (p *Play) Update(ctx *scene.Context) error {
 		case world.Squashed:
 			ctx.Audio.PlayEffect(Crash)
 			ctx.Shake.Start(shakeTicks, shakePx)
+		case world.Splashed, world.Swept:
+			ctx.Audio.PlayEffect(Splash)
+			ctx.Audio.PlayEffect(Bubbles)
 		case world.GameOver:
 			ctx.Audio.PlayEffect(GameOver)
 			ctx.Cut(newEnded(p))

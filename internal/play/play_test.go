@@ -41,6 +41,9 @@ func TestSprites(t *testing.T) {
 		Toad.Sprite: {config.Cell, config.Cell},
 		"verge":     {config.Cell, config.Cell},
 		"life":      {12, 12},
+		"track":     {config.Cell, config.Cell},
+		Toad.Splash: {config.Cell, config.Cell},
+		"pad":       {config.Cell, config.Cell},
 	}
 	for name, wh := range want {
 		got, ok := size[name]
@@ -54,11 +57,24 @@ func TestSprites(t *testing.T) {
 	if n := frames[Toad.Sprite]; n != frameSquashed+1 {
 		t.Errorf("the hero sprite has %d frames, want %d", n, frameSquashed+1)
 	}
+	if n := frames["pad"]; n != frameRing+1 {
+		t.Errorf("the lily pad has %d frames, want %d", n, frameRing+1)
+	}
+	// A sinking ship needs every piece in each of its sinking looks.
+	for _, s := range config.Ships() {
+		for _, name := range entitySprites(s) {
+			for _, look := range []string{"_flash", "_low", "_deep"} {
+				if size[name+look] != size[name] {
+					t.Errorf("%s: no sprite %q the size of %q", s.ID, name+look, name)
+				}
+			}
+		}
+	}
 
-	// Each vehicle's pieces are a lane high and add up to its length.
-	for _, v := range config.Vehicles() {
+	// Each entity's pieces are a lane high and add up to its length.
+	for _, v := range config.Entities() {
 		width := 0
-		for _, name := range vehicleSprites(v) {
+		for _, name := range entitySprites(v) {
 			wh, ok := size[name]
 			if !ok {
 				t.Errorf("%s: no sprite named %q", v.ID, name)
@@ -70,7 +86,7 @@ func TestSprites(t *testing.T) {
 			width += wh[0]
 		}
 		if width != v.Length {
-			t.Errorf("%s: sprites are %dpx long, the vehicle %d", v.ID, width, v.Length)
+			t.Errorf("%s: sprites are %dpx long, the entity %d", v.ID, width, v.Length)
 		}
 	}
 }

@@ -7,6 +7,7 @@ import "github.com/comprofix/nightcrossing/internal/audio"
 type Hero struct {
 	Name   string
 	Sprite string        // facing up, with the frames below
+	Splash string        // falling in the water, played through over the death
 	Hop    *audio.Effect // played as each hop starts
 }
 
@@ -19,4 +20,4 @@ const (
 )
 
 // Toad is the hero for 1.0 (DESIGN §2).
-var Toad = Hero{Name: "Toad", Sprite: "toad", Hop: ToadHop}
+var Toad = Hero{Name: "Toad", Sprite: "toad", Splash: "splash", Hop: ToadHop}
