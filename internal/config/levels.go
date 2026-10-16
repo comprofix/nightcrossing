@@ -6,6 +6,7 @@ type LaneKind int
 // The lane kinds.
 const (
 	Safe  LaneKind = iota // nothing can hurt the hero
+	Bank                  // the far bank: the goal nooks, with bank between them (DESIGN §5.3)
 	Road                  // vehicles; touching one is a death
 	River                 // platforms to ride; the water is a death
 	Rail                  // the track: safe scenery in Stroll, trains from Last Train (D15)
@@ -40,6 +41,9 @@ var (
 	Pads3    = Entity{ID: "pads3", Length: 72}
 )
 
+// Logs lists the platforms herons can stand on (DESIGN §5.2, D34).
+func Logs() []Entity { return []Entity{LogShort, LogLong} }
+
 // Vehicles lists every road vehicle, for checks and tests.
 func Vehicles() []Entity { return []Entity{Bike, CarRed, CarBlue, CarYellow, Van, Truck} }
 
@@ -73,48 +77,87 @@ type Spawn struct {
 type Lane struct {
 	Kind    LaneKind
 	Dir     int     // +1 moves right, -1 moves left
-	Speed   int     // SubPx units per tick at a skill's 100%
+	Speed   int     // SubPx units per tick: at 100% in a layout, as it runs in a Level
 	Pattern []Spawn // repeated along the lane
 }
 
-// Level is the playfield's rows, top to bottom. Row GoalRow is the far
-// bank and row StartRow the start; both are always safe.
-type Level struct {
+// Layout is a hand-written set of lanes, top to bottom, at 100% speed
+// (DESIGN §5.7, D18). Row GoalRow is the far bank and row StartRow the
+// start.
+type Layout struct {
+	Name  string
 	Lanes [Rows]Lane
 }
 
-// Levels are the game's levels, in order. M3 has one level with every
-// river platform on the rows of DESIGN §3.2 (D32); Stroll's real layouts
-// and levels come in M4.
-var Levels = []Level{
-	{Lanes: [Rows]Lane{
-		1: {Kind: River, Dir: 1, Speed: 10, Pattern: []Spawn{
-			{Entity: LogLong, Gap: 96}, {Entity: LogShort, Gap: 120},
-		}},
-		2: {Kind: River, Dir: -1, Speed: 14, Pattern: []Spawn{
-			{Entity: Pads3, Gap: 72}, {Entity: Pads3, Gap: 72, Dives: true}, {Entity: Pads2, Gap: 96},
-		}},
-		3: {Kind: River, Dir: 1, Speed: 8, Pattern: []Spawn{
-			{Entity: Ferry, Gap: 120}, {Entity: Barge, Gap: 144, Sinks: true},
-		}},
-		4: {Kind: River, Dir: -1, Speed: 16, Pattern: []Spawn{
-			{Entity: Pads2, Gap: 72}, {Entity: Pads3, Gap: 96, Dives: true}, {Entity: Pads3, Gap: 72},
-		}},
-		5: {Kind: River, Dir: 1, Speed: 12, Pattern: []Spawn{
-			{Entity: LogShort, Gap: 96}, {Entity: LogShort, Gap: 72}, {Entity: LogLong, Gap: 120},
-		}},
-		7: {Kind: Rail},
-		8: {Kind: Road, Dir: -1, Speed: 10, Pattern: []Spawn{
-			{Entity: Truck, Gap: 150}, {Entity: Truck, Gap: 230},
-		}},
-		9: {Kind: Road, Dir: 1, Speed: 16, Pattern: []Spawn{
-			{Entity: CarRed, Gap: 90}, {Entity: CarBlue, Gap: 90}, {Entity: CarYellow, Gap: 170},
-		}},
-		10: {Kind: Road, Dir: -1, Speed: 28, Pattern: []Spawn{
-			{Entity: Bike, Gap: 260},
-		}},
-		11: {Kind: Road, Dir: 1, Speed: 12, Pattern: []Spawn{
-			{Entity: Van, Gap: 110}, {Entity: Van, Gap: 190},
-		}},
-	}},
+// LevelDef is one level of a mode: a layout made harder (D18). SpeedPct
+// scales every lane's speed. GapPct scales the gaps between vehicles on
+// the road, so the traffic gets busier; river gaps are left alone, since
+// more platforms would make the river easier.
+type LevelDef struct {
+	Layout   *Layout
+	SpeedPct int
+	GapPct   int
+	HeronPct int    // the chance, per log, that a heron stands on it (D34)
+	Hint     string // shown when the level starts, for a new mechanic
+}
+
+// Level is a level as it is played: its lanes at their real speeds and
+// gaps, its heron chance and its timer.
+type Level struct {
+	Number     int // 1 for the first
+	Lanes      [Rows]Lane
+	HeronPct   int
+	TimerTicks int // the time for each attempt
+	Hint       string
+}
+
+// After the last level, the last LoopLevels levels loop. Each time round,
+// only the speed rises, by LoopSpeedStepPct, and the road gaps stay as on
+// the last level (DESIGN §5.7, D19). The speed stops rising at the
+// ceiling (D20).
+const (
+	LoopLevels       = 3
+	LoopSpeedStepPct = 10
+)
+
+// Def is the definition level n is played from, and its speed after the
+// loops' rises and the ceiling.
+func (m ModeLevels) Def(n int) (def LevelDef, speedPct int) {
+	last := len(m.Levels)
+	if n <= last {
+		d := m.Levels[n-1]
+		return d, d.SpeedPct
+	}
+	k := n - last - 1 // levels played since the loops began
+	d := m.Levels[last-LoopLevels+k%LoopLevels]
+	d.GapPct = m.Levels[last-1].GapPct
+	d.Hint = "" // each hint shows once, on the level that brings it in
+	return d, min(d.SpeedPct+(k/LoopLevels+1)*LoopSpeedStepPct, m.CeilingPct)
+}
+
+// ModeLevels is a mode's levels and speed ceiling.
+type ModeLevels struct {
+	Levels     []LevelDef
+	CeilingPct int // the speed % the loops stop rising at (D20)
+}
+
+// Level is level n (1 for the first) as it is played.
+func (m ModeLevels) Level(n int) Level {
+	def, speed := m.Def(n)
+	lv := Level{Number: n, HeronPct: def.HeronPct, TimerTicks: TimerTicks(n), Hint: def.Hint}
+	for r, l := range def.Layout.Lanes {
+		if len(l.Pattern) > 0 {
+			l.Speed = max(1, l.Speed*speed/100)
+			pattern := make([]Spawn, len(l.Pattern))
+			for i, s := range l.Pattern {
+				if l.Kind == Road {
+					s.Gap = max(Cell, s.Gap*def.GapPct/100)
+				}
+				pattern[i] = s
+			}
+			l.Pattern = pattern
+		}
+		lv.Lanes[r] = l
+	}
+	return lv
 }

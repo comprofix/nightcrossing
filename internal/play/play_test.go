@@ -12,6 +12,7 @@ import (
 	"github.com/comprofix/nightcrossing/internal/gfx/palettes/resurrect64"
 	"github.com/comprofix/nightcrossing/internal/scene"
 	"github.com/comprofix/nightcrossing/internal/scene/scenetest"
+	"github.com/comprofix/nightcrossing/internal/session"
 	"github.com/comprofix/nightcrossing/internal/spritegrid"
 	"github.com/comprofix/nightcrossing/internal/world"
 )
@@ -98,7 +99,7 @@ func TestNewGame(t *testing.T) {
 		if s := h.Ctx.Session; s.Skill.ID != sk.ID || s.Lives != config.StartLives || s.Score != 0 {
 			t.Errorf("%s: session %+v", sk.ID, s)
 		}
-		if got, want := p.World().TicksLeft, world.AttemptTicks(sk); got != want {
+		if got, want := p.World().TicksLeft, config.TimerTicks(1); got != want {
 			t.Errorf("%s: %d ticks on the clock, want %d", sk.ID, got, want)
 		}
 	}
@@ -108,7 +109,7 @@ func TestNewGame(t *testing.T) {
 func summary(p *Play, ctx *scene.Context) string {
 	w, s := p.World(), ctx.Session
 	var b strings.Builder
-	fmt.Fprintf(&b, "grid %dx%d  skill %s  level %d\n", w.Cols, w.Rows, w.Skill.ID, p.level)
+	fmt.Fprintf(&b, "grid %dx%d  skill %s  level %d\n", w.Cols, w.Rows, s.Skill.ID, w.Level.Number)
 	fmt.Fprintf(&b, "tick %d  ticks left %d\n", w.Tick, w.TicksLeft)
 	fmt.Fprintf(&b, "score %d  lives %d\n", s.Score, s.Lives)
 	pl := w.Player
@@ -123,7 +124,8 @@ func summary(p *Play, ctx *scene.Context) string {
 func TestHopRoute(t *testing.T) {
 	h := scenetest.New(t, 42)
 	h.Ctx.NewPlay = New
-	p := newPlay(h.Ctx, config.Skills[1], config.Level{})
+	h.Ctx.Session = session.New(config.Skills[0], config.StartLives)
+	p := newPlay(h.Ctx, config.Stroll, config.Level{Number: 1, TimerTicks: config.TimerTicks(1)})
 	h.Start(p)
 	h.Ticks(scene.FadeTicks)
 
@@ -172,7 +174,7 @@ func TestFacingKeepsTheSpriteInItsBox(t *testing.T) {
 	}
 }
 
-// TestMenuToPlayAndPause goes from the main menu to the second skill, plays
+// TestMenuToPlayAndPause goes from the main menu to the skill select, plays
 // a little, pauses, waits and resumes. The world must not run while paused.
 func TestMenuToPlayAndPause(t *testing.T) {
 	h := scenetest.New(t, 42)
@@ -182,11 +184,10 @@ func TestMenuToPlayAndPause(t *testing.T) {
 
 	h.Press(ebiten.KeyEnter) // Play
 	scenetest.Current[*scene.SkillSelect](h)
-	h.Press(ebiten.KeyArrowDown)
-	h.Press(ebiten.KeyEnter) // Dash
+	h.Press(ebiten.KeyEnter) // Stroll, the only skill so far
 	p := scenetest.Current[*Play](h)
-	if p.World().Skill.ID != config.Skills[1].ID {
-		t.Fatalf("started at %s, want %s", p.World().Skill.ID, config.Skills[1].ID)
+	if h.Ctx.Session.Skill.ID != config.Skills[0].ID {
+		t.Fatalf("started at %s, want %s", h.Ctx.Session.Skill.ID, config.Skills[0].ID)
 	}
 
 	h.Ticks(60)
@@ -208,7 +209,7 @@ func TestMenuToPlayAndPause(t *testing.T) {
 func TestRestart(t *testing.T) {
 	h := scenetest.New(t, 7)
 	h.Ctx.NewPlay = New
-	first := New(h.Ctx, config.Skills[2]).(*Play)
+	first := New(h.Ctx, config.Skills[0]).(*Play)
 	h.Start(first)
 	h.Ticks(scene.FadeTicks + 30)
 	h.Press(ebiten.KeyControl, ebiten.KeyR)
@@ -216,16 +217,16 @@ func TestRestart(t *testing.T) {
 	if p == first {
 		t.Fatal("restart kept the old game")
 	}
-	if p.World().Skill.ID != config.Skills[2].ID {
-		t.Errorf("restarted at %s, want %s", p.World().Skill.ID, config.Skills[2].ID)
+	if h.Ctx.Session.Skill.ID != config.Skills[0].ID || p.World().Level.Number != 1 {
+		t.Errorf("restarted at %s level %d, want %s level 1", h.Ctx.Session.Skill.ID, p.World().Level.Number, config.Skills[0].ID)
 	}
 }
 
-// TestRoadReplay plays level 1 at each skill from a fixed seed as a
+// TestRoadReplay plays level 1 from a fixed seed as a
 // reckless player who crosses the road to the verge and back, again and
 // again, pressing every few ticks and never looking. It records every
 // crossing and death, then checks the game ends, shows GAME OVER and goes
-// on to the high score table, and that it all matches the golden file. A
+// on to the high scores, and that it all matches the golden file. A
 // change to the lanes, collisions or deaths shows up here; if it is
 // intended, run the test with -update.
 func TestRoadReplay(t *testing.T) {
@@ -264,14 +265,65 @@ func TestRoadReplay(t *testing.T) {
 				}
 				if h.Ctx.Session.Lives < lives {
 					key = ebiten.KeyArrowUp // back to the start row
-					fmt.Fprintf(&log, "tick %d: squashed in row %d (was in %d), %d lives left\n", w.Tick, w.Player.LaneRow(), row, h.Ctx.Session.Lives)
+					fmt.Fprintf(&log, "tick %d: died in row %d (was in %d), %d lives left\n", w.Tick, w.Player.LaneRow(), row, h.Ctx.Session.Lives)
 				}
 			}
 			scenetest.Current[*Ended](h)
 			h.Ticks(gameOverTicks + 2*scene.FadeTicks)
-			scenetest.Current[*scene.HighScoreTable](h)
+			if h.Ctx.Session.Score > 0 {
+				scenetest.Current[*scene.HighScoreEntry](h) // the first score on an empty table
+			} else {
+				scenetest.Current[*scene.HighScoreTable](h)
+			}
 
 			scenetest.Golden(t, "road_"+sk.ID, log.String()+summary(p, h.Ctx))
 		})
+	}
+}
+
+// TestLevelClear fills the last nook of an all-safe level with a bank at
+// the top, then checks the play scene shows LEVEL CLEAR, goes to the tally
+// with the level's points, and on to the next level of the mode.
+func TestLevelClear(t *testing.T) {
+	h := scenetest.New(t, 3)
+	h.Ctx.NewPlay = New
+	h.Ctx.Session = session.New(config.Skills[0], config.StartLives)
+	lv := config.Level{Number: 1, TimerTicks: config.TimerTicks(1)}
+	lv.Lanes[config.GoalRow].Kind = config.Bank
+	p := newPlay(h.Ctx, config.Stroll, lv)
+	n := world.NookAt(config.StartCol)
+	if n < 0 {
+		t.Fatalf("the start column %d is not under a nook", config.StartCol)
+	}
+	for i := range p.World().Filled {
+		p.World().Filled[i] = i != n
+	}
+	h.Start(p)
+	h.Ticks(scene.FadeTicks)
+
+	for range config.StartRow - config.GoalRow {
+		h.Run(scenetest.Hold(1, ebiten.KeyArrowUp), scenetest.Hold(config.HopTicks+1))
+	}
+	if !p.World().Cleared {
+		t.Fatalf("not cleared: hero at row %d, filled %v", p.World().Player.Row, p.World().Filled)
+	}
+	h.Ticks(clearTicks + 1 + scene.FadeTicks)
+	scenetest.Current[*scene.Tally](h)
+	st := p.World().Stats
+	want := st.Hops + st.Goals*config.PointsGoal + st.TimeBonus + st.Clear
+	if st.Goals != 1 || st.Clear != config.PointsAllGoals || h.Ctx.Session.Score != want {
+		t.Errorf("stats %+v, score %d, want %d", st, h.Ctx.Session.Score, want)
+	}
+
+	h.Ticks(scene.FadeTicks)
+	h.Press(ebiten.KeyEnter) // finish the count
+	h.Press(ebiten.KeyEnter) // go on
+	h.Ticks(scene.FadeTicks)
+	next := scenetest.Current[*Play](h)
+	if got := next.World().Level.Number; got != 2 {
+		t.Errorf("went on to level %d, want 2", got)
+	}
+	if next.World().Level.TimerTicks != config.TimerTicks(2) {
+		t.Errorf("level 2 timer %d, want %d", next.World().Level.TimerTicks, config.TimerTicks(2))
 	}
 }

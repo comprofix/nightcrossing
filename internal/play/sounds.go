@@ -32,6 +32,26 @@ var (
 		Voice: audio.Voice{Wave: audio.Triangle, Decay: audio.Ticks(3), Volume: 0.6},
 		Notes: audio.Notes("-:8 C5:2 G5:2 -:4 E5:2 C6:2 -:6 A4:2 E5:2 -:8 D5:2 A5:2"),
 	}}
+	// Home is a toad reaching a nook: a bright rising run.
+	Home = &audio.Effect{Name: "home", Channel: 0, Priority: 3, Part: audio.Part{
+		Voice: audio.Voice{Wave: audio.Pulse25, Decay: audio.Ticks(6), Sustain: 0.4, Release: audio.Ticks(6), Volume: 0.6},
+		Notes: audio.Notes("C5:4 E5:4 G5:4 C6:10"),
+	}}
+	// OneUp is an extra life.
+	OneUp = &audio.Effect{Name: "extra life", Channel: 0, Priority: 4, Part: audio.Part{
+		Voice: audio.Voice{Wave: audio.Pulse50, Decay: audio.Ticks(4), Sustain: 0.5, Release: audio.Ticks(6), Volume: 0.6},
+		Notes: audio.Notes("G5:4 C6:4 G5:4 C6:4 E6:12"),
+	}}
+	// TimeLow warns that the attempt's time is running low (DESIGN §5.4).
+	TimeLow = &audio.Effect{Name: "time low", Channel: 1, Priority: 2, Part: audio.Part{
+		Voice: audio.Voice{Wave: audio.Pulse12, Decay: audio.Ticks(6), Volume: 0.5},
+		Notes: audio.Notes("A5:6 -:6 A5:6 -:6 A5:6"),
+	}}
+	// Squawk is a heron catching the hero: a harsh falling cry.
+	Squawk = &audio.Effect{Name: "squawk", Channel: 1, Priority: 4, Part: audio.Part{
+		Voice: audio.Voice{Wave: audio.Pulse12, Decay: audio.Ticks(16), Sustain: 0.3, Release: audio.Ticks(6), Volume: 0.7},
+		Notes: audio.Notes("D6:3 A5:4 E5:6 B4:10"),
+	}}
 	// GameOver is the end of a game.
 	GameOver = &audio.Effect{Name: "game over", Channel: 0, Priority: 5, Part: audio.Part{
 		Voice: audio.Voice{Wave: audio.Pulse50, Decay: audio.Ticks(20), Sustain: 0.5, Release: audio.Ticks(12), Volume: 0.8},
@@ -40,4 +60,4 @@ var (
 )
 
 // Sounds are the game's tunes and effects, listed for the sound test.
-var Sounds = audio.Bank{Effects: []*audio.Effect{ToadHop, Crash, Splash, Bubbles, GameOver}}
+var Sounds = audio.Bank{Effects: []*audio.Effect{ToadHop, Crash, Splash, Bubbles, Squawk, Home, OneUp, TimeLow, GameOver}}

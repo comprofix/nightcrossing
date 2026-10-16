@@ -27,6 +27,7 @@ const (
 	hudHiX     = 136
 	hudLevelX  = 240
 	hudLivesX  = 304
+	hudLivesW  = 120 // room for the lives before the timer's label
 	hudLifeGap = 2
 	timeBarW   = 120
 	timeBarH   = 8
@@ -36,33 +37,43 @@ const (
 // hint is the help shown in the strip below the playfield.
 const hint = "ARROWS/WASD: HOP   ESC: PAUSE   CTRL+R: RESTART"
 
-// Play is a game in progress.
-type Play struct {
-	world *world.World
-	hero  Hero
-	level int
-}
-
-// Effects, in ticks and pixels.
+// Effects and messages, in ticks and pixels.
 const (
-	shakeTicks    = 12
-	shakePx       = 3
-	gameOverTicks = 2 * config.TPS // the game over message shows this long
+	shakeTicks     = 12
+	shakePx        = 3
+	gameOverTicks  = 2 * config.TPS // the game over message shows this long
+	bannerTicks    = 2 * config.TPS // the level number shows this long at the start
+	levelHintTicks = 6 * config.TPS // a new level's hint shows this long
+	clearTicks     = config.TPS     // the cleared level shows this long before the tally
 )
 
-// New starts a game at a skill.
-func New(ctx *scene.Context, skill config.Skill) scene.Scene {
-	return newPlay(ctx, skill, config.Levels[0])
+// Play is a level of a game in progress.
+type Play struct {
+	world  *world.World
+	hero   Hero
+	levels config.ModeLevels
+	ticks  int // since the level started
+	clear  int // ticks since the level was cleared; 0 until then
 }
 
-// newPlay starts a game at a skill on a given level, so tests can use
-// levels of their own.
-func newPlay(ctx *scene.Context, skill config.Skill, level config.Level) *Play {
+// New starts a game at a skill, on its first level.
+func New(ctx *scene.Context, skill config.Skill) scene.Scene {
 	ctx.Session = session.New(skill, config.StartLives)
+	return newLevel(ctx, config.Stroll, 1)
+}
+
+// newLevel starts level n of levels for the game in progress.
+func newLevel(ctx *scene.Context, levels config.ModeLevels, n int) *Play {
+	return newPlay(ctx, levels, levels.Level(n))
+}
+
+// newPlay starts a given level for the game in progress, so tests can use
+// levels of their own.
+func newPlay(ctx *scene.Context, levels config.ModeLevels, level config.Level) *Play {
 	return &Play{
-		world: world.New(ctx.Session, level, ctx.RNG),
-		hero:  Toad,
-		level: 1,
+		world:  world.New(ctx.Session, level, ctx.RNG),
+		hero:   Toad,
+		levels: levels,
 	}
 }
 
@@ -83,22 +94,58 @@ func (p *Play) Update(ctx *scene.Context) error {
 		ctx.Switch(New(ctx, ctx.Session.Skill))
 		return nil
 	}
+	p.ticks++
+	if p.clear > 0 {
+		if p.clear++; p.clear > clearTicks {
+			ctx.Switch(p.tally(ctx))
+		}
+		return nil
+	}
 	for _, e := range p.world.Update(pressed(in)) {
 		switch e {
 		case world.Hopped:
 			ctx.Audio.PlayEffect(p.hero.Hop)
-		case world.Squashed:
+		case world.Squashed, world.Bumped:
 			ctx.Audio.PlayEffect(Crash)
 			ctx.Shake.Start(shakeTicks, shakePx)
 		case world.Splashed, world.Swept:
 			ctx.Audio.PlayEffect(Splash)
 			ctx.Audio.PlayEffect(Bubbles)
+		case world.Caught:
+			ctx.Audio.PlayEffect(Squawk)
+		case world.TimeUp:
+			ctx.Audio.PlayEffect(Crash)
+		case world.LowTime:
+			ctx.Audio.PlayEffect(TimeLow)
+		case world.Goal:
+			ctx.Audio.PlayEffect(Home)
+		case world.ExtraLife:
+			ctx.Audio.PlayEffect(OneUp)
+		case world.LevelClear:
+			p.clear = 1
 		case world.GameOver:
 			ctx.Audio.PlayEffect(GameOver)
 			ctx.Cut(newEnded(p))
 		}
 	}
 	return nil
+}
+
+// tally is the level-clear tally of what this level earned, then the next
+// level (DESIGN §7). The points are already in the score; the tally shows
+// where they came from.
+func (p *Play) tally(ctx *scene.Context) scene.Scene {
+	st := p.world.Stats
+	n := p.world.Level.Number
+	lines := []scene.TallyLine{
+		{Label: "HOPS", Points: st.Hops},
+		{Label: fmt.Sprintf("HOME %d x %d", st.Goals, config.PointsGoal), Points: st.Goals * config.PointsGoal},
+		{Label: "TIME BONUS", Points: st.TimeBonus},
+		{Label: "ALL FIVE HOME", Points: st.Clear},
+	}
+	return scene.NewTally(fmt.Sprintf("LEVEL %d CLEAR", n), lines, func() scene.Scene {
+		return newLevel(ctx, p.levels, n+1)
+	})
 }
 
 // Ended holds the last moment of the game on screen under a GAME OVER
@@ -151,6 +198,7 @@ func (p *Play) Draw(ctx *scene.Context, dst *ebiten.Image) {
 	p.drawField(ctx, dst)
 	p.drawHUD(ctx, dst)
 	p.drawHint(ctx, dst)
+	p.drawBanner(ctx, dst)
 }
 
 // drawHUD draws the status bar: score, best score, level, lives and time.
@@ -160,12 +208,12 @@ func (p *Play) drawHUD(ctx *scene.Context, dst *ebiten.Image) {
 	ty := (config.HUDHeight - f.Small.Size) / 2
 
 	f.Small.DrawShadowed(dst, fmt.Sprintf("SCORE %06d", s.Score), config.FieldMargin, ty, sc.Text, sc.Shadow)
-	f.Small.DrawShadowed(dst, fmt.Sprintf("HI %06d", best(ctx)), hudHiX, ty, sc.Text, sc.Shadow)
-	f.Small.DrawShadowed(dst, fmt.Sprintf("LV %d", p.level), hudLevelX, ty, sc.Text, sc.Shadow)
+	f.Small.DrawShadowed(dst, fmt.Sprintf("HI %06d", max(best(ctx), s.Score)), hudHiX, ty, sc.Text, sc.Shadow)
+	f.Small.DrawShadowed(dst, fmt.Sprintf("LV %d", p.world.Level.Number), hudLevelX, ty, sc.Text, sc.Shadow)
 
 	life := ctx.Sheet(Sheet).Sprite("life")
 	ly := float64((config.HUDHeight - life.H) / 2)
-	for i := range s.Lives {
+	for i := range min(s.Lives, hudLivesW/(life.W+hudLifeGap)) {
 		life.Draw(dst, 0, float64(hudLivesX+i*(life.W+hudLifeGap)), ly, false)
 	}
 
@@ -174,17 +222,45 @@ func (p *Play) drawHUD(ctx *scene.Context, dst *ebiten.Image) {
 	barY := (config.HUDHeight - timeBarH) / 2
 	label := "TIME"
 	f.Small.DrawShadowed(dst, label, barX-labelGap-len(label)*f.Small.Size, ty, sc.Text, sc.Shadow)
-	full := world.AttemptTicks(p.world.Skill)
-	filled := timeBarW * p.world.TicksLeft / full
+	w := p.world
+	filled := timeBarW * max(w.TicksLeft, 0) / w.Level.TimerTicks
+	bar := resurrect64.Emerald
+	if w.TicksLeft <= config.LowTimeSecs*config.TPS {
+		bar = resurrect64.Red // time is low (DESIGN §5.4)
+	}
 	vector.FillRect(dst, float32(barX), float32(barY), timeBarW, timeBarH, gfx.RGBA(sc.Panel), false)
-	vector.FillRect(dst, float32(barX), float32(barY), float32(filled), timeBarH, gfx.RGBA(resurrect64.Emerald), false)
+	vector.FillRect(dst, float32(barX), float32(barY), float32(filled), timeBarH, gfx.RGBA(bar), false)
 }
 
-// drawHint draws the strip below the playfield.
+// drawHint draws the strip below the playfield: the controls, or for a
+// while at the start of a level that brings in something new, its hint
+// (DESIGN §7).
 func (p *Play) drawHint(ctx *scene.Context, dst *ebiten.Image) {
 	sc, f := ctx.Scheme, ctx.Fonts
 	top := config.FieldY + config.Rows*config.Cell
-	ui.TextCentred(dst, f.Small, hint, top+(config.HintHeight-f.Small.Size)/2, sc.Dim, sc.Shadow)
+	text, c := hint, sc.Dim
+	if h := p.world.Level.Hint; h != "" && p.ticks < levelHintTicks {
+		text, c = h, sc.Highlight
+	}
+	ui.TextCentred(dst, f.Small, text, top+(config.HintHeight-f.Small.Size)/2, c, sc.Shadow)
+}
+
+// drawBanner shows the level number as the level starts, and LEVEL CLEAR
+// once it is cleared, on the verge between the river and the road.
+func (p *Play) drawBanner(ctx *scene.Context, dst *ebiten.Image) {
+	sc, f := ctx.Scheme, ctx.Fonts
+	var text string
+	switch {
+	case p.clear > 0:
+		text = "LEVEL CLEAR"
+	case p.ticks < bannerTicks:
+		text = fmt.Sprintf("LEVEL %d", p.world.Level.Number)
+	default:
+		return
+	}
+	const vergeRow = 6
+	y := config.FieldY + vergeRow*config.Cell + (config.Cell-f.Large.Size)/2
+	ui.TextCentred(dst, f.Large, text, y, sc.Title, sc.Shadow)
 }
 
 // best is the top score in the current skill's table, or 0.

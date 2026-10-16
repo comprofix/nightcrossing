@@ -135,7 +135,11 @@ func (w *World) updatePlayer(press Dir) {
 	p.fromX = p.toX
 	p.Still = 0
 	w.emit(Landed)
-	if d := p.queued; d != None {
+	w.landed()
+	// Where it landed counts before a queued hop can carry it on, so a
+	// quick press never skips a splash or the bank.
+	w.checkHazards()
+	if d := p.queued; d != None && w.playing() {
 		p.queued = None
 		w.startHop(d)
 	}

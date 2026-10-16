@@ -9,10 +9,17 @@ import (
 	"github.com/comprofix/nightcrossing/internal/session"
 )
 
+// testLevel is an all-safe level with level 1's timer, so only the hero
+// moves.
+func testLevel() config.Level { return config.Level{Number: 1, TimerTicks: config.TimerTicks(1)} }
+
+// rich is a level with every kind of lane and platform: Stroll's level 8.
+var rich = config.Stroll.Level(8)
+
 // newWorld is a game at the second skill on an all-safe level, so only
 // the hero moves.
 func newWorld(seed uint64) *World {
-	return New(session.New(config.Skills[1], config.StartLives), config.Level{}, rand.New(rand.NewPCG(seed, seed)))
+	return New(session.New(config.Skills[0], config.StartLives), testLevel(), rand.New(rand.NewPCG(seed, seed)))
 }
 
 // run updates w once with press, then n-1 more times with nothing pressed,
@@ -44,15 +51,11 @@ func at(t *testing.T, w *World, col, row int) {
 }
 
 func TestNew(t *testing.T) {
-	sk := config.Skills[1]
 	w := newWorld(1)
 	if w.Cols != 26 || w.Rows != 13 {
 		t.Errorf("grid %d×%d, want 26×13", w.Cols, w.Rows)
 	}
-	if w.Skill.ID != sk.ID {
-		t.Errorf("skill %q, want %q", w.Skill.ID, sk.ID)
-	}
-	if want := sk.TimerSecs * config.TPS; w.TicksLeft != want {
+	if want := config.TimerStartSecs * config.TPS; w.TicksLeft != want {
 		t.Errorf("%d ticks on the clock, want %d", w.TicksLeft, want)
 	}
 	at(t, w, config.StartCol, config.StartRow)

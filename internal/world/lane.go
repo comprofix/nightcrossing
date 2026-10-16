@@ -2,6 +2,7 @@ package world
 
 import (
 	"math/rand/v2"
+	"slices"
 
 	"github.com/comprofix/nightcrossing/internal/config"
 )
@@ -16,9 +17,12 @@ import (
 type Lane struct {
 	Kind     config.LaneKind
 	Dir      int // +1 right, -1 left
-	Speed    int // SubPx units per tick, after the skill's speed
+	Speed    int // SubPx units per tick
 	Loop     int // SubPx units
 	Entities []Entity
+	HeronPct int // the chance a log coming on has a heron (DESIGN §5.2, D34)
+
+	lastHeron bool // the last log to come on had a heron
 }
 
 // Entity is one vehicle on a road lane or platform on a river lane.
@@ -30,6 +34,11 @@ type Entity struct {
 	Sinks bool // a ship that sinks for good (DESIGN §5.2, D33)
 	Sink  int  // ticks into sinking, for one that sinks; 0 while it floats
 	Wait  int  // ticks wholly on the field left before it starts to sink
+
+	Heron     bool // a heron stands on this log (D34)
+	HeronCell int  // which cell of the log it stands on, from the left end
+
+	log bool // a log, which herons can stand on
 }
 
 // Stage is where a diving platform is in its cycle (DESIGN §5.2).
@@ -56,17 +65,16 @@ const Buffer = config.Longest * config.SubPx
 // fieldWidth is the playfield's width in SubPx units.
 const fieldWidth = config.Cols * config.Cell * config.SubPx
 
-// newLane lays out a level's lane for a skill. The pattern repeats until
+// newLane lays out a level's lane, with herons on its logs at heronPct. The pattern repeats until
 // it fills the loop, and the whole lane starts at a random point along it,
 // so each game looks a little different but the pattern holds. Each diving
 // platform starts at a random point in its cycle, so they don't all go
 // under together.
-func newLane(l config.Lane, skill config.Skill, rng *rand.Rand) Lane {
-	lane := Lane{Kind: l.Kind, Dir: l.Dir}
+func newLane(l config.Lane, heronPct int, rng *rand.Rand) Lane {
+	lane := Lane{Kind: l.Kind, Dir: l.Dir, Speed: l.Speed, HeronPct: heronPct}
 	if len(l.Pattern) == 0 {
 		return lane
 	}
-	lane.Speed = max(1, l.Speed*skill.SpeedPct/100)
 
 	pattern := 0
 	for _, s := range l.Pattern {
@@ -78,7 +86,8 @@ func newLane(l config.Lane, skill config.Skill, rng *rand.Rand) Lane {
 	u := rng.IntN(lane.Loop)
 	for range repeats {
 		for _, s := range l.Pattern {
-			e := Entity{Kind: s.Entity, U: u % lane.Loop, Dives: s.Dives, Sinks: s.Sinks}
+			e := Entity{Kind: s.Entity, U: u % lane.Loop, Dives: s.Dives, Sinks: s.Sinks,
+				log: slices.Contains(config.Logs(), s.Entity)}
 			if e.Dives {
 				e.Phase = rng.IntN(config.DiveCycle)
 			}
@@ -97,7 +106,16 @@ func newLane(l config.Lane, skill config.Skill, rng *rand.Rand) Lane {
 func (l *Lane) update(rng *rand.Rand) {
 	for i := range l.Entities {
 		e := &l.Entities[i]
+		wasOff := e.off()
 		e.U = ((e.U+l.Dir*l.Speed)%l.Loop + l.Loop) % l.Loop
+		if e.log {
+			switch off := e.off(); {
+			case wasOff && !off:
+				l.placeHeron(e, rng)
+			case !wasOff && off:
+				e.Heron = false
+			}
+		}
 		if e.Dives {
 			e.Phase = (e.Phase + 1) % config.DiveCycle
 		}
@@ -125,20 +143,12 @@ func (e *Entity) updateSink(rng *rand.Rand) {
 			e.Sink, e.Wait = 0, sinkWait(rng)
 		}
 	case e.Sink > 0:
-		e.Sink = min(e.Sink+1, sinkTicks(e.Kind))
+		e.Sink = min(e.Sink+1, config.SinkTicks(e.Kind))
 	case left >= 0 && right <= fieldWidth:
 		if e.Wait--; e.Wait <= 0 {
 			e.Sink = 1
 		}
 	}
-}
-
-// pieces is how many one-cell pieces a ship has.
-func pieces(ship config.Entity) int { return ship.Length / config.Cell }
-
-// sinkTicks is how long a ship takes from its warning to the bottom.
-func sinkTicks(ship config.Entity) int {
-	return config.SinkWarnTicks + config.SinkBreakTicks + pieces(ship)*config.SinkPieceTicks
 }
 
 // Step is how far the lane moves things in one tick, in SubPx units, with
@@ -183,7 +193,7 @@ func (e Entity) sinkStage() Stage {
 		return Warning
 	case s <= config.SinkWarnTicks+config.SinkBreakTicks:
 		return Breaking
-	case s < sinkTicks(e.Kind):
+	case s < config.SinkTicks(e.Kind):
 		return Sinking
 	}
 	return Sunk
@@ -266,5 +276,43 @@ func (l *Lane) pieceFromBow(e Entity, x int) int {
 	if l.Dir > 0 {
 		from = right - 1 - x
 	}
-	return min(max(from/cellUnits, 0), pieces(e.Kind)-1)
+	return min(max(from/cellUnits, 0), config.Pieces(e.Kind)-1)
+}
+
+// off reports whether e is wholly off the field.
+func (e Entity) off() bool {
+	left, right := e.span(0)
+	return right <= 0 || left >= fieldWidth
+}
+
+// placeHeron decides, as log e comes on, whether a heron stands on it and
+// where. It is decided while the log is still wholly off the field, so a
+// heron never appears under the hero or pops into view: it rides in with
+// its log. The log after a heron's log never has one, so a log without a
+// heron is never more than one log away (DESIGN §5.2, D34).
+func (l *Lane) placeHeron(e *Entity, rng *rand.Rand) {
+	e.Heron = false
+	if l.HeronPct <= 0 {
+		return
+	}
+	if !l.lastHeron && rng.IntN(100) < l.HeronPct {
+		e.Heron, e.HeronCell = true, rng.IntN(e.Kind.Length/config.Cell)
+	}
+	l.lastHeron = e.Heron
+}
+
+// heronIn reports whether a heron overlaps left–right, in SubPx units.
+// Its box is its cell, trimmed by config.HitMargin at each side.
+func (l *Lane) heronIn(left, right int) bool {
+	m := config.HitMargin * config.SubPx
+	for _, e := range l.Entities {
+		if !e.Heron {
+			continue
+		}
+		hl := e.X() + e.HeronCell*cellUnits + m
+		if hl < right && left < hl+cellUnits-2*m {
+			return true
+		}
+	}
+	return false
 }

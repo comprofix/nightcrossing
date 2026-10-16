@@ -16,9 +16,6 @@ func TestPlayfieldFillsTheScreen(t *testing.T) {
 }
 
 func TestSkills(t *testing.T) {
-	if len(Skills) != 4 {
-		t.Fatalf("%d skills, want 4", len(Skills))
-	}
 	ids := map[string]bool{}
 	for i, s := range Skills {
 		if s.ID == "" || s.Name == "" || s.Desc == "" {
@@ -28,15 +25,6 @@ func TestSkills(t *testing.T) {
 			t.Errorf("skill ID %q is used twice", s.ID)
 		}
 		ids[s.ID] = true
-		if s.SpeedPct <= 0 || s.TimerSecs <= 0 || s.HitMargin < 0 || 2*s.HitMargin >= Cell {
-			t.Errorf("skill %s has unusable tuning: %+v", s.ID, s)
-		}
-		if i > 0 {
-			prev := Skills[i-1]
-			if s.SpeedPct < prev.SpeedPct || s.TimerSecs > prev.TimerSecs || s.HitMargin > prev.HitMargin {
-				t.Errorf("skill %s is easier than %s, which comes before it", s.ID, prev.ID)
-			}
-		}
 	}
 }
 
@@ -86,12 +74,18 @@ func TestDiveCycle(t *testing.T) {
 }
 
 func TestLevels(t *testing.T) {
-	for i, lv := range Levels {
+	for i := range Stroll.Levels {
+		lv := Stroll.Level(i + 1)
 		for r, l := range lv.Lanes {
-			if (r == GoalRow || r == StartRow) && l.Kind != Safe {
+			switch {
+			case r == GoalRow && l.Kind != Bank:
+				t.Errorf("level %d row %d must be the bank", i+1, r)
+			case r == StartRow && l.Kind != Safe:
 				t.Errorf("level %d row %d must be safe", i+1, r)
+			case r != GoalRow && l.Kind == Bank:
+				t.Errorf("level %d row %d: the bank is only on row %d", i+1, r, GoalRow)
 			}
-			if l.Kind == Safe || l.Kind == Rail {
+			if l.Kind == Safe || l.Kind == Rail || l.Kind == Bank {
 				if len(l.Pattern) != 0 {
 					t.Errorf("level %d row %d: a safe or rail row has a pattern", i+1, r)
 				}

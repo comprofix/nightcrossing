@@ -17,63 +17,82 @@ type Event int
 
 // The events.
 const (
-	Hopped    Event = iota + 1 // the hero left a cell
-	Landed                     // the hero arrived in a cell
-	Squashed                   // a vehicle hit the hero
-	Splashed                   // the hero landed in the water, or its platform went under
-	Swept                      // a platform carried the hero off the field
-	Respawned                  // a new attempt began on the start row
-	GameOver                   // the last life is gone
+	Hopped     Event = iota + 1 // the hero left a cell
+	Landed                      // the hero arrived in a cell
+	Squashed                    // a vehicle hit the hero
+	Splashed                    // the hero landed in the water, or its platform went under
+	Swept                       // a platform carried the hero off the field
+	Caught                      // the hero landed on a heron
+	Bumped                      // the hero landed on the bank or a filled nook
+	TimeUp                      // the attempt's time ran out
+	LowTime                     // the attempt's time is running low
+	Goal                        // the hero filled a nook
+	LevelClear                  // the last nook is filled
+	ExtraLife                   // the score earned a life
+	Respawned                   // a new attempt began on the start row
+	GameOver                    // the last life is gone
 )
 
-// World is one game's playfield.
+// Stats are the points earned on this level, for the level-clear tally.
+type Stats struct {
+	Hops      int // points for hops into new rows
+	Goals     int // nooks filled
+	TimeBonus int // points for time left when filling them
+	Clear     int // the bonus for filling the last one
+}
+
+// World is one level of a game.
 type World struct {
 	Cols, Rows int
 	Session    *session.Session
-	Skill      config.Skill
-	Tick       int64 // ticks since the game started
+	Level      config.Level
+	Tick       int64 // ticks since the level started
 	TicksLeft  int   // time left on this attempt (DESIGN §5.4)
 	Player     Player
 	Lanes      [config.Rows]Lane
-	Dying      int  // ticks left of the hero's death; 0 when alive
-	Over       bool // the game has ended
+	Filled     [len(config.Nooks)]bool // the nooks filled so far; they stay filled (DESIGN §5.4)
+	Home       int                     // ticks left of a toad showing in its nook; 0 otherwise
+	Dying      int                     // ticks left of the hero's death; 0 when alive
+	Cleared    bool                    // every nook is filled
+	Over       bool                    // the game has ended
+	Stats      Stats
 
-	rng    *rand.Rand
-	events []Event
+	furthest int // the furthest row reached this attempt
+	rng      *rand.Rand
+	events   []Event
 }
 
-// New starts a game for s on level. Every random choice comes from rng,
+// New starts level for the game in s. Every random choice comes from rng,
 // so a seed gives the same game.
 func New(s *session.Session, level config.Level, rng *rand.Rand) *World {
 	w := &World{
 		Cols:    config.Cols,
 		Rows:    config.Rows,
 		Session: s,
-		Skill:   s.Skill,
+		Level:   level,
 		rng:     rng,
 	}
 	for r, l := range level.Lanes {
-		w.Lanes[r] = newLane(l, s.Skill, rng)
+		w.Lanes[r] = newLane(l, level.HeronPct, rng)
 	}
 	w.newAttempt()
 	return w
 }
 
-// AttemptTicks is the time limit for each attempt at skill, in ticks.
-func AttemptTicks(skill config.Skill) int { return skill.TimerSecs * config.TPS }
-
 // newAttempt puts the hero on the start row with a full clock.
 func (w *World) newAttempt() {
 	w.Player = newPlayer(config.StartCol, config.StartRow)
-	w.TicksLeft = AttemptTicks(w.Skill)
+	w.TicksLeft = w.Level.TimerTicks
+	w.furthest = config.StartRow
 }
 
 // Update advances the world by one tick. press is the direction pressed
 // this tick, or None. It returns what happened; the slice is reused by the
-// next call.
+// next call. Once the level is cleared or the game is over, it does
+// nothing.
 func (w *World) Update(press Dir) []Event {
 	w.events = w.events[:0]
-	if w.Over {
+	if w.Over || w.Cleared {
 		return w.events
 	}
 	w.Tick++
@@ -82,44 +101,140 @@ func (w *World) Update(press Dir) []Event {
 			w.Lanes[r].update(w.rng)
 		}
 	}
-	if w.Dying > 0 {
+	switch {
+	case w.Dying > 0:
 		w.updateDeath()
-		return w.events
+	case w.Home > 0:
+		if w.Home--; w.Home == 0 {
+			w.newAttempt()
+			w.emit(Respawned)
+		}
+	default:
+		w.updatePlayer(press)
+		if w.playing() {
+			w.ride()
+			w.checkHazards()
+		}
+		if w.playing() {
+			w.updateTimer()
+		}
 	}
-	w.updatePlayer(press)
-	w.ride()
-	w.checkHazards()
 	return w.events
 }
 
+// playing reports whether the hero is out on an attempt: not dying, not
+// home in a nook, and the level not yet cleared.
+func (w *World) playing() bool { return w.Dying == 0 && w.Home == 0 && !w.Cleared }
+
 func (w *World) emit(e Event) { w.events = append(w.events, e) }
+
+// score adds points, and a life each time the score passes a multiple of
+// config.ExtraLifeEvery (DESIGN §5.4).
+func (w *World) score(points int) {
+	s := w.Session
+	before := s.Score
+	s.AddScore(points)
+	if lives := s.Score/config.ExtraLifeEvery - before/config.ExtraLifeEvery; lives > 0 {
+		s.Lives += lives
+		w.emit(ExtraLife)
+	}
+}
+
+// landed scores a hop into a row further than the hero has reached on
+// this attempt (DESIGN §5.5). updatePlayer calls it on each landing.
+func (w *World) landed() {
+	if r := w.Player.Row; r < w.furthest {
+		w.furthest = r
+		w.score(config.PointsHop)
+		w.Stats.Hops += config.PointsHop
+	}
+}
+
+// updateTimer runs the attempt's clock down: a warning when time is low,
+// and a death when it runs out (DESIGN §5.4).
+func (w *World) updateTimer() {
+	w.TicksLeft--
+	switch w.TicksLeft {
+	case config.LowTimeSecs * config.TPS:
+		w.emit(LowTime)
+	case 0:
+		w.die(TimeUp)
+	}
+}
 
 // checkHazards kills the hero if its row is a danger to it. Only the lane
 // the hero is over is checked (PLAN §3).
 //   - Road: a vehicle overlaps it. The hero's box is a cell trimmed by
-//     config.HeroMargin; vehicles are trimmed by the skill's HitMargin
-//     (DESIGN §5.1, §5.6).
+//     config.HeroMargin; vehicles are trimmed by config.HitMargin (DESIGN
+//     §5.1, D13).
 //   - River: a platform carried its middle off the field, or it has landed
-//     with no platform under its middle (DESIGN §5.2). Water only counts
-//     once the hero is down, so a hop over a gap onto a platform is safe.
+//     with no platform under its middle, or on a heron (DESIGN §5.2). Water
+//     and herons only count once the hero is down, so a hop over a gap onto
+//     a platform is safe.
+//   - Bank: on landing, the hero fills an empty nook or bumps into the bank
+//     (DESIGN §5.3).
 func (w *World) checkHazards() {
 	p := &w.Player
 	lane := &w.Lanes[p.LaneRow()]
+	m := config.HeroMargin * config.SubPx
+	left, right := p.X+m, p.X+cellUnits-m
 	switch lane.Kind {
 	case config.Road:
-		m := config.HeroMargin * config.SubPx
-		left, right := p.X+m, p.X+cellUnits-m
-		if lane.hits(left, right, w.Skill.HitMargin) {
+		if lane.hits(left, right, config.HitMargin) {
 			w.die(Squashed)
 		}
 	case config.River:
 		switch mid := p.Middle(); {
 		case mid < 0 || mid >= fieldWidth:
 			w.die(Swept)
-		case !p.Hopping() && !lane.holds(mid):
+		case p.Hopping():
+		case !lane.holds(mid):
 			w.die(Splashed)
+		case lane.heronIn(left, right):
+			w.die(Caught)
+		}
+	case config.Bank:
+		if !p.Hopping() {
+			w.reachBank()
 		}
 	}
+}
+
+// NookAt is the nook column col is in, or -1 for the bank between them.
+func NookAt(col int) int {
+	for i, c := range config.Nooks {
+		if col >= c && col < c+config.NookWidth {
+			return i
+		}
+	}
+	return -1
+}
+
+// reachBank fills the nook the hero landed in, ending the attempt with a
+// success, or bumps the hero on the bank or a filled nook (DESIGN §5.3).
+// The fifth nook clears the level.
+func (w *World) reachBank() {
+	n := NookAt(w.Player.Col)
+	if n < 0 || w.Filled[n] {
+		w.die(Bumped)
+		return
+	}
+	w.Filled[n] = true
+	secs := w.TicksLeft / config.TPS
+	w.score(config.PointsGoal + secs*config.PointsPerSec)
+	w.Stats.Goals++
+	w.Stats.TimeBonus += secs * config.PointsPerSec
+	w.emit(Goal)
+	for _, f := range w.Filled {
+		if !f {
+			w.Home = config.GoalTicks
+			return
+		}
+	}
+	w.score(config.PointsAllGoals)
+	w.Stats.Clear += config.PointsAllGoals
+	w.Cleared = true
+	w.emit(LevelClear)
 }
 
 // die starts the hero's death. The life goes at once, so the status bar
