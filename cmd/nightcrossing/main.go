@@ -19,9 +19,10 @@ import (
 
 func main() {
 	seed := flag.Uint64("seed", 0, "random seed, for repeatable runs (0 picks one from the clock)")
-	level := 1
+	level, noShaders := 1, false
 	if debug.Enabled {
 		flag.IntVar(&level, "level", 1, "start new games on this level, for testing (debug builds only)")
+		flag.BoolVar(&noShaders, "noshaders", false, "draw without shaders, as on a machine that can't run them (debug builds only)")
 	}
 	flag.Parse()
 	if *seed == 0 {
@@ -65,6 +66,9 @@ func main() {
 		log.Fatal(err)
 	}
 	g.StartAt(level)
+	if noShaders {
+		g.WithoutShaders()
+	}
 	if err := ebiten.RunGame(g); err != nil {
 		log.Fatal(err)
 	}

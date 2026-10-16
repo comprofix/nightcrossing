@@ -129,10 +129,11 @@ func TestSaveAndLoadSettings(t *testing.T) {
 }
 
 func TestInGoBuild(t *testing.T) {
-	if !inGoBuild(`C:\Users\x\AppData\Local\Temp\go-build123\b001\exe`) {
+	// Paths in this OS's own form: on Linux a backslash is not a separator.
+	if !inGoBuild(filepath.Join("tmp", "go-build123", "b001", "exe")) {
 		t.Error("go-build folder not detected")
 	}
-	if inGoBuild(`C:\Games\nightcrossing`) {
+	if inGoBuild(filepath.Join("games", "nightcrossing")) {
 		t.Error("ordinary folder taken for go-build")
 	}
 }

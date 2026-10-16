@@ -17,15 +17,16 @@ import (
 // has its own seed and session, so it leaves the game's RNG, the game in
 // progress and the scores alone, and plays the same every time.
 type Demo struct {
-	play  *Play
-	level int // the level being played
-	ended int // ticks since the level was cleared or lost; 0 until then
-	pilot world.Autopilot
+	play    *Play
+	level   int  // the level being played
+	shaders bool // whether to light it with shaders
+	ended   int  // ticks since the level was cleared or lost; 0 until then
+	pilot   world.Autopilot
 }
 
 // NewDemo starts the demo on level 1.
-func NewDemo(*scene.Context) scene.Scene {
-	d := &Demo{}
+func NewDemo(ctx *scene.Context) scene.Scene {
+	d := &Demo{shaders: !ctx.NoShaders}
 	d.start(1)
 	return d
 }
@@ -33,7 +34,7 @@ func NewDemo(*scene.Context) scene.Scene {
 // start plays level n with a fresh session, seeded for that level.
 func (d *Demo) start(n int) {
 	s := session.New(config.Stroll, config.StartLives)
-	d.play = build(s, config.StrollLevels, config.StrollLevels.Level(n), rand.New(rand.NewPCG(config.DemoSeed, uint64(n))))
+	d.play = build(s, config.StrollLevels, config.StrollLevels.Level(n), rand.New(rand.NewPCG(config.DemoSeed, uint64(n))), d.shaders)
 	d.level, d.ended = n, 0
 }
 

@@ -79,18 +79,19 @@ func newLevel(ctx *scene.Context, levels config.ModeLevels, n int) *Play {
 // newPlay starts a given level for the game in progress, so tests can use
 // levels of their own.
 func newPlay(ctx *scene.Context, levels config.ModeLevels, level config.Level) *Play {
-	return build(ctx.Session, levels, level, ctx.RNG)
+	return build(ctx.Session, levels, level, ctx.RNG, !ctx.NoShaders)
 }
 
-// build is a level of the game in s, its random choices from rng.
-func build(s *session.Session, levels config.ModeLevels, level config.Level, rng *rand.Rand) *Play {
+// build is a level of the game in s, its random choices from rng, lit by
+// shaders if shaders is true.
+func build(s *session.Session, levels config.ModeLevels, level config.Level, rng *rand.Rand, shaders bool) *Play {
 	w := world.New(s, level, rng)
 	pr := config.Project
 	return &Play{
 		world:  w,
 		hero:   Toad,
 		levels: levels,
-		light:  fx.NewLighting(pr.ScreenWidth, pr.ScreenHeight, true),
+		light:  fx.NewLighting(pr.ScreenWidth, pr.ScreenHeight, shaders),
 		parts:  fx.NewParticles(rand.New(rand.NewPCG(rng.Uint64(), rng.Uint64()))),
 	}
 }
