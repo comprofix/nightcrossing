@@ -79,6 +79,8 @@ func (p *Play) effects(e world.Event) {
 // updateEffects runs the particles and fades the nook glows one tick.
 func (p *Play) updateEffects() {
 	p.parts.Update()
+	p.updatePops()
+	p.updateSky()
 	for i := range p.nookGlow {
 		p.nookGlow[i] = max(p.nookGlow[i]-1, 0)
 	}

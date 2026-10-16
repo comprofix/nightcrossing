@@ -29,7 +29,7 @@ const (
 	hudHiX     = 136
 	hudLevelX  = 240
 	hudLivesX  = 304
-	hudLivesW  = 120 // room for the lives before the timer's label
+	hudLivesW  = 100 // room for the lives before the combo and the timer
 	hudLifeGap = 2
 	timeBarW   = 120
 	timeBarH   = 8
@@ -62,6 +62,8 @@ type Play struct {
 	parts    *fx.Particles
 	nookGlow [len(config.Nooks)]int // ticks left of each nook's flare as a toad arrives
 	outline  *ebiten.Image          // a drawing buffer for high contrast's outlines
+	pops     []pop                  // points popping up over the toad (D38)
+	sky      int                    // where the day and night cycle is (D39; see sky.go)
 }
 
 // New starts a game in a mode, on its first level, or on ctx.StartLevel
@@ -93,6 +95,7 @@ func build(s *session.Session, levels config.ModeLevels, level config.Level, rng
 		levels: levels,
 		light:  fx.NewLighting(pr.ScreenWidth, pr.ScreenHeight, shaders),
 		parts:  fx.NewParticles(rand.New(rand.NewPCG(rng.Uint64(), rng.Uint64()))),
+		sky:    skyBefore,
 	}
 }
 
@@ -147,6 +150,7 @@ func (p *Play) Update(ctx *scene.Context) error {
 			ctx.Cut(newEnded(p))
 		}
 	}
+	p.popGained()
 	if e := p.railEffect(); e != nil {
 		ctx.Audio.PlayEffect(e)
 	}
@@ -164,6 +168,9 @@ func (p *Play) tally(ctx *scene.Context) scene.Scene {
 		{Label: fmt.Sprintf("HOME %d x %d", st.Goals, config.PointsGoal), Points: st.Goals * config.PointsGoal},
 		{Label: "TIME BONUS", Points: st.TimeBonus},
 		{Label: "ALL FIVE HOME", Points: st.Clear},
+	}
+	if p.world.Level.Combo {
+		lines = append(lines, scene.TallyLine{Label: "COMBO BONUS", Points: st.Combo})
 	}
 	return scene.NewTally(fmt.Sprintf("LEVEL %d CLEAR", n), lines, func() scene.Scene {
 		return newLevel(ctx, p.levels, n+1)
@@ -229,6 +236,7 @@ func pressed(in *input.Input) world.Dir {
 func (p *Play) Draw(ctx *scene.Context, dst *ebiten.Image) {
 	dst.Fill(gfx.RGBA(ctx.Scheme.Backdrop))
 	p.drawField(ctx, dst)
+	p.drawPops(ctx, dst)
 	p.drawHUD(ctx, dst)
 	p.drawHint(ctx, dst)
 	p.drawBanner(ctx, dst)
@@ -263,6 +271,7 @@ func (p *Play) drawHUD(ctx *scene.Context, dst *ebiten.Image) {
 	}
 	vector.FillRect(dst, float32(barX), float32(barY), timeBarW, timeBarH, gfx.RGBA(sc.Panel), false)
 	vector.FillRect(dst, float32(barX), float32(barY), float32(filled), timeBarH, gfx.RGBA(bar), false)
+	p.drawCombo(ctx, dst, ty)
 }
 
 // drawHint draws the strip below the playfield: the controls, or for a

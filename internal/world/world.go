@@ -35,6 +35,7 @@ const (
 	TrainWarning                  // the crossing lights start to flash: a train is coming
 	TrainComing                   // a train comes onto the field
 	TrainGone                     // the train has left the field
+	ComboUp                       // the hop combo's multiplier rose (D38)
 )
 
 // Stats are the points earned on this level, for the level-clear tally.
@@ -43,6 +44,7 @@ type Stats struct {
 	Goals     int // nooks filled
 	TimeBonus int // points for time left when filling them
 	Clear     int // the bonus for filling the last one
+	Combo     int // what the hop combo's multiplier added (D38)
 }
 
 // World is one level of a game.
@@ -61,6 +63,8 @@ type World struct {
 	Cleared    bool                    // every nook is filled
 	Over       bool                    // the game has ended
 	Stats      Stats
+	Combo      Combo // the hop combo, on levels with it (D38)
+	Gained     int   // points multiplied by the combo this tick, for the pop-ups
 
 	furthest int // the furthest row reached this attempt
 	rng      *rand.Rand
@@ -90,6 +94,7 @@ func (w *World) newAttempt() {
 	w.Player = newPlayer(config.StartCol, config.StartRow)
 	w.TicksLeft = w.Level.TimerTicks
 	w.furthest = config.StartRow
+	w.Combo = Combo{}
 }
 
 // Update advances the world by one tick. press is the direction pressed
@@ -98,6 +103,7 @@ func (w *World) newAttempt() {
 // nothing.
 func (w *World) Update(press Dir) []Event {
 	w.events = w.events[:0]
+	w.Gained = 0
 	if w.Over || w.Cleared {
 		return w.events
 	}
@@ -118,6 +124,7 @@ func (w *World) Update(press Dir) []Event {
 		}
 	default:
 		w.updatePlayer(press)
+		w.updateCombo()
 		if w.playing() {
 			w.ride()
 			w.checkHazards()
@@ -152,7 +159,8 @@ func (w *World) score(points int) {
 func (w *World) landed() {
 	if r := w.Player.Row; r < w.furthest {
 		w.furthest = r
-		w.score(config.PointsHop)
+		w.countHop()
+		w.score(w.comboPoints(config.PointsHop))
 		w.Stats.Hops += config.PointsHop
 	}
 }
@@ -234,7 +242,8 @@ func (w *World) reachBank() {
 	}
 	w.Filled[n] = true
 	secs := w.TicksLeft / config.TPS
-	w.score(config.PointsGoal + secs*config.PointsPerSec)
+	w.score(w.comboPoints(config.PointsGoal) + secs*config.PointsPerSec)
+	w.Combo = Combo{} // the attempt is over; the combo was cashed in (D38)
 	w.Stats.Goals++
 	w.Stats.TimeBonus += secs * config.PointsPerSec
 	w.emit(Goal)
@@ -255,6 +264,7 @@ func (w *World) reachBank() {
 func (w *World) die(how Event) {
 	w.Player.Death = how
 	w.Player.queued = None
+	w.Combo = Combo{}
 	w.Dying = config.DeathTicks
 	w.Session.LoseLife()
 	w.emit(how)

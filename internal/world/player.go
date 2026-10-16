@@ -169,6 +169,9 @@ func (w *World) startHop(d Dir) {
 	p.hopLeft = config.HopTicks
 	p.place()
 	w.emit(Hopped)
+	if d == Down {
+		w.Combo = Combo{} // a hop back ends the combo (D38)
+	}
 }
 
 // ride carries the hero with the river row it counts as being in

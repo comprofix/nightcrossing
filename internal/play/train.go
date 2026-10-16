@@ -176,9 +176,9 @@ func (p *Play) addRailLights(l *fx.Lighting) {
 		front, back = left, left+length
 	}
 	l.Add(fx.Light{Shape: fx.Beam, X: front, Y: y + cell/2, Radius: trainBeamR, Flip: rl.Dir < 0,
-		Colour: gfx.RGBA(resurrect64.Lemon), Strength: trainBeam})
-	l.Add(fx.Light{X: front, Y: y + cell/2, Radius: lensR, Colour: gfx.RGBA(resurrect64.Lemon), Strength: 1})
-	l.Add(fx.Light{X: back, Y: y + cell/2, Radius: trainTailR, Colour: red, Strength: trainTailLight})
+		Colour: gfx.RGBA(resurrect64.Lemon), Strength: trainBeam * p.lampK()})
+	l.Add(fx.Light{X: front, Y: y + cell/2, Radius: lensR, Colour: gfx.RGBA(resurrect64.Lemon), Strength: p.lampK()})
+	l.Add(fx.Light{X: back, Y: y + cell/2, Radius: trainTailR, Colour: red, Strength: trainTailLight * p.lampK()})
 	carLen := float64((carMids + 2) * config.Cell)
 	for i := range trainCars {
 		mid := left + carLen*(float64(i)+0.5)
@@ -186,7 +186,7 @@ func (p *Play) addRailLights(l *fx.Lighting) {
 			mid = left + length - carLen*(float64(i)+0.5)
 		}
 		for _, wy := range []float64{y + trainWindowEdge, y + cell - trainWindowEdge} {
-			l.Add(fx.Light{X: mid, Y: wy, Radius: trainWindowR, Colour: gfx.RGBA(resurrect64.Honey), Strength: trainWindow})
+			l.Add(fx.Light{X: mid, Y: wy, Radius: trainWindowR, Colour: gfx.RGBA(resurrect64.Honey), Strength: trainWindow * p.lampK()})
 		}
 	}
 }
