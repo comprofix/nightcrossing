@@ -96,6 +96,17 @@ var (
 		Voice: audio.Voice{Wave: audio.Pulse25, Decay: audio.Ticks(6), Sustain: 0.3, Release: audio.Ticks(4), Volume: 0.5},
 		Notes: audio.Notes("G5:3 C6:3 E6:3 G6:6"),
 	}}
+	// HornChorus is a rush hour wave being announced (D43): impatient car
+	// horns, two at once in different rhythms. HornChorusLow is the second
+	// horn, on the bass channel; the two always play together.
+	HornChorus = &audio.Effect{Name: "horn chorus", Channel: 0, Priority: 3, Part: audio.Part{
+		Voice: audio.Voice{Wave: audio.Pulse25, Attack: audio.Ticks(1), Sustain: 0.9, Release: audio.Ticks(3), Volume: 0.55},
+		Notes: audio.Notes("A4:5 -:3 A4:5 -:10 A4:14"),
+	}}
+	HornChorusLow = &audio.Effect{Name: "horn chorus low", Channel: 2, Priority: 3, Part: audio.Part{
+		Voice: audio.Voice{Wave: audio.Pulse50, Attack: audio.Ticks(1), Sustain: 0.9, Release: audio.Ticks(3), Volume: 0.5},
+		Notes: audio.Notes("-:6 E4:10 -:4 F4:4 -:3 F4:12"),
+	}}
 	// Squawk is a heron catching the hero: a harsh falling cry.
 	Squawk = &audio.Effect{Name: "squawk", Channel: 1, Priority: 4, Part: audio.Part{
 		Voice: audio.Voice{Wave: audio.Pulse12, Decay: audio.Ticks(16), Sustain: 0.3, Release: audio.Ticks(6), Volume: 0.7},
@@ -106,7 +117,7 @@ var (
 // Sounds are the game's tunes and effects, listed for the sound test.
 var Sounds = audio.Bank{
 	Tunes:   []*audio.Tune{NightTitle, Stroll, LevelClearJingle, GameOverJingle, HighScores},
-	Effects: []*audio.Effect{ToadHop, Crash, Bump, Splash, Bubbles, Squawk, Home, OneUp, TimeLow, TimeUp, Bell, Horn, HornLow, Rumble, TrainCrash, ComboUp},
+	Effects: []*audio.Effect{ToadHop, Crash, Bump, Splash, Bubbles, Squawk, Home, OneUp, TimeLow, TimeUp, Bell, Horn, HornLow, Rumble, TrainCrash, ComboUp, HornChorus, HornChorusLow},
 }
 
 // soundsFor is the effects an event plays (DESIGN §3.4). The level clear
@@ -130,6 +141,8 @@ func (p *Play) soundsFor(e world.Event) []*audio.Effect {
 		return []*audio.Effect{Horn, HornLow}
 	case world.ComboUp:
 		return []*audio.Effect{ComboUp}
+	case world.WaveWarning:
+		return []*audio.Effect{HornChorus, HornChorusLow}
 	case world.TimeUp:
 		return []*audio.Effect{TimeUp}
 	case world.LowTime:

@@ -20,7 +20,8 @@ type Lane struct {
 	Speed    int // SubPx units per tick
 	Loop     int // SubPx units
 	Entities []Entity
-	HeronPct int // the chance a log coming on has a heron (DESIGN §5.2, D34)
+	HeronPct int  // the chance a log coming on has a heron (DESIGN §5.2, D34)
+	Waving   bool // a rush hour wave is on: its vehicles come on as they come round (D43)
 
 	lastHeron bool // the last log to come on had a heron
 }
@@ -37,6 +38,9 @@ type Entity struct {
 
 	Heron     bool // a heron stands on this log (D34)
 	HeronCell int  // which cell of the log it stands on, from the left end
+
+	Wave bool // an extra vehicle that only runs in a rush hour wave (D43)
+	Out  bool // not on the lane: a wave vehicle between waves
 
 	log bool // a log, which herons can stand on
 }
@@ -65,12 +69,14 @@ const Buffer = config.Longest * config.SubPx
 // fieldWidth is the playfield's width in SubPx units.
 const fieldWidth = config.Cols * config.Cell * config.SubPx
 
-// newLane lays out a level's lane, with herons on its logs at heronPct. The pattern repeats until
-// it fills the loop, and the whole lane starts at a random point along it,
+// newLane lays out a level's lane, with herons on its logs at heronPct. If
+// waves is true, each road gap that can take one more of the vehicle before
+// it and stay crossable gets a wave vehicle in its middle, out until a wave
+// (D43). The pattern repeats until it fills the loop, and the whole lane starts at a random point along it,
 // so each game looks a little different but the pattern holds. Each diving
 // platform starts at a random point in its cycle, so they don't all go
 // under together.
-func newLane(l config.Lane, heronPct int, rng *rand.Rand) Lane {
+func newLane(l config.Lane, heronPct int, waves bool, rng *rand.Rand) Lane {
 	lane := Lane{Kind: l.Kind, Dir: l.Dir, Speed: l.Speed, HeronPct: heronPct}
 	if len(l.Pattern) == 0 {
 		return lane
@@ -95,6 +101,10 @@ func newLane(l config.Lane, heronPct int, rng *rand.Rand) Lane {
 				e.Wait = sinkWait(rng)
 			}
 			lane.Entities = append(lane.Entities, e)
+			if waves && l.Kind == config.Road && config.WaveFits(s.Gap, s.Entity.Length, l.Speed) {
+				w := (u + (s.Entity.Length+(s.Gap-s.Entity.Length)/2)*config.SubPx) % lane.Loop
+				lane.Entities = append(lane.Entities, Entity{Kind: s.Entity, U: w, Wave: true, Out: true})
+			}
 			u += (s.Entity.Length + s.Gap) * config.SubPx
 		}
 	}
@@ -108,6 +118,9 @@ func (l *Lane) update(rng *rand.Rand) {
 		e := &l.Entities[i]
 		wasOff := e.off()
 		e.U = ((e.U+l.Dir*l.Speed)%l.Loop + l.Loop) % l.Loop
+		if e.Wave && e.off() {
+			e.Out = !l.Waving // only while wholly off the field, so none pops in or out
+		}
 		if e.log {
 			switch off := e.off(); {
 			case wasOff && !off:
@@ -237,6 +250,9 @@ func (e Entity) span(margin int) (left, right int) {
 // with each vehicle's ends trimmed by margin pixels.
 func (l *Lane) hits(left, right, margin int) bool {
 	for _, e := range l.Entities {
+		if e.Out {
+			continue
+		}
 		el, er := e.span(margin)
 		if el < right && left < er {
 			return true

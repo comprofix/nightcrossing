@@ -107,11 +107,12 @@ type Level struct {
 	Number     int // 1 for the first
 	Lanes      [Rows]Lane
 	HeronPct   int
-	Trains     bool        // trains run on the track (DESIGN §6.2)
-	Train      TrainTiming // how the trains run, when they do (D17)
-	Combo      bool        // the hop combo is on (D38)
-	DayCycle   bool        // the day and night cycle runs (D39)
-	TimerTicks int         // the time for each attempt
+	Trains     bool                       // trains run on the track (DESIGN §6.2)
+	Train      TrainTiming                // how the trains run, when they do (D17)
+	Combo      bool                       // the hop combo is on (D38)
+	DayCycle   bool                       // the day and night cycle runs (D39)
+	Events     [NumEventKinds]EventTiming // the random events and how they run (DESIGN §6.1)
+	TimerTicks int                        // the time for each attempt
 	Hint       string
 }
 
@@ -143,10 +144,11 @@ func (m ModeLevels) Def(n int) (def LevelDef, speedPct int) {
 // mechanics come in on (D27).
 type ModeLevels struct {
 	Levels     []LevelDef
-	CeilingPct int  // the speed % the loops stop rising at (D20)
-	Trains     bool // trains from level 1 (DESIGN §6.2)
-	ComboFrom  int  // the first level with the hop combo; 0 for none (D38)
-	CycleFrom  int  // the first level with the day and night cycle; 0 for none (D39)
+	CeilingPct int                // the speed % the loops stop rising at (D20)
+	Trains     bool               // trains from level 1 (DESIGN §6.2)
+	ComboFrom  int                // the first level with the hop combo; 0 for none (D38)
+	CycleFrom  int                // the first level with the day and night cycle; 0 for none (D39)
+	EventsFrom [NumEventKinds]int // the first level with each random event; 0 for none (D41)
 }
 
 // Level is level n (1 for the first) as it is played.
@@ -158,6 +160,9 @@ func (m ModeLevels) Level(n int) Level {
 	}
 	lv.Combo = m.ComboFrom > 0 && n >= m.ComboFrom
 	lv.DayCycle = m.CycleFrom > 0 && n >= m.CycleFrom
+	for k := range lv.Events {
+		lv.Events[k] = EventsOn(EventKind(k), m.EventsFrom[k], n)
+	}
 	for r, l := range def.Layout.Lanes {
 		if len(l.Pattern) > 0 {
 			l.Speed = max(1, l.Speed*speed/100)

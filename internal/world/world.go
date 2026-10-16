@@ -36,6 +36,9 @@ const (
 	TrainComing                   // a train comes onto the field
 	TrainGone                     // the train has left the field
 	ComboUp                       // the hop combo's multiplier rose (D38)
+	WaveWarning                   // a rush hour wave is announced on a lane (D43)
+	WaveStart                     // the wave begins: its traffic comes on
+	WaveEnd                       // the wave ends: its extra traffic goes as it leaves
 )
 
 // Stats are the points earned on this level, for the level-clear tally.
@@ -57,6 +60,7 @@ type World struct {
 	Player     Player
 	Lanes      [config.Rows]Lane
 	Rail       Rail                    // the track's trains, if the level has them (DESIGN §6.2)
+	Spells     []Spell                 // the random events, if the level has them (DESIGN §6.1)
 	Filled     [len(config.Nooks)]bool // the nooks filled so far; they stay filled (DESIGN §5.4)
 	Home       int                     // ticks left of a toad showing in its nook; 0 otherwise
 	Dying      int                     // ticks left of the hero's death; 0 when alive
@@ -82,9 +86,10 @@ func New(s *session.Session, level config.Level, rng *rand.Rand) *World {
 		rng:     rng,
 	}
 	for r, l := range level.Lanes {
-		w.Lanes[r] = newLane(l, level.HeronPct, rng)
+		w.Lanes[r] = newLane(l, level.HeronPct, level.Events[config.Wave].On(), rng)
 	}
 	w.Rail = newRail(level, rng)
+	w.Spells = newSpells(level, rng)
 	w.newAttempt()
 	return w
 }
@@ -114,6 +119,7 @@ func (w *World) Update(press Dir) []Event {
 		}
 	}
 	w.Rail.update(w)
+	w.updateSpells()
 	switch {
 	case w.Dying > 0:
 		w.updateDeath()

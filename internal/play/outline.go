@@ -54,6 +54,9 @@ func (p *Play) eachHazard(ctx *scene.Context, draw func(img *ebiten.Image, x, y 
 		lane := &p.world.Lanes[r]
 		flip := lane.Dir < 0
 		for _, e := range lane.Entities {
+			if e.Out {
+				continue
+			}
 			x := float64(config.FieldX) + math.Floor(float64(e.X())/config.SubPx)
 			if e.Heron {
 				draw(heron.Frame(0), x+float64(e.HeronCell*config.Cell), cellY(r), flip)

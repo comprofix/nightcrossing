@@ -14,7 +14,7 @@ func TestLaneLayout(t *testing.T) {
 		if len(l.Pattern) == 0 {
 			continue
 		}
-		lane := newLane(l, 0, rand.New(rand.NewPCG(3, 3)))
+		lane := newLane(l, 0, false, rand.New(rand.NewPCG(3, 3)))
 		pattern := 0
 		for _, s := range l.Pattern {
 			pattern += (s.Entity.Length + s.Gap) * config.SubPx
@@ -46,7 +46,7 @@ func TestLanesWrapWithoutPopping(t *testing.T) {
 			continue
 		}
 		rng := rand.New(rand.NewPCG(9, 9))
-		lane := newLane(l, 0, rng)
+		lane := newLane(l, 0, false, rng)
 		start := slices.Clone(lane.Entities)
 		for range lane.Loop {
 			before := slices.Clone(lane.Entities)

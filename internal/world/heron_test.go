@@ -15,7 +15,7 @@ func heronLane(pct int, seed uint64) (*Lane, *rand.Rand) {
 	l := config.Lane{Kind: config.River, Dir: 1, Speed: 40, Pattern: []config.Spawn{
 		{Entity: config.LogShort, Gap: 48}, {Entity: config.LogLong, Gap: 60},
 	}}
-	lane := newLane(l, pct, rng)
+	lane := newLane(l, pct, false, rng)
 	return &lane, rng
 }
 
