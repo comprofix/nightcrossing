@@ -38,3 +38,27 @@ func TestAutopilotClearsTheDemoLevels(t *testing.T) {
 		}
 	}
 }
+
+// TestAutopilotCrossesTheTrains plays Last Train's first levels: the
+// autopilot must read the trains and clear them without being struck.
+func TestAutopilotCrossesTheTrains(t *testing.T) {
+	for n := 1; n <= 3; n++ {
+		s := session.New(config.LastTrain, config.StartLives)
+		w := New(s, config.LastTrain.Levels.Level(n), rand.New(rand.NewPCG(7, uint64(n))))
+		var a Autopilot
+		struck := 0
+		for range 90 * config.TPS {
+			for _, e := range w.Update(a.Next(w)) {
+				if e == Struck {
+					struck++
+				}
+			}
+			if w.Cleared || w.Over {
+				break
+			}
+		}
+		if !w.Cleared || struck > 0 {
+			t.Errorf("level %d: cleared %v after %d s, struck %d times", n, w.Cleared, w.Tick/config.TPS, struck)
+		}
+	}
+}

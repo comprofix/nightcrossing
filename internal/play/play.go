@@ -134,6 +134,10 @@ func (p *Play) Update(ctx *scene.Context) error {
 			ctx.Shake.Start(shakeTicks, shakePx)
 		case world.Splashed, world.Swept, world.Caught, world.TimeUp:
 			ctx.Shake.Start(shakeTicks, softShakePx)
+		case world.Struck:
+			ctx.Shake.Start(shakeTicks, struckShakePx)
+		case world.TrainComing:
+			ctx.Shake.Start(trainShakeTicks, trainShakePx) // DESIGN §3.3
 		case world.LevelClear:
 			p.clear = 1
 			ctx.Audio.PlayTune(LevelClearJingle)
@@ -142,6 +146,9 @@ func (p *Play) Update(ctx *scene.Context) error {
 			ctx.Audio.PlayTune(GameOverJingle)
 			ctx.Cut(newEnded(p))
 		}
+	}
+	if e := p.railEffect(); e != nil {
+		ctx.Audio.PlayEffect(e)
 	}
 	return nil
 }

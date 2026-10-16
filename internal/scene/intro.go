@@ -16,10 +16,10 @@ import (
 // carries over from the modes before it, its best score and whether it is
 // cleared. Confirm plays it; Back returns to the mode menu.
 type Intro struct {
-	mode int // index into config.Modes
+	mode int // index into the context's ModeList
 }
 
-// NewIntro returns the intro for config.Modes[i].
+// NewIntro returns the intro for the i'th of the context's ModeList.
 func NewIntro(i int) *Intro { return &Intro{mode: i} }
 
 // Update implements Scene.
@@ -30,7 +30,7 @@ func (s *Intro) Update(ctx *Context) error {
 		ctx.Switch(NewModeSelectAt(s.mode))
 	case ctx.Input.JustPressed(input.Confirm):
 		ctx.Audio.PlayEffect(MenuConfirm)
-		ctx.Switch(ctx.NewPlay(ctx, config.Modes[s.mode]))
+		ctx.Switch(ctx.NewPlay(ctx, ctx.ModeList()[s.mode]))
 	}
 	return nil
 }
@@ -38,7 +38,7 @@ func (s *Intro) Update(ctx *Context) error {
 // Draw implements Scene.
 func (s *Intro) Draw(ctx *Context, dst *ebiten.Image) {
 	sc, f := ctx.Scheme, ctx.Fonts
-	m := config.Modes[s.mode]
+	m := ctx.ModeList()[s.mode]
 	dst.Fill(gfx.RGBA(sc.Backdrop))
 	line := f.Small.Size + ui.LineGap
 

@@ -463,3 +463,11 @@ func TestStartLevel(t *testing.T) {
 		t.Error("a test game cleared the mode")
 	}
 }
+
+// TestTrainPiecesMakeTheTrain checks the train's pieces add up to the
+// length the world collides with (D37).
+func TestTrainPiecesMakeTheTrain(t *testing.T) {
+	if got := len(trainPieces) * config.Cell; got != config.Train.Length {
+		t.Errorf("pieces are %dpx long, the train %dpx", got, config.Train.Length)
+	}
+}

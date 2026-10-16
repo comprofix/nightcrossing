@@ -53,7 +53,7 @@ func (s *MainMenu) Update(ctx *Context) error {
 		s.menu.Items = []ui.Item{
 			{Label: "Play", Disabled: ctx.NewPlay == nil, Confirm: func() { ctx.Switch(NewModeSelect()) }},
 			{Label: "Options", Confirm: func() { ctx.Switch(NewOptions(func() Scene { return NewMainMenu() })) }},
-			{Label: "High scores", Confirm: func() { ctx.Switch(NewHighScoreTable(config.Modes[0], -1)) }},
+			{Label: "High scores", Confirm: func() { ctx.Switch(NewHighScoreTable(ctx.ModeList()[0], -1)) }},
 			{Label: "Quit", Confirm: ctx.Quit},
 		}
 		menuSounds(ctx, &s.menu)
@@ -86,11 +86,11 @@ func NewModeSelect() *ModeSelect { return &ModeSelect{start: -1} }
 // coming back from that mode's intro.
 func NewModeSelectAt(i int) *ModeSelect { return &ModeSelect{start: i} }
 
-// SuggestedMode is the mode to play next: the first one not yet cleared,
-// once any has been. It is -1 if none is cleared, or all are.
-func SuggestedMode(t *score.Tables) int {
+// SuggestedMode is the one of modes to play next: the first one not yet
+// cleared, once any has been. It is -1 if none is cleared, or all are.
+func SuggestedMode(modes []config.Mode, t *score.Tables) int {
 	next, any := -1, false
-	for i, m := range config.Modes {
+	for i, m := range modes {
 		switch {
 		case t.IsCleared(m.ID):
 			any = true
@@ -107,8 +107,8 @@ func SuggestedMode(t *score.Tables) int {
 // Update implements Scene.
 func (s *ModeSelect) Update(ctx *Context) error {
 	if s.menu.Items == nil {
-		next := SuggestedMode(ctx.Scores)
-		for i, m := range config.Modes {
+		next := SuggestedMode(ctx.ModeList(), ctx.Scores)
+		for i, m := range ctx.ModeList() {
 			label := m.Name
 			switch {
 			case ctx.Scores.IsCleared(m.ID):
@@ -134,7 +134,7 @@ func (s *ModeSelect) Update(ctx *Context) error {
 
 // Draw implements Scene.
 func (s *ModeSelect) Draw(ctx *Context, dst *ebiten.Image) {
-	drawMenuScreen(ctx, dst, "MODE", &s.menu, config.Modes[s.menu.Cursor].Desc)
+	drawMenuScreen(ctx, dst, "MODE", &s.menu, ctx.ModeList()[s.menu.Cursor].Desc)
 }
 
 // Options changes the saved settings. Changes apply at

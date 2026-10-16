@@ -62,6 +62,34 @@ var (
 		Voice: audio.Voice{Wave: audio.Pulse12, Decay: audio.Ticks(6), Volume: 0.5},
 		Notes: audio.Notes("A5:6 -:6 A5:6 -:6 A5:6"),
 	}}
+	// Bell is the crossing bell, rung again and again while the lights
+	// flash (DESIGN §3.4, §6.2): a bright two-note ding.
+	Bell = &audio.Effect{Name: "crossing bell", Channel: 1, Priority: 3, Part: audio.Part{
+		Voice: audio.Voice{Wave: audio.Pulse12, Decay: audio.Ticks(10), Sustain: 0.2, Release: audio.Ticks(4), Volume: 0.55},
+		Notes: audio.Notes("E6:3 C6:9"),
+	}}
+	// Horn is the train coming onto the field: one long blast of two notes
+	// held together a minor third apart, as a train horn sounds, so it
+	// stands out from the tune. HornLow is its lower note, on the bass
+	// channel; the two always play together.
+	Horn = &audio.Effect{Name: "train horn", Channel: 0, Priority: 4, Part: audio.Part{
+		Voice: hornVoice(audio.Pulse25), Notes: audio.Notes("Eb4:48"),
+	}}
+	HornLow = &audio.Effect{Name: "train horn low", Channel: 2, Priority: 4, Part: audio.Part{
+		Voice: hornVoice(audio.Pulse50), Notes: audio.Notes("C4:48"),
+	}}
+	// Rumble is the train on the track, repeated while it passes: a low,
+	// rough roll of noise.
+	Rumble = &audio.Effect{Name: "train rumble", Channel: 3, Priority: 2, Part: audio.Part{
+		Voice: audio.Voice{Wave: audio.Noise, Decay: audio.Ticks(10), Sustain: 0.5, Release: audio.Ticks(2), Volume: 0.6},
+		Notes: []audio.Note{{Hz: 180, Dur: audio.Ticks(4)}, {Hz: 120, Dur: audio.Ticks(8)}},
+	}}
+	// TrainCrash is a train hitting the hero (D37): a bigger, longer crash
+	// than a car's.
+	TrainCrash = &audio.Effect{Name: "train crash", Channel: 3, Priority: 5, Part: audio.Part{
+		Voice: audio.Voice{Wave: audio.Noise, Decay: audio.Ticks(40), Release: audio.Ticks(8)},
+		Notes: []audio.Note{{Hz: 3000, Dur: audio.Ticks(3)}, {Hz: 1400, Dur: audio.Ticks(6)}, {Hz: 600, Dur: audio.Ticks(12)}, {Hz: 250, Dur: audio.Ticks(24)}},
+	}}
 	// Squawk is a heron catching the hero: a harsh falling cry.
 	Squawk = &audio.Effect{Name: "squawk", Channel: 1, Priority: 4, Part: audio.Part{
 		Voice: audio.Voice{Wave: audio.Pulse12, Decay: audio.Ticks(16), Sustain: 0.3, Release: audio.Ticks(6), Volume: 0.7},
@@ -72,7 +100,7 @@ var (
 // Sounds are the game's tunes and effects, listed for the sound test.
 var Sounds = audio.Bank{
 	Tunes:   []*audio.Tune{NightTitle, Stroll, LevelClearJingle, GameOverJingle, HighScores},
-	Effects: []*audio.Effect{ToadHop, Crash, Bump, Splash, Bubbles, Squawk, Home, OneUp, TimeLow, TimeUp},
+	Effects: []*audio.Effect{ToadHop, Crash, Bump, Splash, Bubbles, Squawk, Home, OneUp, TimeLow, TimeUp, Bell, Horn, HornLow, Rumble, TrainCrash},
 }
 
 // soundsFor is the effects an event plays (DESIGN §3.4). The level clear
@@ -90,6 +118,10 @@ func (p *Play) soundsFor(e world.Event) []*audio.Effect {
 		return []*audio.Effect{Splash, Bubbles}
 	case world.Caught:
 		return []*audio.Effect{Squawk}
+	case world.Struck:
+		return []*audio.Effect{TrainCrash}
+	case world.TrainComing:
+		return []*audio.Effect{Horn, HornLow}
 	case world.TimeUp:
 		return []*audio.Effect{TimeUp}
 	case world.LowTime:
@@ -100,4 +132,10 @@ func (p *Play) soundsFor(e world.Event) []*audio.Effect {
 		return []*audio.Effect{OneUp}
 	}
 	return nil
+}
+
+// hornVoice is one note of the train horn: a quick swell, held full, and a
+// short fade.
+func hornVoice(w audio.Wave) audio.Voice {
+	return audio.Voice{Wave: w, Attack: audio.Ticks(3), Sustain: 1, Release: audio.Ticks(10), Volume: 0.75}
 }

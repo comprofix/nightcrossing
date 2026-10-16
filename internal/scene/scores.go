@@ -227,21 +227,15 @@ func (e *HighScoreEntry) Draw(ctx *Context, dst *ebiten.Image) {
 // HighScoreTable shows one mode's table. Left and Right show the other
 // modes; Confirm or Back returns to the main menu.
 type HighScoreTable struct {
-	mode  int // index into config.Modes
-	mark  int // the place to highlight, or -1
+	mode  string // the mode shown, by ID
+	mark  int    // the place to highlight, or -1
 	ticks int64
 }
 
 // NewHighScoreTable shows mode's table with place highlighted (-1 for
 // none).
 func NewHighScoreTable(mode config.Mode, place int) *HighScoreTable {
-	t := &HighScoreTable{mark: place}
-	for i, sk := range config.Modes {
-		if sk.ID == mode.ID {
-			t.mode = i
-		}
-	}
-	return t
+	return &HighScoreTable{mode: mode.ID, mark: place}
 }
 
 // Update implements Scene.
@@ -249,13 +243,14 @@ func (t *HighScoreTable) Update(ctx *Context) error {
 	playScoresTune(ctx)
 	t.ticks++
 	in := ctx.Input
-	n := len(config.Modes)
+	modes := ctx.ModeList()
+	n, i := len(modes), modeIndex(modes, t.mode)
 	switch {
 	case in.JustPressed(input.Left):
-		t.mode, t.mark = (t.mode+n-1)%n, -1
+		t.mode, t.mark = modes[(i+n-1)%n].ID, -1
 		ctx.Audio.PlayEffect(MenuMove)
 	case in.JustPressed(input.Right):
-		t.mode, t.mark = (t.mode+1)%n, -1
+		t.mode, t.mark = modes[(i+1)%n].ID, -1
 		ctx.Audio.PlayEffect(MenuMove)
 	case in.JustPressed(input.Confirm), in.JustPressed(input.Back):
 		ctx.Audio.PlayEffect(MenuConfirm)
@@ -272,9 +267,10 @@ func (t *HighScoreTable) Draw(ctx *Context, dst *ebiten.Image) {
 	y := f.Large.Size
 	ui.TextCentred(dst, f.Large, "HIGH SCORES", y, sc.Title, sc.Shadow)
 	y += f.Large.Size + ui.LineGap + menuPad
-	mode := config.Modes[t.mode]
+	modes := ctx.ModeList()
+	mode := modes[modeIndex(modes, t.mode)]
 	name := mode.Name
-	if len(config.Modes) > 1 {
+	if len(modes) > 1 {
 		name = "< " + name + " >"
 	}
 	ui.TextCentred(dst, f.Small, name, y, sc.Highlight, sc.Shadow)
@@ -298,4 +294,15 @@ func (t *HighScoreTable) Draw(ctx *Context, dst *ebiten.Image) {
 		y += f.Small.Size + ui.LineGap
 	}
 	ui.TextCentred(dst, f.Small, "Left/Right: mode   Enter: menu", h-2*f.Small.Size, sc.Dim, sc.Shadow)
+}
+
+// modeIndex is where the mode with ID id is in modes, or 0 if it is not
+// there.
+func modeIndex(modes []config.Mode, id string) int {
+	for i, m := range modes {
+		if m.ID == id {
+			return i
+		}
+	}
+	return 0
 }
