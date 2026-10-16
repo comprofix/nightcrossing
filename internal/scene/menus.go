@@ -169,8 +169,18 @@ func (s *Options) items(ctx *Context) []ui.Item {
 			ctx.Switch(NewSoundTest(func() Scene { return NewOptions(s.back) }))
 		}},
 		{Label: "Reduced motion", Value: ui.OnOff(&set.ReducedMotion), Adjust: toggle(&set.ReducedMotion)},
+		{Label: "Light", Value: func() string { return LightName(set.SmoothLight) }, Adjust: toggle(&set.SmoothLight)},
 		{Label: "Back", Confirm: func() { ctx.Switch(s.back()) }},
 	}
+}
+
+// LightName is the light setting as the options menu shows it: Pixel
+// light falls off in steps; Smooth fades evenly.
+func LightName(smooth bool) string {
+	if smooth {
+		return "Smooth"
+	}
+	return "Pixel"
 }
 
 // steps is a 0–1 volume as a whole number of steps.

@@ -27,6 +27,7 @@ type Settings struct {
 	MusicVolume   float64   `json:"music_volume"`  // 0–1
 	SFXVolume     float64   `json:"sfx_volume"`    // 0–1
 	ReducedMotion bool      `json:"reduced_motion"`
+	SmoothLight   bool      `json:"smooth_light"` // smooth light instead of pixel steps
 }
 
 // DefaultSettings are the settings for preset p with no saved file.

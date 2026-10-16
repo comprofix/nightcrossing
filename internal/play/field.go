@@ -78,7 +78,11 @@ func (p *Play) drawField(ctx *scene.Context, dst *ebiten.Image) {
 	w := p.world
 	bounds := image.Rect(config.FieldX, config.FieldY,
 		config.FieldX+w.Cols*config.Cell, config.FieldY+w.Rows*config.Cell)
-	field := p.light.Begin(night).SubImage(bounds).(*ebiten.Image)
+	look := night
+	if ctx.Settings.SmoothLight {
+		look.Bands = 0 // the Light option (Options: Light: Smooth)
+	}
+	field := p.light.Begin(look).SubImage(bounds).(*ebiten.Image)
 
 	sheet := ctx.Sheet(Sheet)
 	for r := range w.Lanes {
