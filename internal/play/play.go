@@ -113,34 +113,24 @@ func (p *Play) Update(ctx *scene.Context) error {
 		}
 		return nil
 	}
+	if ctx.Audio.Tune() != Stroll {
+		ctx.Audio.PlayTune(Stroll) // the gameplay loop (DESIGN §3.4)
+	}
 	for _, e := range p.world.Update(pressed(in)) {
 		p.effects(e)
+		for _, s := range p.soundsFor(e) {
+			ctx.Audio.PlayEffect(s)
+		}
 		switch e {
-		case world.Hopped:
-			ctx.Audio.PlayEffect(p.hero.Hop)
 		case world.Squashed, world.Bumped:
-			ctx.Audio.PlayEffect(Crash)
 			ctx.Shake.Start(shakeTicks, shakePx)
-		case world.Splashed, world.Swept:
-			ctx.Audio.PlayEffect(Splash)
-			ctx.Audio.PlayEffect(Bubbles)
+		case world.Splashed, world.Swept, world.Caught, world.TimeUp:
 			ctx.Shake.Start(shakeTicks, softShakePx)
-		case world.Caught:
-			ctx.Audio.PlayEffect(Squawk)
-			ctx.Shake.Start(shakeTicks, softShakePx)
-		case world.TimeUp:
-			ctx.Audio.PlayEffect(Crash)
-			ctx.Shake.Start(shakeTicks, softShakePx)
-		case world.LowTime:
-			ctx.Audio.PlayEffect(TimeLow)
-		case world.Goal:
-			ctx.Audio.PlayEffect(Home)
-		case world.ExtraLife:
-			ctx.Audio.PlayEffect(OneUp)
 		case world.LevelClear:
 			p.clear = 1
+			ctx.Audio.PlayTune(LevelClearJingle)
 		case world.GameOver:
-			ctx.Audio.PlayEffect(GameOver)
+			ctx.Audio.PlayTune(GameOverJingle)
 			ctx.Cut(newEnded(p))
 		}
 	}

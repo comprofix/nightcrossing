@@ -163,6 +163,7 @@ func (e *HighScoreEntry) Initials() string {
 
 // Update implements Scene.
 func (e *HighScoreEntry) Update(ctx *Context) error {
+	playScoresTune(ctx)
 	e.ticks++
 	in := ctx.Input
 	n := len(score.Letters)
@@ -244,6 +245,7 @@ func NewHighScoreTable(skill config.Skill, place int) *HighScoreTable {
 
 // Update implements Scene.
 func (t *HighScoreTable) Update(ctx *Context) error {
+	playScoresTune(ctx)
 	t.ticks++
 	in := ctx.Input
 	n := len(config.Skills)
