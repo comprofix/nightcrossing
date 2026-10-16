@@ -181,6 +181,14 @@ func (s *Options) items(ctx *Context) []ui.Item {
 			},
 		}
 	}
+	// shaded is an on/off item for an effect that needs shaders. Without
+	// them it is dimmed and shows what the game does instead, off.
+	shaded := func(label string, value func() string, without string, v *bool) ui.Item {
+		if ctx.NoShaders {
+			return ui.Item{Label: label, Value: func() string { return without }, Disabled: true}
+		}
+		return ui.Item{Label: label, Value: value, Adjust: toggle(v)}
+	}
 	modes := config.Project.ScaleModes
 	return []ui.Item{
 		{Label: "Scale", Value: func() string { return ScaleModeName(set.ScaleMode) }, Disabled: len(modes) < 2,
@@ -205,9 +213,9 @@ func (s *Options) items(ctx *Context) []ui.Item {
 			ctx.Switch(NewSoundTest(func() Scene { return NewOptions(s.back) }))
 		}},
 		{Label: "Reduced motion", Value: ui.OnOff(&set.ReducedMotion), Adjust: toggle(&set.ReducedMotion)},
-		{Label: "Light", Value: func() string { return LightName(set.SmoothLight) }, Adjust: toggle(&set.SmoothLight)},
-		{Label: "Glow", Value: ui.OnOff(&set.Glow), Adjust: toggle(&set.Glow)},
-		{Label: "CRT", Value: ui.OnOff(&set.CRT), Adjust: toggle(&set.CRT)},
+		shaded("Light", func() string { return LightName(set.SmoothLight) }, LightName(true), &set.SmoothLight),
+		shaded("Glow", ui.OnOff(&set.Glow), "Off", &set.Glow),
+		shaded("CRT", ui.OnOff(&set.CRT), "Off", &set.CRT),
 		{Label: "High contrast", Value: ui.OnOff(&set.HighContrast), Adjust: toggle(&set.HighContrast)},
 		{Label: "Back", Confirm: func() { ctx.Switch(s.back()) }},
 	}

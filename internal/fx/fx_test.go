@@ -77,4 +77,7 @@ func TestShaderCompiles(t *testing.T) {
 	if _, err := ebiten.NewShader(crtKage); err != nil {
 		t.Fatal(err)
 	}
+	if !ShadersAvailable() {
+		t.Error("ShadersAvailable is false")
+	}
 }

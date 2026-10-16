@@ -1,28 +1,94 @@
 # Night Crossing
 
-Created from [gameskeleton](https://github.com/comprofix/gameskeleton) v0.1.0.
+An arcade lane-crossing game. A toad crosses the edge of town at night, over
+a busy road, a railway and a river, to five nooks on the far bank.
 
-## Requirements
+![The title screen, with the game playing itself behind it](docs/screenshots/title.png)
 
-- Go 1.27 or later
-- **Linux only:** cgo plus the X11/GL/ALSA development packages:
-  `libgl1-mesa-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev libxxf86vm-dev libasound2-dev pkg-config`
+![Night on the road and the river](docs/screenshots/night.png)
 
-## Build and run
+## How to play
+
+- Hop one cell at a time. Cars, vans, bikes and trucks squash you on the road.
+- On the river, ride the logs, barges and the ferry. The water is deadly, and
+  so is being carried off the edge.
+- Lily pads dive when they flash. Ships sink, bow first: run to the stern or
+  hop off. Never land on a heron.
+- Fill all five nooks before the clock runs out to clear the level. After
+  level 8 the last levels loop, faster each time round.
+
+Points: 10 for each new row reached, 100 for a nook plus 10 for each second
+left, 1000 for the fifth nook. An extra life every 20,000.
+
+![The intro shown before a mode starts](docs/screenshots/intro.png)
+
+## Controls
+
+| | Keyboard | Gamepad |
+|---|---|---|
+| Hop | Arrow keys or WASD | D-pad or left stick |
+| Choose | Enter or Space | A |
+| Back | Esc or Backspace | B |
+| Pause | Esc or P | Start |
+| Restart the game | Ctrl+R | |
+| Quit to the menu | Ctrl+M | Select |
+| Sound on/off | Ctrl+S | |
+| Fullscreen | F11 or Alt+Enter | |
+| Quit | F10 | |
+
+## Options
+
+Fullscreen, sound, music and effects with their volumes, a sound test, reduced
+motion, smooth or pixel light, glow, a CRT look and high contrast (outlined
+hazards and a lighter night).
+
+![The options menu](docs/screenshots/options.png)
+
+Settings and high scores are saved as `settings.json` and `scores.json` next
+to the game.
+
+## Building
+
+Needs Go 1.27 or later.
 
 ```sh
 go run ./cmd/nightcrossing                 # run the game
-go run -tags debug ./cmd/nightcrossing     # with the debug overlay
-go generate ./assets               # rebuild sprite sheets
+go run ./cmd/nightcrossing -seed 42        # with a fixed random seed
 go vet ./...
 go test ./...
-go build -o bin/ ./cmd/nightcrossing
 ```
 
-## Personal documents
+**Windows** (no cgo):
 
-`DESIGN.md` and `PLAN.md` are personal working documents. `.gitignore` keeps
-them out of git, so back them up somewhere else.
+```sh
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags "-H=windowsgui" -o bin/nightcrossing.exe ./cmd/nightcrossing
+```
+
+**Linux** (amd64) needs cgo and the X11/GL/ALSA development packages. On
+Debian or Ubuntu:
+
+```sh
+sudo apt-get install libgl1-mesa-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev libxxf86vm-dev libasound2-dev pkg-config
+go build -o bin/nightcrossing ./cmd/nightcrossing
+```
+
+**For development:**
+
+```sh
+go run -tags debug ./cmd/nightcrossing             # debug overlay
+go run -tags debug ./cmd/nightcrossing -level 38   # start games on level 38 (no scores kept)
+go run -tags debug ./cmd/nightcrossing -noshaders  # draw as if shaders were unavailable
+go generate ./assets                               # rebuild the sprite sheets
+```
+
+## Credits
+
+- Colours: the [Resurrect 64](https://lospec.com/palette-list/resurrect-64)
+  palette by Kerrie Lake.
+- Built with [Ebitengine](https://ebitengine.org), from the
+  [gameskeleton](https://github.com/comprofix/gameskeleton) template.
+- All art, music and sound are original and made for this game; the music and
+  sound are made in code.
 
 ## License
 

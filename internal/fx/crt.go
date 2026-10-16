@@ -53,3 +53,18 @@ func (c *CRT) Draw(dst, src *ebiten.Image, scale int, geo ebiten.GeoM) bool {
 	dst.DrawRectShader(b.Dx(), b.Dy(), c.shader, op)
 	return true
 }
+
+// ShadersAvailable reports whether all the game's shaders (the lighting,
+// glow and CRT) compile here. If not, the game draws without them and the
+// options for them are dimmed.
+func ShadersAvailable() bool {
+	for _, src := range [][]byte{lightKage, brightKage, crtKage} {
+		s, err := ebiten.NewShader(src)
+		if err != nil {
+			log.Printf("shaders: %v; drawing without them", err)
+			return false
+		}
+		s.Deallocate()
+	}
+	return true
+}

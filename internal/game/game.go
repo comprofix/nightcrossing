@@ -109,6 +109,7 @@ func New(seed uint64, saved Saved, synth *audio.Synth) (*Game, error) {
 		TitleTune:  content.TitleTune,
 		ScoresTune: content.ScoresTune,
 		Scores:     saved.Scores,
+		NoShaders:  !fx.ShadersAvailable(),
 	}
 	g.ctx.Settings = &g.settings
 	if g.ctx.Scores == nil {
@@ -252,7 +253,7 @@ func (g *Game) present(out *ebiten.Image) {
 	sw, sh := g.preset.ScreenWidth, g.preset.ScreenHeight
 	out.Fill(color.Black)
 	r := gfx.Fit(g.settings.ScaleMode, sw, sh, g.outW, g.outH)
-	crt := g.settings.CRT
+	crt := g.settings.CRT && !g.ctx.NoShaders
 	if g.settings.ScaleMode != config.ScaleCRT && !crt {
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Scale(r.W/float64(sw), r.H/float64(sh))
@@ -291,6 +292,10 @@ func (g *Game) present(out *ebiten.Image) {
 // StartAt makes new games start on level n, for testing (-level in debug
 // builds). Such games go on no high score table and clear no mode.
 func (g *Game) StartAt(n int) { g.ctx.StartLevel = n }
+
+// WithoutShaders draws without the shader effects, as on a machine that
+// can't run them (-noshaders in debug builds).
+func (g *Game) WithoutShaders() { g.ctx.NoShaders = true }
 
 // LayoutF makes the output surface match the window in device pixels, so
 // scaling is done by present rather than by Ebitengine.

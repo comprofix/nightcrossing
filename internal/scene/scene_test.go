@@ -391,3 +391,23 @@ func TestOptionsWithAGamepad(t *testing.T) {
 	h.pad(input.PadB)
 	current[*MainMenu](t, h)
 }
+
+func TestShaderOptionsWithoutShaders(t *testing.T) {
+	h := newHarness(t, NewOptions(func() Scene { return NewMainMenu() }))
+	h.ctx.NoShaders = true
+	h.ctx.Settings.SmoothLight, h.ctx.Settings.Glow, h.ctx.Settings.CRT = false, true, true
+	h.ticks(1)
+	opts := current[*Options](t, h)
+	want := map[string]string{"Light": "Light: Smooth", "Glow": "Glow: Off", "CRT": "CRT: Off"}
+	for i, it := range opts.menu.Items {
+		if w, ok := want[it.Label]; ok {
+			if !it.IsDisabled() || opts.menu.Text(i) != w {
+				t.Errorf("%s: disabled %v, shows %q, want dimmed and %q", it.Label, it.IsDisabled(), opts.menu.Text(i), w)
+			}
+			delete(want, it.Label)
+		}
+	}
+	if len(want) > 0 {
+		t.Errorf("missing items %v", want)
+	}
+}

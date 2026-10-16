@@ -60,6 +60,10 @@ type Context struct {
 	// later is a test: it goes on no high score table.
 	StartLevel int
 
+	// NoShaders is set when the game's shader effects can't run, so the
+	// options for them are dimmed. Debug builds can set it with -noshaders.
+	NoShaders bool
+
 	next            Scene
 	cut             bool
 	quit            bool
