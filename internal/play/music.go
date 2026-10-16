@@ -7,13 +7,18 @@ import "github.com/comprofix/nightcrossing/internal/audio"
 // channel i: 0 lead, 1 harmony, 2 bass, 3 drums. Bars are 96 ticks, 4/4
 // with an eighth note of 12 ticks.
 
+// musicLevel scales every music voice, so the music sits under the sound
+// effects at the default volumes: at 80% music it sounds as the tunes
+// did at 20%, the balance chosen in play.
+const musicLevel = 0.25
+
 // Voices for the music.
 var (
-	tuneLead  = audio.Voice{Wave: audio.Pulse25, Decay: audio.Ticks(10), Sustain: 0.55, Release: audio.Ticks(3), Volume: 0.7}
-	tunePad   = audio.Voice{Wave: audio.Pulse12, Attack: audio.Ticks(4), Release: audio.Ticks(8), Volume: 0.3}
-	tuneBass  = audio.Voice{Wave: audio.Triangle, Decay: audio.Ticks(12), Sustain: 0.7, Release: audio.Ticks(2), Volume: 0.9}
-	tuneDrums = audio.Voice{Wave: audio.Noise, Decay: audio.Ticks(5), Release: audio.Ticks(1), Volume: 0.35}
-	fanfare   = audio.Voice{Wave: audio.Pulse50, Decay: audio.Ticks(8), Sustain: 0.6, Release: audio.Ticks(6), Volume: 0.7}
+	tuneLead  = audio.Voice{Wave: audio.Pulse25, Decay: audio.Ticks(10), Sustain: 0.55, Release: audio.Ticks(3), Volume: 0.7 * musicLevel}
+	tunePad   = audio.Voice{Wave: audio.Pulse12, Attack: audio.Ticks(4), Release: audio.Ticks(8), Volume: 0.3 * musicLevel}
+	tuneBass  = audio.Voice{Wave: audio.Triangle, Decay: audio.Ticks(12), Sustain: 0.7, Release: audio.Ticks(2), Volume: 0.9 * musicLevel}
+	tuneDrums = audio.Voice{Wave: audio.Noise, Decay: audio.Ticks(5), Release: audio.Ticks(1), Volume: 0.35 * musicLevel}
+	fanfare   = audio.Voice{Wave: audio.Pulse50, Decay: audio.Ticks(8), Sustain: 0.6, Release: audio.Ticks(6), Volume: 0.7 * musicLevel}
 )
 
 // Drum sounds, as noise rates: low, middle and high. 0 is a rest.
