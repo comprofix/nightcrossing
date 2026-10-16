@@ -109,6 +109,8 @@ type Level struct {
 	HeronPct   int
 	Trains     bool        // trains run on the track (DESIGN §6.2)
 	Train      TrainTiming // how the trains run, when they do (D17)
+	Combo      bool        // the hop combo is on (D38)
+	DayCycle   bool        // the day and night cycle runs (D39)
 	TimerTicks int         // the time for each attempt
 	Hint       string
 }
@@ -137,12 +139,14 @@ func (m ModeLevels) Def(n int) (def LevelDef, speedPct int) {
 	return d, min(d.SpeedPct+(k/LoopLevels+1)*LoopSpeedStepPct, m.CeilingPct)
 }
 
-// ModeLevels is a mode's levels and speed ceiling, and whether trains run
-// on the track in all of them.
+// ModeLevels is a mode's levels and speed ceiling, and the levels its own
+// mechanics come in on (D27).
 type ModeLevels struct {
 	Levels     []LevelDef
 	CeilingPct int  // the speed % the loops stop rising at (D20)
 	Trains     bool // trains from level 1 (DESIGN §6.2)
+	ComboFrom  int  // the first level with the hop combo; 0 for none (D38)
+	CycleFrom  int  // the first level with the day and night cycle; 0 for none (D39)
 }
 
 // Level is level n (1 for the first) as it is played.
@@ -152,6 +156,8 @@ func (m ModeLevels) Level(n int) Level {
 	if m.Trains {
 		lv.Train = TrainsOn(n)
 	}
+	lv.Combo = m.ComboFrom > 0 && n >= m.ComboFrom
+	lv.DayCycle = m.CycleFrom > 0 && n >= m.CycleFrom
 	for r, l := range def.Layout.Lanes {
 		if len(l.Pattern) > 0 {
 			l.Speed = max(1, l.Speed*speed/100)

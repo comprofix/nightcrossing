@@ -36,32 +36,38 @@ var Stroll = Mode{
 
 // Modes are the built modes, in order: only built modes are shown, and the
 // list grows with each version (D26).
-var Modes = []Mode{Stroll}
+var Modes = []Mode{Stroll, LastTrain}
 
-// LastTrain is Stroll plus trains on the track from level 1 (DESIGN §6.2).
-// Its hop combo and day and night cycle come in M10; until then it is
-// played with -mode lasttrain in debug builds (D37).
+// LastTrain is Stroll plus trains on the track, the hop combo and the day
+// and night cycle (DESIGN §6.2). Its own mechanics come in one level at a
+// time (D27).
 var LastTrain = Mode{
 	ID:   "lasttrain",
 	Name: "Last Train",
 	Desc: "Stroll, plus trains on the line.",
 	New: []Mechanic{
 		{"Trains", "watch the lights, then cross"},
+		{"Hop combo", "keep hopping forward for x2, x3, x4"},
+		{"Day and night", "dawn to night as you fill the nooks"},
 	},
 	Also:   []string{"Road, river, diving platforms, herons"},
 	Levels: lastTrainLevels(),
 }
 
-// lastTrainLevels are Stroll's levels with trains, and a first hint about
-// them.
+// lastTrainLevels are Stroll's levels with Last Train's mechanics: trains
+// from level 1, the combo from level 2 and the day and night cycle from
+// level 3, each with a hint on the level that brings it in (D27).
 func lastTrainLevels() ModeLevels {
 	m := StrollLevels
 	m.Levels = append([]LevelDef(nil), m.Levels...)
 	m.Levels[0].Hint = "WATCH THE CROSSING LIGHTS, THEN CROSS THE LINE"
+	m.Levels[1].Hint = "KEEP HOPPING FORWARD FOR A COMBO: x2, x3, x4"
+	m.Levels[2].Hint = "DAWN TO NIGHT: THE DARK FALLS AS YOU FILL THE NOOKS"
 	m.Trains = true
+	m.ComboFrom, m.CycleFrom = 2, 3
 	return m
 }
 
 // ModesInProgress are modes being built and not yet in Modes. Debug
-// builds can play them with -mode (D37).
-var ModesInProgress = []Mode{LastTrain}
+// builds can play them with -mode (D37). None just now.
+var ModesInProgress []Mode

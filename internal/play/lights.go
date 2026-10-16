@@ -66,15 +66,16 @@ const (
 func (p *Play) addLights(ctx *scene.Context, l *fx.Lighting) {
 	w := p.world
 	cell := float64(config.Cell)
+	fade := p.lampK() // faded by day (D39)
 	for r := range w.Lanes {
 		if w.Lanes[r].Kind == config.River { // the moon's path on the water
 			l.Add(fx.Light{X: float64(config.FieldX + moonX), Y: cellY(r) + cell/2,
-				Radius: moonR, Colour: gfx.RGBA(resurrect64.Sky), Strength: moonLight})
+				Radius: moonR, Colour: gfx.RGBA(resurrect64.Sky), Strength: moonLight * fade})
 		}
 	}
 	for _, lp := range lamps {
 		l.Add(fx.Light{X: cellX(lp.col) + cell/2, Y: cellY(lp.row) + lampHeadY,
-			Radius: lampR, Colour: gfx.RGBA(resurrect64.Honey), Strength: lampLight})
+			Radius: lampR, Colour: gfx.RGBA(resurrect64.Honey), Strength: lampLight * fade})
 	}
 	for r := range w.Lanes {
 		lane := &w.Lanes[r]
@@ -89,16 +90,16 @@ func (p *Play) addLights(ctx *scene.Context, l *fx.Lighting) {
 	for i, c := range config.Nooks {
 		x, y := cellX(c)+float64(config.NookWidth*config.Cell)/2, cellY(config.GoalRow)+cell/2
 		if w.Filled[i] {
-			l.Add(fx.Light{X: x, Y: y, Radius: nookR, Colour: gfx.RGBA(resurrect64.Gold), Strength: nookLight})
+			l.Add(fx.Light{X: x, Y: y, Radius: nookR, Colour: gfx.RGBA(resurrect64.Gold), Strength: nookLight * fade})
 		}
 		if g := p.nookGlow[i]; g > 0 {
 			l.Add(fx.Light{X: x, Y: y, Radius: goalGlowR, Colour: gfx.RGBA(resurrect64.Gold),
-				Strength: goalGlow * float64(g) / goalGlowTick})
+				Strength: goalGlow * float64(g) / goalGlowTick * fade})
 		}
 	}
 	if pl := &w.Player; w.Home == 0 && pl.Death == 0 {
 		x, y := p.heroCentre()
-		l.Add(fx.Light{X: x, Y: y, Radius: heroLightR, Colour: gfx.RGBA(resurrect64.Honey), Strength: heroLight})
+		l.Add(fx.Light{X: x, Y: y, Radius: heroLightR, Colour: gfx.RGBA(resurrect64.Honey), Strength: heroLight * fade})
 	}
 }
 
@@ -117,11 +118,11 @@ func (p *Play) addVehicleLights(ctx *scene.Context, l *fx.Lighting, r int) {
 		if e.Kind.ID == config.Bike.ID {
 			reach = bikeLightR
 		}
-		k := flicker(ctx.Tick, r, i)
+		k := flicker(ctx.Tick, r, i) * p.lampK()
 		l.Add(fx.Light{Shape: fx.Beam, X: front, Y: y, Radius: reach, Flip: lane.Dir < 0,
 			Colour: gfx.RGBA(resurrect64.Lemon), Strength: headlight * k})
 		l.Add(fx.Light{X: front, Y: y, Radius: lensR, Colour: gfx.RGBA(resurrect64.Lemon), Strength: k})
-		l.Add(fx.Light{X: back, Y: y, Radius: tailR, Colour: gfx.RGBA(resurrect64.Red), Strength: tailLight})
+		l.Add(fx.Light{X: back, Y: y, Radius: tailR, Colour: gfx.RGBA(resurrect64.Red), Strength: tailLight * p.lampK()})
 	}
 }
 
@@ -147,7 +148,7 @@ func (p *Play) addRiverLights(ctx *scene.Context, l *fx.Lighting, r int) {
 			if st := e.Stage(); st == world.Afloat || st == world.Warning {
 				switch name {
 				case "ferry_cabin", "barge_back":
-					l.Add(fx.Light{X: cx, Y: y, Radius: cabinR, Colour: gfx.RGBA(resurrect64.Gold), Strength: cabinLight})
+					l.Add(fx.Light{X: cx, Y: y, Radius: cabinR, Colour: gfx.RGBA(resurrect64.Gold), Strength: cabinLight * p.lampK()})
 				}
 			}
 		}

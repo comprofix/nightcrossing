@@ -289,8 +289,8 @@ func (g *Game) present(out *ebiten.Image) {
 	out.DrawImage(g.prescale, op)
 }
 
-// StartAt makes new games start on level n, for testing (-level in debug
-// builds). Such games go on no high score table and clear no mode.
+// StartAt makes new games start on level n, for testing (the -level
+// flag). Such games go on no high score table and clear no mode.
 func (g *Game) StartAt(n int) { g.ctx.StartLevel = n }
 
 // UseModes sets the modes the menus offer, e.g. with a mode in progress

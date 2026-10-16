@@ -20,10 +20,10 @@ import (
 
 func main() {
 	seed := flag.Uint64("seed", 0, "random seed, for repeatable runs (0 picks one from the clock)")
-	level, noShaders, extra := 1, false, ""
+	level := flag.Int("level", 1, "start new games on this level, for testing; such games keep no high scores")
+	noShaders, extra := false, ""
 	if debug.Enabled {
 		flag.StringVar(&extra, "mode", "", "add a mode still being built to the MODE menu, by its ID, e.g. lasttrain (debug builds only)")
-		flag.IntVar(&level, "level", 1, "start new games on this level, for testing (debug builds only)")
 		flag.BoolVar(&noShaders, "noshaders", false, "draw without shaders, as on a machine that can't run them (debug builds only)")
 	}
 	flag.Parse()
@@ -75,7 +75,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	g.StartAt(level)
+	g.StartAt(*level)
 	g.UseModes(modes)
 	if noShaders {
 		g.WithoutShaders()

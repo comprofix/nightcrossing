@@ -20,6 +20,19 @@ a busy road, a railway and a river, to five nooks on the far bank.
 Points: 10 for each new row reached, 100 for a nook plus 10 for each second
 left, 1000 for the fifth nook. An extra life every 20,000.
 
+## Modes
+
+- **Stroll:** the game above.
+- **Last Train:** Stroll, plus:
+  - **Trains.** When the crossing lights flash and the bell rings, a train
+    is coming: stay off the track until it has passed. Each level the
+    trains get faster and come more often.
+  - **A hop combo,** from level 2. Keep hopping forward for x2, x3 and x4
+    points, on the hops and the nook. Waiting too long, hopping back or
+    dying ends it; riding a log or a boat keeps it.
+  - **Day and night,** from level 3. Each level runs from dawn to night as
+    you fill the nooks.
+
 ![The intro shown before a mode starts](docs/screenshots/intro.png)
 
 ## Controls
@@ -76,7 +89,7 @@ go build -o bin/nightcrossing ./cmd/nightcrossing
 
 ```sh
 go run -tags debug ./cmd/nightcrossing             # debug overlay
-go run -tags debug ./cmd/nightcrossing -level 38   # start games on level 38 (no scores kept)
+go run ./cmd/nightcrossing -level 38               # start games on level 38 (no scores kept)
 go run -tags debug ./cmd/nightcrossing -noshaders  # draw as if shaders were unavailable
 go generate ./assets                               # rebuild the sprite sheets
 ```

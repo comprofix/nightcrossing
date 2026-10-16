@@ -78,7 +78,7 @@ func (p *Play) drawField(ctx *scene.Context, dst *ebiten.Image) {
 	w := p.world
 	bounds := image.Rect(config.FieldX, config.FieldY,
 		config.FieldX+w.Cols*config.Cell, config.FieldY+w.Rows*config.Cell)
-	look := night
+	look := p.look() // Stroll's night, or Last Train's day and night (D39)
 	if ctx.Settings.SmoothLight {
 		look.Bands = 0 // the Light option (Options: Light: Smooth)
 	}
@@ -86,7 +86,7 @@ func (p *Play) drawField(ctx *scene.Context, dst *ebiten.Image) {
 		look.Glow = 0
 	}
 	if ctx.Settings.HighContrast {
-		look.Level = highContrastLevel
+		look.Level = max(look.Level, highContrastLevel)
 	}
 	field := p.light.Begin(look).SubImage(bounds).(*ebiten.Image)
 

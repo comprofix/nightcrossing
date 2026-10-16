@@ -55,7 +55,7 @@ type Context struct {
 	NewDemo func(ctx *Context) Scene
 
 	// StartLevel is the level new games start on; 0 or 1 is the first.
-	// Only debug builds set it (-level), for testing. A game started
+	// The -level flag sets it, for testing. A game started
 	// later is a test: it goes on no high score table.
 	// Modes are the modes the menus offer, in order; nil is config.Modes.
 	// Debug builds add modes in progress with -mode.
