@@ -6,12 +6,15 @@ import (
 	"testing"
 
 	"github.com/comprofix/nightcrossing/internal/config"
+	"github.com/comprofix/nightcrossing/internal/session"
 )
 
 const cellUnits = config.Cell * config.SubPx
 
+// newWorld is a game at the second skill on an all-safe level, so only
+// the hero moves.
 func newWorld(seed uint64) *World {
-	return New(config.Cols, config.Rows, config.Skills[1], rand.New(rand.NewPCG(seed, seed)))
+	return New(session.New(config.Skills[1], config.StartLives), config.Level{}, rand.New(rand.NewPCG(seed, seed)))
 }
 
 // run updates w once with press, then n-1 more times with nothing pressed,

@@ -5,13 +5,11 @@ package play
 
 import (
 	"fmt"
-	"math"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 
 	"github.com/comprofix/nightcrossing/internal/config"
-	"github.com/comprofix/nightcrossing/internal/debug"
 	"github.com/comprofix/nightcrossing/internal/gfx"
 	"github.com/comprofix/nightcrossing/internal/gfx/palettes/resurrect64"
 	"github.com/comprofix/nightcrossing/internal/input"
@@ -45,11 +43,24 @@ type Play struct {
 	level int
 }
 
+// Effects, in ticks and pixels.
+const (
+	shakeTicks    = 12
+	shakePx       = 3
+	gameOverTicks = 2 * config.TPS // the game over message shows this long
+)
+
 // New starts a game at a skill.
 func New(ctx *scene.Context, skill config.Skill) scene.Scene {
+	return newPlay(ctx, skill, config.Levels[0])
+}
+
+// newPlay starts a game at a skill on a given level, so tests can use
+// levels of their own.
+func newPlay(ctx *scene.Context, skill config.Skill, level config.Level) *Play {
 	ctx.Session = session.New(skill, config.StartLives)
 	return &Play{
-		world: world.New(config.Cols, config.Rows, skill, ctx.RNG),
+		world: world.New(ctx.Session, level, ctx.RNG),
 		hero:  Toad,
 		level: 1,
 	}
@@ -76,9 +87,42 @@ func (p *Play) Update(ctx *scene.Context) error {
 		switch e {
 		case world.Hopped:
 			ctx.Audio.PlayEffect(p.hero.Hop)
+		case world.Squashed:
+			ctx.Audio.PlayEffect(Crash)
+			ctx.Shake.Start(shakeTicks, shakePx)
+		case world.GameOver:
+			ctx.Audio.PlayEffect(GameOver)
+			ctx.Cut(newEnded(p))
 		}
 	}
 	return nil
+}
+
+// Ended holds the last moment of the game on screen under a GAME OVER
+// message, then goes on to the high scores. Confirm moves on sooner.
+type Ended struct {
+	play  *Play
+	ticks int
+}
+
+func newEnded(p *Play) *Ended { return &Ended{play: p} }
+
+// Update implements scene.Scene.
+func (e *Ended) Update(ctx *scene.Context) error {
+	e.ticks++
+	if e.ticks >= gameOverTicks || (e.ticks > config.TPS/2 && ctx.Input.JustPressed(input.Confirm)) {
+		s := ctx.Session
+		ctx.Switch(scene.AfterGame(ctx, s.Skill, s.Score))
+	}
+	return nil
+}
+
+// Draw implements scene.Scene.
+func (e *Ended) Draw(ctx *scene.Context, dst *ebiten.Image) {
+	sc, f := ctx.Scheme, ctx.Fonts
+	e.play.Draw(ctx, dst)
+	scene.Dim(dst, sc.Shadow, 0.5)
+	ui.TextCentred(dst, f.Large, "GAME OVER", (config.Project.ScreenHeight-f.Large.Size)/2, sc.Title, sc.Shadow)
 }
 
 // pressed is the direction pressed this tick: the first of up, down, left
@@ -104,90 +148,6 @@ func (p *Play) Draw(ctx *scene.Context, dst *ebiten.Image) {
 	p.drawField(ctx, dst)
 	p.drawHUD(ctx, dst)
 	p.drawHint(ctx, dst)
-}
-
-// drawField draws the grid: grass on the goal bank and the start row, open
-// ground between with faint cell lines, and the hero on the start row.
-func (p *Play) drawField(ctx *scene.Context, dst *ebiten.Image) {
-	w := p.world
-	sheet := ctx.Sheet(Sheet)
-	fw, fh := float32(w.Cols*config.Cell), float32(w.Rows*config.Cell)
-	vector.FillRect(dst, config.FieldX, config.FieldY, fw, fh, gfx.RGBA(resurrect64.Ink), false)
-
-	line := gfx.RGBA(resurrect64.Shadow)
-	for c := 1; c < w.Cols; c++ {
-		x := float32(config.FieldX + c*config.Cell)
-		vector.FillRect(dst, x, config.FieldY, 1, fh, line, false)
-	}
-	for r := 1; r < w.Rows; r++ {
-		y := float32(config.FieldY + r*config.Cell)
-		vector.FillRect(dst, config.FieldX, y, fw, 1, line, false)
-	}
-
-	verge := sheet.Sprite("verge")
-	for _, r := range []int{config.GoalRow, config.StartRow} {
-		for c := range w.Cols {
-			verge.Draw(dst, 0, cellX(c), cellY(r), false)
-		}
-	}
-
-	p.drawHero(ctx, dst)
-}
-
-// drawHero draws the hero turned to face its way, on its leap frame while
-// hopping, rising and falling over the hop, then squashed for a moment on
-// landing (DESIGN §3.3).
-func (p *Play) drawHero(ctx *scene.Context, dst *ebiten.Image) {
-	pl := &p.world.Player
-	sp := ctx.Sheet(Sheet).Sprite(p.hero.Sprite)
-
-	frame, lift := frameRest, 0.0
-	switch {
-	case pl.Hopping():
-		frame = frameLeap
-		t := float64(pl.HopProgress()) / config.HopTicks
-		lift = math.Round(config.HopLiftPx * math.Sin(math.Pi*t))
-	case pl.Still < config.LandTicks:
-		frame = frameLand
-	}
-
-	x := float64(config.FieldX) + float64(pl.X)/config.SubPx
-	y := float64(config.FieldY) + float64(pl.Y)/config.SubPx - lift
-	var op ebiten.DrawImageOptions
-	op.GeoM = facing(pl.Facing, sp.W, sp.H)
-	op.GeoM.Translate(x, y)
-	dst.DrawImage(sp.Frame(frame), &op)
-
-	if debug.Enabled {
-		debug.Box(dst, cellX(pl.Col), cellY(pl.Row), config.Cell, config.Cell, ctx.Scheme.Highlight)
-	}
-}
-
-// facing turns a w×h sprite drawn facing up to face d, keeping it in the
-// same w×h box. The turns are exact quarter turns, so pixels stay whole.
-func facing(d world.Dir, w, h int) ebiten.GeoM {
-	var g ebiten.GeoM
-	fw, fh := float64(w), float64(h)
-	switch d {
-	case world.Right: // x' = h - y, y' = x
-		g.SetElement(0, 0, 0)
-		g.SetElement(0, 1, -1)
-		g.SetElement(0, 2, fh)
-		g.SetElement(1, 0, 1)
-		g.SetElement(1, 1, 0)
-	case world.Down: // x' = w - x, y' = h - y
-		g.SetElement(0, 0, -1)
-		g.SetElement(0, 2, fw)
-		g.SetElement(1, 1, -1)
-		g.SetElement(1, 2, fh)
-	case world.Left: // x' = y, y' = w - x
-		g.SetElement(0, 0, 0)
-		g.SetElement(0, 1, 1)
-		g.SetElement(1, 0, -1)
-		g.SetElement(1, 1, 0)
-		g.SetElement(1, 2, fw)
-	}
-	return g
 }
 
 // drawHUD draws the status bar: score, best score, level, lives and time.
@@ -231,7 +191,3 @@ func best(ctx *scene.Context) int {
 	}
 	return 0
 }
-
-// cellX and cellY are the screen position of a grid cell's top-left corner.
-func cellX(c int) float64 { return float64(config.FieldX + c*config.Cell) }
-func cellY(r int) float64 { return float64(config.FieldY + r*config.Cell) }

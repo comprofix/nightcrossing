@@ -12,9 +12,10 @@ type Hero struct {
 
 // A hero sprite's frames.
 const (
-	frameRest = 0
-	frameLeap = 1 // in the air
-	frameLand = 2 // the landing squash
+	frameRest     = 0
+	frameLeap     = 1 // in the air
+	frameLand     = 2 // the landing squash
+	frameSquashed = 3 // flattened by a vehicle
 )
 
 // Toad is the hero for 1.0 (DESIGN §2).

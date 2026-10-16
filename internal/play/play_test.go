@@ -32,13 +32,15 @@ func TestSprites(t *testing.T) {
 		t.Fatal(err)
 	}
 	size := map[string][2]int{}
+	frames := map[string]int{}
 	for _, s := range sprites {
 		size[s.Name] = [2]int{s.W, s.H}
+		frames[s.Name] = len(s.Frames)
 	}
 	want := map[string][2]int{
-		"toad":  {config.Cell, config.Cell},
-		"verge": {config.Cell, config.Cell},
-		"life":  {12, 12},
+		Toad.Sprite: {config.Cell, config.Cell},
+		"verge":     {config.Cell, config.Cell},
+		"life":      {12, 12},
 	}
 	for name, wh := range want {
 		got, ok := size[name]
@@ -47,6 +49,28 @@ func TestSprites(t *testing.T) {
 			t.Errorf("no sprite named %q", name)
 		case got != wh:
 			t.Errorf("sprite %q is %d×%d, want %d×%d", name, got[0], got[1], wh[0], wh[1])
+		}
+	}
+	if n := frames[Toad.Sprite]; n != frameSquashed+1 {
+		t.Errorf("the hero sprite has %d frames, want %d", n, frameSquashed+1)
+	}
+
+	// Each vehicle's pieces are a lane high and add up to its length.
+	for _, v := range config.Vehicles() {
+		width := 0
+		for _, name := range vehicleSprites(v) {
+			wh, ok := size[name]
+			if !ok {
+				t.Errorf("%s: no sprite named %q", v.ID, name)
+				continue
+			}
+			if wh[1] != config.Cell {
+				t.Errorf("%s: sprite %q is %dpx high, want %d", v.ID, name, wh[1], config.Cell)
+			}
+			width += wh[0]
+		}
+		if width != v.Length {
+			t.Errorf("%s: sprites are %dpx long, the vehicle %d", v.ID, width, v.Length)
 		}
 	}
 }
@@ -78,11 +102,12 @@ func summary(p *Play, ctx *scene.Context) string {
 
 // TestHopRoute plays a route of single presses through the real input,
 // some spaced out and some pressed just before landing, and checks where
-// the hero ends up against the golden file.
+// the hero ends up against the golden file. The level is all safe, so
+// only the input and hopping count.
 func TestHopRoute(t *testing.T) {
 	h := scenetest.New(t, 42)
 	h.Ctx.NewPlay = New
-	p := New(h.Ctx, config.Skills[1]).(*Play)
+	p := newPlay(h.Ctx, config.Skills[1], config.Level{})
 	h.Start(p)
 	h.Ticks(scene.FadeTicks)
 
@@ -177,5 +202,60 @@ func TestRestart(t *testing.T) {
 	}
 	if p.World().Skill.ID != config.Skills[2].ID {
 		t.Errorf("restarted at %s, want %s", p.World().Skill.ID, config.Skills[2].ID)
+	}
+}
+
+// TestRoadReplay plays level 1 at each skill from a fixed seed as a
+// reckless player who crosses the road to the verge and back, again and
+// again, pressing every few ticks and never looking. It records every
+// crossing and death, then checks the game ends, shows GAME OVER and goes
+// on to the high score table, and that it all matches the golden file. A
+// change to the lanes, collisions or deaths shows up here; if it is
+// intended, run the test with -update.
+func TestRoadReplay(t *testing.T) {
+	const (
+		pressEvery = 12
+		verge      = 6 // the safe row above level 1's road
+	)
+	for _, sk := range config.Skills {
+		t.Run(sk.ID, func(t *testing.T) {
+			h := scenetest.New(t, 42)
+			h.Ctx.NewPlay = New
+			p := New(h.Ctx, sk).(*Play)
+			h.Start(p)
+			h.Ticks(scene.FadeTicks)
+
+			var log strings.Builder
+			w := p.World()
+			key := ebiten.KeyArrowUp
+			for i := 0; !w.Over; i++ {
+				if i > 300*config.TPS {
+					t.Fatal("the game did not end")
+				}
+				row, lives := w.Player.LaneRow(), h.Ctx.Session.Lives
+				switch {
+				case key == ebiten.KeyArrowUp && w.Player.Row == verge && !w.Player.Hopping():
+					key = ebiten.KeyArrowDown
+					fmt.Fprintf(&log, "tick %d: crossed up\n", w.Tick)
+				case key == ebiten.KeyArrowDown && w.Player.Row == config.StartRow && !w.Player.Hopping():
+					key = ebiten.KeyArrowUp
+					fmt.Fprintf(&log, "tick %d: crossed down\n", w.Tick)
+				}
+				if i%pressEvery == 0 {
+					h.Run(scenetest.Hold(1, key))
+				} else {
+					h.Ticks(1)
+				}
+				if h.Ctx.Session.Lives < lives {
+					key = ebiten.KeyArrowUp // back to the start row
+					fmt.Fprintf(&log, "tick %d: squashed in row %d (was in %d), %d lives left\n", w.Tick, w.Player.LaneRow(), row, h.Ctx.Session.Lives)
+				}
+			}
+			scenetest.Current[*Ended](h)
+			h.Ticks(gameOverTicks + 2*scene.FadeTicks)
+			scenetest.Current[*scene.HighScoreTable](h)
+
+			scenetest.Golden(t, "road_"+sk.ID, log.String()+summary(p, h.Ctx))
+		})
 	}
 }

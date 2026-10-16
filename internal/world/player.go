@@ -41,7 +41,8 @@ type Player struct {
 	FromCol, FromRow int // the cell the current hop started from
 	X, Y             int // top-left corner from the field's, in config.SubPx units
 	Facing           Dir
-	Still            int // ticks since the last landing, up to config.LandTicks
+	Still            int   // ticks since the last landing, up to config.LandTicks
+	Death            Event // how the hero died, or 0 while alive
 
 	hopLeft int // ticks left in the current hop; 0 when not hopping
 	queued  Dir // a press kept for the landing
@@ -63,6 +64,16 @@ func (p *Player) HopProgress() int {
 		return 0
 	}
 	return config.HopTicks - p.hopLeft
+}
+
+// LaneRow is the row whose hazards can hit the hero: the row it is
+// leaving for the first half of a hop, and the row it is landing in from
+// halfway on.
+func (p *Player) LaneRow() int {
+	if p.Hopping() && 2*p.HopProgress() < config.HopTicks {
+		return p.FromRow
+	}
+	return p.Row
 }
 
 // place sets X and Y from the hop's progress.
