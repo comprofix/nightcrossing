@@ -92,7 +92,7 @@ var StrollLevels = ModeLevels{
 		{Layout: strollSinking, SpeedPct: 115, GapPct: 90, HeronPct: 25, Hint: "A SINKING SHIP: RUN TO ITS STERN OR HOP OFF"},
 		{Layout: strollFlood, SpeedPct: 125, GapPct: 85, HeronPct: 35},
 	},
-	// D20 is still open: the recommended 2× level 8's speed, until it is
-	// settled.
-	CeilingPct: 250,
+	// D20: level 38's speed, where even the tightest road gap still stays
+	// open about half a second.
+	CeilingPct: 225,
 }

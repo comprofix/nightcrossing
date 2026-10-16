@@ -55,6 +55,11 @@ type Context struct {
 	// shows behind its logo.
 	NewDemo func(ctx *Context) Scene
 
+	// StartLevel is the level new games start on; 0 or 1 is the first.
+	// Only debug builds set it (-level), for testing. A game started
+	// later is a test: it goes on no high score table.
+	StartLevel int
+
 	next            Scene
 	cut             bool
 	quit            bool

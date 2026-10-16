@@ -120,3 +120,11 @@ func TestInitialsWithAGamepad(t *testing.T) {
 	}
 	current[*HighScoreTable](t, h)
 }
+
+func TestTestGamesMakeNoTable(t *testing.T) {
+	h := newHarness(t, NewMainMenu())
+	h.ctx.StartLevel = 20
+	if _, ok := AfterGame(h.ctx, config.Modes[0], 5000).(*HighScoreTable); !ok {
+		t.Error("a game started part way was offered the table")
+	}
+}
