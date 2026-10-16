@@ -21,17 +21,17 @@ import (
 func main() {
 	seed := flag.Uint64("seed", 0, "random seed, for repeatable runs (0 picks one from the clock)")
 	level := flag.Int("level", 1, "start new games on this level, for testing; such games keep no high scores")
-	noShaders, extra := false, ""
+	extra := flag.String("mode", "", "add a mode still being built to the MODE menu, by its ID, for testing")
+	noShaders := false
 	if debug.Enabled {
-		flag.StringVar(&extra, "mode", "", "add a mode still being built to the MODE menu, by its ID, e.g. rushhour (debug builds only)")
 		flag.BoolVar(&noShaders, "noshaders", false, "draw without shaders, as on a machine that can't run them (debug builds only)")
 	}
 	flag.Parse()
 	modes := config.Modes
-	if extra != "" {
-		m, ok := modeInProgress(extra)
+	if *extra != "" {
+		m, ok := modeInProgress(*extra)
 		if !ok {
-			log.Fatalf("no mode in progress called %q", extra)
+			log.Fatalf("no mode in progress called %q", *extra)
 		}
 		modes = append(slices.Clone(modes), m)
 	}

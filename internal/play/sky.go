@@ -83,23 +83,23 @@ func skyAt(at float64) sky {
 // look is how the field is lit now: Stroll's fixed night, or the day and
 // night cycle where the clock stands.
 func (p *Play) look() fx.Look {
-	if !p.world.Level.DayCycle {
-		return night
-	}
-	s := skyAt(p.stage())
 	l := night
-	l.Ambient, l.Level, l.GlowFrom = s.ambient, s.level, s.glowFrom
-	return l
+	if p.world.Level.DayCycle {
+		s := skyAt(p.stage())
+		l.Ambient, l.Level, l.GlowFrom = s.ambient, s.level, s.glowFrom
+	}
+	return overcast(l, p.overcastK())
 }
 
 // lampK is how strong lamps, headlights, the moon and the hero's own light
-// are now: full at night, faded by day. Warnings, herons and the crossing
+// are now: full at night and in fog or rain, faded by day. Warnings, herons and the crossing
 // lights keep their full strength at every time of day (D39).
 func (p *Play) lampK() float64 {
-	if !p.world.Level.DayCycle {
-		return 1
+	k := 1.0
+	if p.world.Level.DayCycle {
+		k = skyAt(p.stage()).lamps
 	}
-	return skyAt(p.stage()).lamps
+	return k + (1-k)*p.overcastK() // fog and rain turn them on (D44)
 }
 
 // stage is the clock in stages, for skyAt.

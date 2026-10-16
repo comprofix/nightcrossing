@@ -64,6 +64,10 @@ type Play struct {
 	outline  *ebiten.Image          // a drawing buffer for high contrast's outlines
 	pops     []pop                  // points popping up over the toad (D38)
 	sky      int                    // where the day and night cycle is (D39; see sky.go)
+	overcast int                    // how far fog or rain has dimmed the light, in ticks (D44)
+	fogIn    int                    // how far the fog is in, in ticks
+	rainIn   int                    // how far the rain is in, in ticks
+	fogImg   *ebiten.Image          // a drawing buffer: one fog patch
 }
 
 // New starts a game in a mode, on its first level, or on ctx.StartLevel

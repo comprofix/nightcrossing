@@ -58,7 +58,7 @@ type Context struct {
 	// The -level flag sets it, for testing. A game started
 	// later is a test: it goes on no high score table.
 	// Modes are the modes the menus offer, in order; nil is config.Modes.
-	// Debug builds add modes in progress with -mode.
+	// The -mode flag adds a mode in progress, for testing.
 	Modes []config.Mode
 
 	StartLevel int

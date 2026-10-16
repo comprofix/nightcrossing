@@ -107,6 +107,23 @@ var (
 		Voice: audio.Voice{Wave: audio.Pulse50, Attack: audio.Ticks(1), Sustain: 0.9, Release: audio.Ticks(3), Volume: 0.5},
 		Notes: audio.Notes("-:6 E4:10 -:4 F4:4 -:3 F4:12"),
 	}}
+	// FogHorn is fog being announced (D29): a long low horn, twice, from
+	// somewhere out in the murk.
+	FogHorn = &audio.Effect{Name: "fog horn", Channel: 2, Priority: 3, Part: audio.Part{
+		Voice: audio.Voice{Wave: audio.Triangle, Attack: audio.Ticks(6), Sustain: 1, Release: audio.Ticks(10), Volume: 0.9},
+		Notes: audio.Notes("D3:36 -:10 D3:44"),
+	}}
+	// Thunder is rain being announced (D31): a crack, then a long roll.
+	Thunder = &audio.Effect{Name: "thunder", Channel: 3, Priority: 3, Part: audio.Part{
+		Voice: audio.Voice{Wave: audio.Noise, Decay: audio.Ticks(60), Sustain: 0.2, Release: audio.Ticks(20), Volume: 0.9},
+		Notes: []audio.Note{{Hz: 1800, Dur: audio.Ticks(4)}, {Hz: 300, Dur: audio.Ticks(30)}, {Hz: 160, Dur: audio.Ticks(50)}},
+	}}
+	// Skid is the hero sliding on the wet road (D31): a short hiss that
+	// drops away.
+	Skid = &audio.Effect{Name: "skid", Channel: 3, Priority: 3, Part: audio.Part{
+		Voice: audio.Voice{Wave: audio.Noise, Decay: audio.Ticks(10), Release: audio.Ticks(2), Volume: 0.6},
+		Notes: []audio.Note{{Hz: 5000, Dur: audio.Ticks(3)}, {Hz: 3000, Dur: audio.Ticks(5)}},
+	}}
 	// Squawk is a heron catching the hero: a harsh falling cry.
 	Squawk = &audio.Effect{Name: "squawk", Channel: 1, Priority: 4, Part: audio.Part{
 		Voice: audio.Voice{Wave: audio.Pulse12, Decay: audio.Ticks(16), Sustain: 0.3, Release: audio.Ticks(6), Volume: 0.7},
@@ -117,7 +134,7 @@ var (
 // Sounds are the game's tunes and effects, listed for the sound test.
 var Sounds = audio.Bank{
 	Tunes:   []*audio.Tune{NightTitle, Stroll, LevelClearJingle, GameOverJingle, HighScores},
-	Effects: []*audio.Effect{ToadHop, Crash, Bump, Splash, Bubbles, Squawk, Home, OneUp, TimeLow, TimeUp, Bell, Horn, HornLow, Rumble, TrainCrash, ComboUp, HornChorus, HornChorusLow},
+	Effects: []*audio.Effect{ToadHop, Crash, Bump, Splash, Bubbles, Squawk, Home, OneUp, TimeLow, TimeUp, Bell, Horn, HornLow, Rumble, TrainCrash, ComboUp, HornChorus, HornChorusLow, FogHorn, Thunder, Skid},
 }
 
 // soundsFor is the effects an event plays (DESIGN §3.4). The level clear
@@ -143,6 +160,12 @@ func (p *Play) soundsFor(e world.Event) []*audio.Effect {
 		return []*audio.Effect{ComboUp}
 	case world.WaveWarning:
 		return []*audio.Effect{HornChorus, HornChorusLow}
+	case world.FogWarning:
+		return []*audio.Effect{FogHorn}
+	case world.RainWarning:
+		return []*audio.Effect{Thunder}
+	case world.Slid:
+		return []*audio.Effect{Skid}
 	case world.TimeUp:
 		return []*audio.Effect{TimeUp}
 	case world.LowTime:
