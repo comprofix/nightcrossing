@@ -294,8 +294,10 @@ func TestSounds(t *testing.T) {
 func TestTitleTuneAndMenuSounds(t *testing.T) {
 	h := newHarness(t, NewTitle())
 	h.ctx.Audio = audio.NewSynth(config.Chip4)
+	title := &audio.Tune{Name: "own title", Loop: true, Parts: []audio.Part{{Notes: audio.Notes("C4:12")}}}
+	h.ctx.TitleTune = title
 	h.ticks(1)
-	if h.ctx.Audio.Tune() != TitleTune {
+	if h.ctx.Audio.Tune() != title {
 		t.Fatal("the title does not play the title tune")
 	}
 	h.press(ebiten.KeyQ)
@@ -306,7 +308,7 @@ func TestTitleTuneAndMenuSounds(t *testing.T) {
 	h.ctx.Audio.StopTune() // as a game does
 	h.press(ebiten.KeyEscape)
 	h.press(ebiten.KeyQ)
-	if h.ctx.Audio.Tune() != TitleTune {
+	if h.ctx.Audio.Tune() != title {
 		t.Error("returning to the menus does not restart the title tune")
 	}
 }
@@ -314,14 +316,16 @@ func TestTitleTuneAndMenuSounds(t *testing.T) {
 func TestSoundTest(t *testing.T) {
 	h := newHarness(t, NewSoundTest(func() Scene { return NewMainMenu() }))
 	h.ctx.Audio = audio.NewSynth(config.Chip4)
-	h.ctx.Sounds = Sounds
+	tune := &audio.Tune{Name: "a tune", Parts: []audio.Part{{Notes: audio.Notes("C4:12")}}}
+	bank := audio.Join(audio.Bank{Tunes: []*audio.Tune{tune}}, Sounds)
+	h.ctx.Sounds = bank
 	h.ticks(1)
 	st := current[*SoundTest](t, h)
-	if n := len(st.menu.Items); n != len(Sounds.Tunes)+len(Sounds.Effects)+2 {
+	if n := len(st.menu.Items); n != len(bank.Tunes)+len(bank.Effects)+2 {
 		t.Fatalf("%d items", n)
 	}
 	h.press(ebiten.KeyEnter) // the first tune
-	if h.ctx.Audio.Tune() != Sounds.Tunes[0] {
+	if h.ctx.Audio.Tune() != tune {
 		t.Error("the sound test did not play the first tune")
 	}
 	h.in.Steps = append(h.in.Steps, input.Press(ebiten.KeyEscape), input.Idle(1))

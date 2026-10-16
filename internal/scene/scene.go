@@ -42,8 +42,7 @@ type Context struct {
 	Audio    *audio.Synth // nil in tests: every call is then ignored
 	Sounds   audio.Bank   // every tune and effect, for the sound test
 	// The game's own music for the shared scenes: the title and menus, and
-	// the high score screens. A nil TitleTune plays the shared TitleTune; a
-	// nil ScoresTune leaves the music as it is.
+	// the high score screens. A nil tune leaves the music as it is.
 	TitleTune, ScoresTune *audio.Tune
 	Session               *session.Session // the game in progress, if any
 	Scores                *score.Tables
