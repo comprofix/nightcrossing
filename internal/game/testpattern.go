@@ -4,7 +4,7 @@ import (
 	"image"
 	"image/color"
 
-	"github.com/comprofix/gameskeleton/internal/config"
+	"github.com/comprofix/nightcrossing/internal/config"
 )
 
 // The test pattern's layout, in screen pixels.

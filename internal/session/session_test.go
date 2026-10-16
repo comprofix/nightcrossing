@@ -3,7 +3,7 @@ package session
 import (
 	"testing"
 
-	"github.com/comprofix/gameskeleton/internal/config"
+	"github.com/comprofix/nightcrossing/internal/config"
 )
 
 func TestScoreStaysInRange(t *testing.T) {

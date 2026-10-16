@@ -5,7 +5,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 
-	"github.com/comprofix/gameskeleton/internal/input"
+	"github.com/comprofix/nightcrossing/internal/input"
 )
 
 func feed(steps ...input.Step) *input.Input {

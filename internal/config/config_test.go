@@ -130,7 +130,7 @@ func TestInGoBuild(t *testing.T) {
 	if !inGoBuild(`C:\Users\x\AppData\Local\Temp\go-build123\b001\exe`) {
 		t.Error("go-build folder not detected")
 	}
-	if inGoBuild(`C:\Games\gameskeleton`) {
+	if inGoBuild(`C:\Games\nightcrossing`) {
 		t.Error("ordinary folder taken for go-build")
 	}
 }

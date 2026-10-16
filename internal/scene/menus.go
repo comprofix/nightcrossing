@@ -5,10 +5,10 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 
-	"github.com/comprofix/gameskeleton/internal/config"
-	"github.com/comprofix/gameskeleton/internal/gfx"
-	"github.com/comprofix/gameskeleton/internal/input"
-	"github.com/comprofix/gameskeleton/internal/ui"
+	"github.com/comprofix/nightcrossing/internal/config"
+	"github.com/comprofix/nightcrossing/internal/gfx"
+	"github.com/comprofix/nightcrossing/internal/input"
+	"github.com/comprofix/nightcrossing/internal/ui"
 )
 
 // menuPad is the margin inside menu panels.

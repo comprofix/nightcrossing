@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/comprofix/gameskeleton/internal/config"
+	"github.com/comprofix/nightcrossing/internal/config"
 )
 
 var skills = []config.Skill{{ID: "easy"}, {ID: "hard"}}
