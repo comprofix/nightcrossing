@@ -107,7 +107,9 @@ type Level struct {
 	Number     int // 1 for the first
 	Lanes      [Rows]Lane
 	HeronPct   int
-	TimerTicks int // the time for each attempt
+	Trains     bool        // trains run on the track (DESIGN §6.2)
+	Train      TrainTiming // how the trains run, when they do (D17)
+	TimerTicks int         // the time for each attempt
 	Hint       string
 }
 
@@ -135,16 +137,21 @@ func (m ModeLevels) Def(n int) (def LevelDef, speedPct int) {
 	return d, min(d.SpeedPct+(k/LoopLevels+1)*LoopSpeedStepPct, m.CeilingPct)
 }
 
-// ModeLevels is a mode's levels and speed ceiling.
+// ModeLevels is a mode's levels and speed ceiling, and whether trains run
+// on the track in all of them.
 type ModeLevels struct {
 	Levels     []LevelDef
-	CeilingPct int // the speed % the loops stop rising at (D20)
+	CeilingPct int  // the speed % the loops stop rising at (D20)
+	Trains     bool // trains from level 1 (DESIGN §6.2)
 }
 
 // Level is level n (1 for the first) as it is played.
 func (m ModeLevels) Level(n int) Level {
 	def, speed := m.Def(n)
-	lv := Level{Number: n, HeronPct: def.HeronPct, TimerTicks: TimerTicks(n), Hint: def.Hint}
+	lv := Level{Number: n, HeronPct: def.HeronPct, Trains: m.Trains, TimerTicks: TimerTicks(n), Hint: def.Hint}
+	if m.Trains {
+		lv.Train = TrainsOn(n)
+	}
 	for r, l := range def.Layout.Lanes {
 		if len(l.Pattern) > 0 {
 			l.Speed = max(1, l.Speed*speed/100)

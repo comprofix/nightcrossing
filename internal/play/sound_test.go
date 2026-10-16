@@ -48,8 +48,11 @@ func TestLoopsAreWholeBars(t *testing.T) {
 // and the level clear and game over, which play jingles.
 func TestEveryEventHasASound(t *testing.T) {
 	p := &Play{hero: Toad}
-	quiet := map[world.Event]bool{world.Landed: true, world.Respawned: true, world.LevelClear: true, world.GameOver: true}
-	for e := world.Hopped; e <= world.GameOver; e++ {
+	// The crossing bell rings through the warning (railEffect), not just on
+	// the event, and a train leaving is quiet.
+	quiet := map[world.Event]bool{world.Landed: true, world.Respawned: true, world.LevelClear: true, world.GameOver: true,
+		world.TrainWarning: true, world.TrainGone: true}
+	for e := world.Hopped; e <= world.TrainGone; e++ {
 		got := p.soundsFor(e)
 		switch {
 		case quiet[e] && len(got) > 0:
@@ -89,5 +92,69 @@ func TestMusicFollowsTheGame(t *testing.T) {
 	}
 	if got := h.Ctx.Audio.Tune(); got != LevelClearJingle {
 		t.Errorf("after clearing the level playing %v, want the level-clear jingle", got)
+	}
+}
+
+// TestTrainSoundsAndSignals runs Last Train's track through a warning and
+// a train: the bell rings all through the warning, the rumble while it
+// passes, and only the signal on the train's side flashes.
+func TestTrainSoundsAndSignals(t *testing.T) {
+	h := scenetest.New(t, 5)
+	h.Ctx.Session = session.New(config.LastTrain, config.StartLives)
+	p := newPlay(h.Ctx, config.LastTrain.Levels, config.LastTrain.Levels.Level(1))
+	w := p.World()
+	bells, rumbles, phase := 0, 0, world.RailQuiet
+	for range 30 * config.TPS {
+		w.Update(world.None)
+		switch p.railEffect() {
+		case Bell:
+			bells++
+		case Rumble:
+			rumbles++
+		}
+		rl := w.Rail
+		if rl.Phase == world.RailQuiet {
+			if p.signalFrame(0) != signalOff || p.signalFrame(1) != signalOff {
+				t.Fatal("a signal flashes with no train coming")
+			}
+		} else {
+			coming, other := 0, 1
+			if rl.Dir < 0 {
+				coming, other = 1, 0
+			}
+			if p.signalFrame(coming) == signalOff || p.signalFrame(other) != signalOff {
+				t.Fatalf("train from %d: signals show %d and %d", rl.Dir, p.signalFrame(0), p.signalFrame(1))
+			}
+		}
+		if phase == world.RailPassing && rl.Phase == world.RailQuiet {
+			break
+		}
+		phase = rl.Phase
+	}
+	if want := (config.TrainWarnTicks + bellTicks - 1) / bellTicks; bells != want {
+		t.Errorf("%d bells in a warning, want %d", bells, want)
+	}
+	if rumbles == 0 {
+		t.Error("no rumble while the train passed")
+	}
+}
+
+// TestHornIsAChord checks the train horn sounds two notes at once, a minor
+// third apart on two channels and equally long, so it is heard as a horn
+// over the tune (DESIGN §6.2).
+func TestHornIsAChord(t *testing.T) {
+	got := (&Play{hero: Toad}).soundsFor(world.TrainComing)
+	if len(got) != 2 {
+		t.Fatalf("a train coming plays %d effects, want the two horn notes", len(got))
+	}
+	hi, lo := got[0], got[1]
+	if hi.Channel == lo.Channel {
+		t.Errorf("both horn notes on channel %d", hi.Channel)
+	}
+	if ticks(hi.Part.Notes) != ticks(lo.Part.Notes) {
+		t.Errorf("horn notes last %d and %d ticks, want the same", ticks(hi.Part.Notes), ticks(lo.Part.Notes))
+	}
+	if r := hi.Part.Notes[0].Hz / lo.Part.Notes[0].Hz; math.Abs(r-math.Pow(2, 3.0/12)) > 0.001 {
+		t.Errorf("horn notes %.1f and %.1f Hz, want a minor third apart", hi.Part.Notes[0].Hz, lo.Part.Notes[0].Hz)
 	}
 }

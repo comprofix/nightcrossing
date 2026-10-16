@@ -109,6 +109,7 @@ func (p *Play) drawField(ctx *scene.Context, dst *ebiten.Image) {
 	for _, lp := range lamps {
 		lamp.Draw(field, 0, cellX(lp.col), cellY(lp.row), false)
 	}
+	p.drawSignals(ctx, field)
 	for r := range w.Lanes {
 		if w.Lanes[r].Kind == config.River {
 			p.drawWakes(field, r)
@@ -118,6 +119,7 @@ func (p *Play) drawField(ctx *scene.Context, dst *ebiten.Image) {
 		p.drawEntities(ctx, field, r)
 		p.drawHerons(ctx, field, r)
 	}
+	p.drawTrain(ctx, field)
 	p.drawHero(ctx, field)
 
 	p.addLights(ctx, p.light)

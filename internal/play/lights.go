@@ -61,7 +61,8 @@ const (
 
 // addLights adds every light on the field: the hero's, the lamps, the
 // moon on the water, each vehicle's headlight and tail light, the ferry
-// and barges, warnings and herons, and the nooks.
+// and barges, warnings and herons, the crossing signals and the train,
+// and the nooks.
 func (p *Play) addLights(ctx *scene.Context, l *fx.Lighting) {
 	w := p.world
 	cell := float64(config.Cell)
@@ -84,6 +85,7 @@ func (p *Play) addLights(ctx *scene.Context, l *fx.Lighting) {
 			p.addRiverLights(ctx, l, r)
 		}
 	}
+	p.addRailLights(l)
 	for i, c := range config.Nooks {
 		x, y := cellX(c)+float64(config.NookWidth*config.Cell)/2, cellY(config.GoalRow)+cell/2
 		if w.Filled[i] {

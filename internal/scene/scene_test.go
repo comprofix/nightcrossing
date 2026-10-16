@@ -184,7 +184,7 @@ func TestIntroBackReturnsToItsMode(t *testing.T) {
 
 func TestSuggestedMode(t *testing.T) {
 	tab := score.New()
-	if n := SuggestedMode(tab); n != -1 {
+	if n := SuggestedMode(config.Modes, tab); n != -1 {
 		t.Errorf("nothing cleared: suggested %d, want none", n)
 	}
 	tab.MarkCleared(config.Modes[0].ID)
@@ -192,7 +192,7 @@ func TestSuggestedMode(t *testing.T) {
 	if len(config.Modes) > 1 {
 		want = 1
 	}
-	if n := SuggestedMode(tab); n != want {
+	if n := SuggestedMode(config.Modes, tab); n != want {
 		t.Errorf("first mode cleared: suggested %d, want %d", n, want)
 	}
 }
@@ -413,5 +413,28 @@ func TestShaderOptionsWithoutShaders(t *testing.T) {
 	}
 	if len(want) > 0 {
 		t.Errorf("missing items %v", want)
+	}
+}
+
+// TestModesInProgressInTheMenus: a mode added to the context's list (as
+// -mode does in debug builds) shows in the MODE menu and its intro plays it.
+func TestModesInProgressInTheMenus(t *testing.T) {
+	extra := config.Mode{ID: "extra", Name: "Extra", Desc: "a mode in progress", Levels: config.StrollLevels}
+	var played string
+	h := newHarness(t, NewModeSelect())
+	h.ctx.Modes = append(append([]config.Mode(nil), config.Modes...), extra)
+	h.ctx.NewPlay = func(_ *Context, m config.Mode) Scene { played = m.ID; return &stubPlay{} }
+	h.ticks(1)
+	s := current[*ModeSelect](t, h)
+	if n := len(s.menu.Items); n != len(config.Modes)+1 {
+		t.Fatalf("%d modes in the menu", n)
+	}
+	for range len(config.Modes) {
+		h.press(ebiten.KeyArrowDown)
+	}
+	h.press(ebiten.KeyEnter)
+	h.press(ebiten.KeyEnter)
+	if played != "extra" {
+		t.Errorf("played %q, want extra", played)
 	}
 }

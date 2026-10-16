@@ -293,6 +293,10 @@ func (g *Game) present(out *ebiten.Image) {
 // builds). Such games go on no high score table and clear no mode.
 func (g *Game) StartAt(n int) { g.ctx.StartLevel = n }
 
+// UseModes sets the modes the menus offer, e.g. with a mode in progress
+// added (-mode in debug builds).
+func (g *Game) UseModes(modes []config.Mode) { g.ctx.Modes = modes }
+
 // WithoutShaders draws without the shader effects, as on a machine that
 // can't run them (-noshaders in debug builds).
 func (g *Game) WithoutShaders() { g.ctx.NoShaders = true }

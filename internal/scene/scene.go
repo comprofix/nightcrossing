@@ -57,6 +57,10 @@ type Context struct {
 	// StartLevel is the level new games start on; 0 or 1 is the first.
 	// Only debug builds set it (-level), for testing. A game started
 	// later is a test: it goes on no high score table.
+	// Modes are the modes the menus offer, in order; nil is config.Modes.
+	// Debug builds add modes in progress with -mode.
+	Modes []config.Mode
+
 	StartLevel int
 
 	// NoShaders is set when the game's shader effects can't run, so the
@@ -68,6 +72,14 @@ type Context struct {
 	quit            bool
 	settingsChanged bool
 	scoresChanged   bool
+}
+
+// ModeList is the modes the menus offer: Modes, or config.Modes if unset.
+func (c *Context) ModeList() []config.Mode {
+	if c.Modes != nil {
+		return c.Modes
+	}
+	return config.Modes
 }
 
 // Switch asks the manager to fade to s at the end of this tick.

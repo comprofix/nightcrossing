@@ -17,20 +17,24 @@ type Event int
 
 // The events.
 const (
-	Hopped     Event = iota + 1 // the hero left a cell
-	Landed                      // the hero arrived in a cell
-	Squashed                    // a vehicle hit the hero
-	Splashed                    // the hero landed in the water, or its platform went under
-	Swept                       // a platform carried the hero off the field
-	Caught                      // the hero landed on a heron
-	Bumped                      // the hero landed on the bank or a filled nook
-	TimeUp                      // the attempt's time ran out
-	LowTime                     // the attempt's time is running low
-	Goal                        // the hero filled a nook
-	LevelClear                  // the last nook is filled
-	ExtraLife                   // the score earned a life
-	Respawned                   // a new attempt began on the start row
-	GameOver                    // the last life is gone
+	Hopped       Event = iota + 1 // the hero left a cell
+	Landed                        // the hero arrived in a cell
+	Squashed                      // a vehicle hit the hero
+	Splashed                      // the hero landed in the water, or its platform went under
+	Swept                         // a platform carried the hero off the field
+	Caught                        // the hero landed on a heron
+	Bumped                        // the hero landed on the bank or a filled nook
+	TimeUp                        // the attempt's time ran out
+	LowTime                       // the attempt's time is running low
+	Goal                          // the hero filled a nook
+	LevelClear                    // the last nook is filled
+	ExtraLife                     // the score earned a life
+	Respawned                     // a new attempt began on the start row
+	GameOver                      // the last life is gone
+	Struck                        // a train hit the hero (D37)
+	TrainWarning                  // the crossing lights start to flash: a train is coming
+	TrainComing                   // a train comes onto the field
+	TrainGone                     // the train has left the field
 )
 
 // Stats are the points earned on this level, for the level-clear tally.
@@ -50,6 +54,7 @@ type World struct {
 	TicksLeft  int   // time left on this attempt (DESIGN §5.4)
 	Player     Player
 	Lanes      [config.Rows]Lane
+	Rail       Rail                    // the track's trains, if the level has them (DESIGN §6.2)
 	Filled     [len(config.Nooks)]bool // the nooks filled so far; they stay filled (DESIGN §5.4)
 	Home       int                     // ticks left of a toad showing in its nook; 0 otherwise
 	Dying      int                     // ticks left of the hero's death; 0 when alive
@@ -75,6 +80,7 @@ func New(s *session.Session, level config.Level, rng *rand.Rand) *World {
 	for r, l := range level.Lanes {
 		w.Lanes[r] = newLane(l, level.HeronPct, rng)
 	}
+	w.Rail = newRail(level, rng)
 	w.newAttempt()
 	return w
 }
@@ -101,6 +107,7 @@ func (w *World) Update(press Dir) []Event {
 			w.Lanes[r].update(w.rng)
 		}
 	}
+	w.Rail.update(w)
 	switch {
 	case w.Dying > 0:
 		w.updateDeath()
@@ -171,6 +178,8 @@ func (w *World) updateTimer() {
 //     with no platform under its middle, or on a heron (DESIGN §5.2). Water
 //     and herons only count once the hero is down, so a hop over a gap onto
 //     a platform is safe.
+//   - Rail: a passing train overlaps it, trimmed like a vehicle (DESIGN
+//     §6.2).
 //   - Bank: on landing, the hero fills an empty nook or bumps into the bank
 //     (DESIGN §5.3).
 func (w *World) checkHazards() {
@@ -192,6 +201,10 @@ func (w *World) checkHazards() {
 			w.die(Splashed)
 		case lane.heronIn(left, right):
 			w.die(Caught)
+		}
+	case config.Rail:
+		if w.Rail.Hits(left, right) {
+			w.die(Struck)
 		}
 	case config.Bank:
 		if !p.Hopping() {

@@ -37,3 +37,31 @@ var Stroll = Mode{
 // Modes are the built modes, in order: only built modes are shown, and the
 // list grows with each version (D26).
 var Modes = []Mode{Stroll}
+
+// LastTrain is Stroll plus trains on the track from level 1 (DESIGN §6.2).
+// Its hop combo and day and night cycle come in M10; until then it is
+// played with -mode lasttrain in debug builds (D37).
+var LastTrain = Mode{
+	ID:   "lasttrain",
+	Name: "Last Train",
+	Desc: "Stroll, plus trains on the line.",
+	New: []Mechanic{
+		{"Trains", "watch the lights, then cross"},
+	},
+	Also:   []string{"Road, river, diving platforms, herons"},
+	Levels: lastTrainLevels(),
+}
+
+// lastTrainLevels are Stroll's levels with trains, and a first hint about
+// them.
+func lastTrainLevels() ModeLevels {
+	m := StrollLevels
+	m.Levels = append([]LevelDef(nil), m.Levels...)
+	m.Levels[0].Hint = "WATCH THE CROSSING LIGHTS, THEN CROSS THE LINE"
+	m.Trains = true
+	return m
+}
+
+// ModesInProgress are modes being built and not yet in Modes. Debug
+// builds can play them with -mode (D37).
+var ModesInProgress = []Mode{LastTrain}

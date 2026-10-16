@@ -72,8 +72,8 @@ func TestEnterInitials(t *testing.T) {
 	}
 	h.press(ebiten.KeyEnter)
 	table := current[*HighScoreTable](t, h)
-	if table.mark != 1 || config.Modes[table.mode].ID != sk.ID {
-		t.Errorf("table shows mode %d with place %d marked, want %q with place 1", table.mode, table.mark, sk.ID)
+	if table.mark != 1 || table.mode != sk.ID {
+		t.Errorf("table shows mode %q with place %d marked, want %q with place 1", table.mode, table.mark, sk.ID)
 	}
 	es := h.ctx.Scores.Table(sk.ID)
 	if len(es) != 2 || es[1].Initials != "CYA" || es[1].Score != 420 {
@@ -94,14 +94,14 @@ func TestHighScoreTableFromTheMenu(t *testing.T) {
 	h.press(ebiten.KeyEnter)
 	table := current[*HighScoreTable](t, h)
 	h.press(ebiten.KeyArrowRight)
-	if want := 1 % len(config.Modes); table.mode != want {
-		t.Errorf("Right went to mode %d, want %d", table.mode, want)
+	if want := config.Modes[1%len(config.Modes)].ID; table.mode != want {
+		t.Errorf("Right went to mode %q, want %q", table.mode, want)
 	}
 	for range len(config.Modes) - 1 {
 		h.press(ebiten.KeyArrowRight)
 	}
-	if table.mode != 0 {
-		t.Errorf("Right from the last mode went to %d, want 0", table.mode)
+	if table.mode != config.Modes[0].ID {
+		t.Errorf("Right from the last mode went to %q, want the first", table.mode)
 	}
 	h.press(ebiten.KeyEscape)
 	current[*MainMenu](t, h)

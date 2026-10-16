@@ -44,8 +44,10 @@ func (p *Play) drawOutlines(ctx *scene.Context, dst *ebiten.Image) {
 }
 
 // eachHazard calls draw with the frame, place and facing of every sprite
-// that can kill the hero by touch: each piece of a vehicle, and each heron.
+// that can kill the hero by touch: each piece of a vehicle and of the
+// train, and each heron.
 func (p *Play) eachHazard(ctx *scene.Context, draw func(img *ebiten.Image, x, y float64, flip bool)) {
+	p.eachTrainPiece(ctx, draw)
 	sheet := ctx.Sheet(Sheet)
 	heron := sheet.Sprite("heron")
 	for r := range p.world.Lanes {

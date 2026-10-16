@@ -16,10 +16,12 @@ import (
 //     each log loses a cell to a heron (D34).
 //   - A hero on a sinking ship can reach a platform in the row above or
 //     below before the ship's stern goes under (D33).
+//   - Rail: the quiet between trains is long enough to hop on and off
+//     (D17, D37).
 //
 // A failure names the mode, the level and the row.
 func TestEveryLevelCanBeCrossed(t *testing.T) {
-	for _, mode := range Modes {
+	for _, mode := range append(append([]Mode(nil), Modes...), ModesInProgress...) {
 		name, m := mode.Name, mode.Levels
 		last := len(m.Levels) + 1
 		for ; ; last++ {
@@ -48,6 +50,10 @@ func crossingProblems(lv Level) []error {
 				if open := free * sub / l.Speed; open < CrossOpenTicks {
 					errs = append(errs, fmt.Errorf("row %d: a gap of %dpx behind a %s is open for %d ticks, want %d", r, s.Gap, s.Entity.ID, open, CrossOpenTicks))
 				}
+			}
+		case Rail:
+			if lv.Trains && lv.Train.QuietMin < CrossOpenTicks {
+				errs = append(errs, fmt.Errorf("row %d: %d quiet ticks between trains, want %d", r, lv.Train.QuietMin, CrossOpenTicks))
 			}
 		case River:
 			below := lv.Lanes[r+1]
