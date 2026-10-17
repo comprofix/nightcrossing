@@ -28,13 +28,23 @@ type pop struct {
 	ticks int
 }
 
-// popGained adds a pop-up for the points the combo multiplied this tick,
-// if any.
+// popGained adds a pop-up for the points the world popped this tick, if
+// any: what the combo multiplied, or a firefly's at full lives (D38, D57).
 func (p *Play) popGained() {
 	if g := p.world.Gained; g > 0 {
-		x, y := p.heroCentre()
-		p.pops = append(p.pops, pop{x: int(x), y: int(y) - config.Cell/2, text: fmt.Sprintf("+%d", g)})
+		p.popUp(fmt.Sprintf("+%d", g), 0)
 	}
+}
+
+// oneUpLiftPx is how far above a points pop-up a 1UP's starts, so the two
+// can show together.
+const oneUpLiftPx = 10
+
+// popUp adds a pop-up of text over the toad, lift pixels higher than
+// usual.
+func (p *Play) popUp(text string, lift int) {
+	x, y := p.heroCentre()
+	p.pops = append(p.pops, pop{x: int(x), y: int(y) - config.Cell/2 - lift, text: text})
 }
 
 // updatePops ages the pop-ups and drops the old ones.

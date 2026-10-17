@@ -3,6 +3,7 @@ package play
 import (
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
@@ -64,6 +65,21 @@ func TestSprites(t *testing.T) {
 	}
 	if n := frames["pad"]; n != frameRing+1 {
 		t.Errorf("the lily pad has %d frames, want %d", n, frameRing+1)
+	}
+	// The pickups fit in a cell: the firefly and dragonfly with the frames
+	// of their wingbeat, and a fruit for each in the list (D58, D59).
+	for _, name := range []string{Toad.Pickup, Toad.DayPickup, "fruit"} {
+		if wh := size[name]; wh[0] == 0 || wh[0] > config.Cell || wh[1] > config.Cell {
+			t.Errorf("sprite %q is %d×%d, want one that fits a %dpx cell", name, wh[0], wh[1], config.Cell)
+		}
+	}
+	for _, name := range []string{Toad.Pickup, Toad.DayPickup} {
+		if n := frames[name]; n != slices.Max(beat[:])+1 {
+			t.Errorf("sprite %q has %d frames, want %d for its wingbeat", name, n, slices.Max(beat[:])+1)
+		}
+	}
+	if n := frames["fruit"]; n != len(config.Fruits) {
+		t.Errorf("the fruit has %d frames, want one for each of %d fruits", n, len(config.Fruits))
 	}
 	// A sinking ship needs every piece in each of its sinking looks.
 	for _, s := range config.Ships() {

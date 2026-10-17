@@ -15,21 +15,21 @@
   },
   "barge_back_deep": {
     "x": 0,
-    "y": 913,
+    "y": 961,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "barge_back_flash": {
     "x": 0,
-    "y": 865,
+    "y": 913,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "barge_back_low": {
     "x": 0,
-    "y": 889,
+    "y": 937,
     "w": 24,
     "h": 24,
     "frames": 1
@@ -43,21 +43,21 @@
   },
   "barge_front_deep": {
     "x": 0,
-    "y": 1057,
+    "y": 1105,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "barge_front_flash": {
     "x": 0,
-    "y": 1009,
+    "y": 1057,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "barge_front_low": {
     "x": 0,
-    "y": 1033,
+    "y": 1081,
     "w": 24,
     "h": 24,
     "frames": 1
@@ -71,21 +71,21 @@
   },
   "barge_mid_deep": {
     "x": 0,
-    "y": 985,
+    "y": 1033,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "barge_mid_flash": {
     "x": 0,
-    "y": 937,
+    "y": 985,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "barge_mid_low": {
     "x": 0,
-    "y": 961,
+    "y": 1009,
     "w": 24,
     "h": 24,
     "frames": 1
@@ -99,28 +99,28 @@
   },
   "car_back": {
     "x": 0,
-    "y": 628,
+    "y": 676,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "car_blue": {
     "x": 0,
-    "y": 817,
+    "y": 865,
     "w": 32,
     "h": 24,
     "frames": 2
   },
   "car_front": {
     "x": 0,
-    "y": 676,
+    "y": 724,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "car_mid": {
     "x": 0,
-    "y": 652,
+    "y": 700,
     "w": 24,
     "h": 24,
     "frames": 1
@@ -134,28 +134,35 @@
   },
   "car_yellow": {
     "x": 0,
-    "y": 841,
+    "y": 889,
     "w": 32,
     "h": 24,
     "frames": 2
   },
+  "dragonfly": {
+    "x": 0,
+    "y": 620,
+    "w": 16,
+    "h": 16,
+    "frames": 3
+  },
   "engine_back": {
     "x": 0,
-    "y": 700,
+    "y": 748,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "engine_mid": {
     "x": 0,
-    "y": 724,
+    "y": 772,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "engine_nose": {
     "x": 0,
-    "y": 748,
+    "y": 796,
     "w": 24,
     "h": 24,
     "frames": 1
@@ -169,21 +176,21 @@
   },
   "ferry_back_deep": {
     "x": 0,
-    "y": 1129,
+    "y": 1177,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "ferry_back_flash": {
     "x": 0,
-    "y": 1081,
+    "y": 1129,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "ferry_back_low": {
     "x": 0,
-    "y": 1105,
+    "y": 1153,
     "w": 24,
     "h": 24,
     "frames": 1
@@ -197,21 +204,21 @@
   },
   "ferry_cabin_deep": {
     "x": 0,
-    "y": 1273,
+    "y": 1321,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "ferry_cabin_flash": {
     "x": 0,
-    "y": 1225,
+    "y": 1273,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "ferry_cabin_low": {
     "x": 0,
-    "y": 1249,
+    "y": 1297,
     "w": 24,
     "h": 24,
     "frames": 1
@@ -225,21 +232,21 @@
   },
   "ferry_deck_deep": {
     "x": 0,
-    "y": 1201,
+    "y": 1249,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "ferry_deck_flash": {
     "x": 0,
-    "y": 1153,
+    "y": 1201,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "ferry_deck_low": {
     "x": 0,
-    "y": 1177,
+    "y": 1225,
     "w": 24,
     "h": 24,
     "frames": 1
@@ -253,24 +260,38 @@
   },
   "ferry_front_deep": {
     "x": 0,
-    "y": 1345,
+    "y": 1393,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "ferry_front_flash": {
     "x": 0,
-    "y": 1297,
+    "y": 1345,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "ferry_front_low": {
     "x": 0,
-    "y": 1321,
+    "y": 1369,
     "w": 24,
     "h": 24,
     "frames": 1
+  },
+  "firefly": {
+    "x": 0,
+    "y": 604,
+    "w": 16,
+    "h": 16,
+    "frames": 3
+  },
+  "fruit": {
+    "x": 0,
+    "y": 636,
+    "w": 16,
+    "h": 16,
+    "frames": 8
   },
   "heron": {
     "x": 0,
@@ -281,7 +302,7 @@
   },
   "lamp": {
     "x": 0,
-    "y": 604,
+    "y": 652,
     "w": 24,
     "h": 24,
     "frames": 1
@@ -330,7 +351,7 @@
   },
   "signal": {
     "x": 0,
-    "y": 772,
+    "y": 820,
     "w": 24,
     "h": 24,
     "frames": 3
@@ -365,7 +386,7 @@
   },
   "traffic_light": {
     "x": 0,
-    "y": 796,
+    "y": 844,
     "w": 8,
     "h": 21,
     "frames": 3

@@ -218,7 +218,9 @@ type stormLog struct {
 }
 
 // runStorms runs w for ticks, keeping the hero going, and logs each storm.
-// Rain must fall all through each wet storm.
+// Rain must fall all through each wet storm. The hero goes back to its
+// start as each storm is announced, so the last storm's wind hasn't left
+// it pinned at the field's edge, where it can't be pushed.
 func runStorms(t *testing.T, w *World, ticks int) []stormLog {
 	t.Helper()
 	var out []stormLog
@@ -228,6 +230,9 @@ func runStorms(t *testing.T, w *World, ticks int) []stormLog {
 		for _, e := range ev {
 			switch e {
 			case WetStormWarning, DryStormWarning:
+				if w.Dying == 0 && !w.Player.Hopping() {
+					w.Player = newPlayer(config.StartCol, config.StartRow)
+				}
 				out = append(out, stormLog{warned: w.Tick, wet: e == WetStormWarning})
 			case StormStart:
 				out[len(out)-1].started = w.Tick

@@ -35,29 +35,65 @@ var lamps = []struct{ col, row int }{
 
 // Light sizes in pixels, and strengths (0–1).
 const (
-	heroLightR   = 40 // the hero's own small light, so it can always be seen
-	heroLight    = 0.55
-	lampR        = 64
-	lampLight    = 0.55
-	headlightR   = 76 // a vehicle's beam
-	bikeLightR   = 48
-	headlight    = 0.75
-	lensR        = 8 // the glow at a headlamp itself
-	tailR        = 10
-	tailLight    = 0.7
-	heronR       = 20 // every hazard has its own light, herons too
-	heronLight   = 0.35
-	warnR        = 18 // a diving pad or sinking ship's warning
-	warnLight    = 0.7
-	cabinR       = 14 // the ferry's cabin windows and a barge's lantern
-	cabinLight   = 0.45
-	nookR        = 22 // a filled nook glows (DESIGN §3.3)
-	nookLight    = 0.3
-	goalGlowR    = 48 // and flares as the toad arrives
-	goalGlow     = 0.9
-	goalGlowTick = 45
-	flickerTicks = 4 // lights flicker in steps this long (DESIGN §3.3)
+	heroLightR    = 40 // the hero's own small light, so it can always be seen
+	heroLight     = 0.55
+	lampR         = 64
+	lampLight     = 0.55
+	headlightR    = 76 // a vehicle's beam
+	bikeLightR    = 48
+	headlight     = 0.75
+	lensR         = 8 // the glow at a headlamp itself
+	tailR         = 10
+	tailLight     = 0.7
+	heronR        = 20 // every hazard has its own light, herons too
+	heronLight    = 0.35
+	warnR         = 18 // a diving pad or sinking ship's warning
+	warnLight     = 0.7
+	cabinR        = 14 // the ferry's cabin windows and a barge's lantern
+	cabinLight    = 0.45
+	nookR         = 22 // a filled nook glows (DESIGN §3.3)
+	nookLight     = 0.3
+	goalGlowR     = 48 // and flares as the toad arrives
+	goalGlow      = 0.9
+	goalGlowTick  = 45
+	flickerTicks  = 4 // lights flicker in steps this long (DESIGN §3.3)
+	fruitR        = 16
+	fruitLight    = 0.35
+	fireflyR      = 20 // the firefly's tail, pulsing (D58)
+	fireflyLight  = 0.4
+	fireflyPulse  = 50 // ticks for each pulse
+	fireflyTailX  = 3  // the middle of its tail in its sprite, flying right
+	fireflyTailY  = 8
+	sunGlintR     = 12 // the sun on a dragonfly's wings, now and then
+	sunGlint      = 0.5
+	sunGlintTicks = 40 // a glint every so many ticks
+	sunGlintFor   = 6  // for so many
 )
+
+// addFlyerLight adds the light of the firefly visiting, its tail glowing
+// and pulsing; or, by day, the glint of the sun on a dragonfly's wings
+// (D58).
+func (p *Play) addFlyerLight(ctx *scene.Context, l *fx.Lighting) {
+	sp, _, x, y, flip := p.flyer(ctx)
+	if sp == nil {
+		return
+	}
+	t := int(p.world.Tick)
+	if p.world.Flyer.Day {
+		if t%sunGlintTicks < sunGlintFor {
+			l.Add(fx.Light{X: x + float64(sp.W)/2, Y: y + float64(sp.H)/2, Radius: sunGlintR,
+				Colour: gfx.RGBA(resurrect64.Seafoam), Strength: sunGlint})
+		}
+		return
+	}
+	tx := float64(fireflyTailX)
+	if flip {
+		tx = float64(sp.W - fireflyTailX)
+	}
+	k := 0.6 + 0.4*math.Sin(2*math.Pi*float64(t)/fireflyPulse)
+	l.Add(fx.Light{X: x + tx, Y: y + fireflyTailY, Radius: fireflyR,
+		Colour: gfx.RGBA(resurrect64.Lemon), Strength: fireflyLight * k})
+}
 
 // addLights adds every light on the field: the hero's, the lamps, the
 // moon on the water, each vehicle's headlight and tail light, the ferry
@@ -98,6 +134,11 @@ func (p *Play) addLights(ctx *scene.Context, l *fx.Lighting) {
 				Strength: goalGlow * float64(g) / goalGlowTick * fade})
 		}
 	}
+	if n := w.FruitNook; n >= 0 { // a soft light on the fruit (D59)
+		x, y := cellX(config.Nooks[n])+float64(config.NookWidth*config.Cell)/2, cellY(config.GoalRow)+cell/2
+		l.Add(fx.Light{X: x, Y: y, Radius: fruitR, Colour: gfx.RGBA(resurrect64.Gold), Strength: fruitLight * fade})
+	}
+	p.addFlyerLight(ctx, l)
 	if pl := &w.Player; w.Home == 0 && pl.Death == 0 {
 		x, y := p.heroCentre()
 		l.Add(fx.Light{X: x, Y: y, Radius: heroLightR, Colour: gfx.RGBA(resurrect64.Honey), Strength: heroLight * fade})

@@ -11,7 +11,7 @@ import (
 	"github.com/comprofix/nightcrossing/internal/session"
 )
 
-var balance = flag.Bool("balance", false, "run TestStormBalance, which prints deaths per storm, wet and dry (D52)")
+var balance = flag.Bool("balance", false, "run the balance reports: TestStormBalance (deaths per storm, wet and dry, D52) and TestLivesBalance (lives level by level, D60)")
 
 // balanceRun is what the autopilot made of one kind of storm on a level:
 // the storms begun, the deaths while one was on, and the nooks filled and
@@ -119,5 +119,98 @@ func TestStormBalance(t *testing.T) {
 				perMin(r.stormNooks, r.stormTicks), perMin(r.clearNooks, r.clearTicks))
 		}
 		t.Logf("%5d%s", n, line)
+	}
+}
+
+// livesLevel is what the autopilot made of one level of a game: the
+// deaths, the fireflies caught, the lives won from points, the times its
+// lives had to be topped up to keep the game going, and its lives at the
+// end of the level.
+type livesLevel struct {
+	deaths, fireflies, fromPoints, topUps, lives int
+}
+
+// playLives has the autopilot play a game of mode m from level 1 to level
+// last, as a player would: lives carry from level to level, and the score
+// earns them. If the last one goes, a life is put back so the game goes
+// on, and counted as a top-up. A level not cleared in minutes is left.
+func playLives(m config.Mode, last int, seed uint64, minutes int) []livesLevel {
+	s := session.New(m, config.StartLives)
+	rng := rand.New(rand.NewPCG(seed, seed))
+	var a Autopilot
+	out := make([]livesLevel, last+1)
+	for n := 1; n <= last; n++ {
+		w := New(s, m.Levels.Level(n), rng)
+		r := &out[n]
+		for t := 0; t < minutes*60*config.TPS && !w.Cleared; t++ {
+			caught := false
+			for _, e := range w.Update(a.Next(w)) {
+				switch e {
+				case Squashed, Splashed, Swept, Caught, Bumped, Struck, TimeUp:
+					r.deaths++
+				case FireflyCaught:
+					r.fireflies++
+					caught = true
+				case ExtraLife:
+					if !caught {
+						r.fromPoints++
+					}
+				}
+			}
+			if s.Lives == 0 && w.Dying > 0 {
+				s.Lives = 1
+				r.topUps++
+			}
+		}
+		r.lives = s.Lives
+	}
+	return out
+}
+
+// TestLivesBalance has the autopilot play each mode from level 1 through
+// the first loops, as a player would, and prints for each level the
+// deaths, fireflies caught, lives from points and the lives left, against
+// D60's target: lives about even by level 6, then a slow loss of 1–2 a
+// level. It runs only with -balance:
+//
+//	go test ./internal/world -run TestLivesBalance -balance -v
+//
+// It never fails. The autopilot dies less than a person and takes every
+// firefly it can reach, so the numbers are a guide; balance is judged by
+// play.
+func TestLivesBalance(t *testing.T) {
+	if !*balance {
+		t.Skip("run with -balance to print lives level by level (D60)")
+	}
+	const seeds, minutes = 4, 5
+	last := 8 + 2*config.LoopLevels
+	for _, m := range config.Modes {
+		results := make([][]livesLevel, seeds)
+		var wg sync.WaitGroup
+		for i := range seeds {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				results[i] = playLives(m, last, uint64(i+1), minutes)
+			}()
+		}
+		wg.Wait()
+		t.Logf("%s: %d games, averages per game", m.Name, seeds)
+		t.Logf("level | deaths fireflies points  net | lives top-ups")
+		for n := 1; n <= last; n++ {
+			var sum livesLevel
+			for _, r := range results {
+				l := r[n]
+				sum.deaths += l.deaths
+				sum.fireflies += l.fireflies
+				sum.fromPoints += l.fromPoints
+				sum.topUps += l.topUps
+				sum.lives += l.lives
+			}
+			avg := func(v int) float64 { return float64(v) / seeds }
+			net := avg(sum.fireflies + sum.fromPoints - sum.deaths)
+			t.Logf("%5d | %6.1f %9.1f %6.1f %+4.1f | %5.1f %7.1f", n, avg(sum.deaths), avg(sum.fireflies),
+				avg(sum.fromPoints), net, avg(sum.lives), avg(sum.topUps))
+		}
 	}
 }

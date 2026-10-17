@@ -54,6 +54,9 @@ const (
 	FloodStart                       // a wet storm's flood begins: puddles on the verge, the river speeding up (D48)
 	FloodEnd                         // the flood has drained
 	Refused                          // a hop off the verge onto the river, refused: the line isn't gathered (D53)
+	FireflyCaught                    // the hero caught a firefly: a life, with ExtraLife, or points at the cap (D58)
+	FireflyGone                      // the firefly flew away, its visit over (D58)
+	FruitTaken                       // the nook filled had fruit in it (D59)
 )
 
 // Stats are the points earned on this level, for the level-clear tally.
@@ -64,6 +67,9 @@ type Stats struct {
 	Clear     int // the bonus for filling the last one
 	Combo     int // what the hop combo's multiplier added (D38)
 	Toadlets  int // toadlets brought home (D53)
+	Fruit     int // points for fruit taken, before the combo (D59)
+	Fireflies int // fireflies caught (D58)
+	AtCap     int // points for fireflies caught with lives at the cap (D57)
 }
 
 // World is one level of a game.
@@ -85,8 +91,11 @@ type World struct {
 	Over       bool                    // the game has ended
 	Stats      Stats
 	Combo      Combo // the hop combo, on levels with it (D38)
-	Gained     int   // points multiplied by the combo this tick, for the pop-ups
+	Gained     int   // points to pop up this tick: what the combo multiplied, and a firefly's at the cap
+	FruitNook  int   // the nook fruit shows in, or -1 (D59)
+	Flyer      Flyer // the firefly, or by day the dragonfly (D58)
 
+	fruitTicks int   // ticks until the fruit goes, or until it next shows
 	furthest   int   // the furthest row reached this attempt
 	fallen     int   // whose death is under way: Hero, or a toadlet (D53)
 	clearUntil int64 // no weather starts before this tick: the clear stretch after a storm (D51)
@@ -115,7 +124,9 @@ func New(s *session.Session, level config.Level, rng *rand.Rand) *World {
 	if s := w.Spell(config.StormFront); s != nil {
 		w.nextStorm(s)
 	}
+	w.newFruit()
 	w.newAttempt()
+	w.rollFirefly()
 	return w
 }
 
@@ -149,6 +160,8 @@ func (w *World) Update(press Dir) []Event {
 			w.Lanes[r].update(w.rng)
 		}
 	}
+	w.updateFirefly()
+	w.updateFruit()
 	w.Rail.update(w)
 	w.updateSpells()
 	switch {
@@ -157,6 +170,7 @@ func (w *World) Update(press Dir) []Event {
 	case w.Home > 0:
 		if w.Home--; w.Home == 0 {
 			w.newAttempt()
+			w.rollFirefly() // a new crossing, after a nook filled (D58)
 			w.emit(Respawned)
 		}
 	default:
@@ -192,15 +206,25 @@ func (w *World) playing() bool { return w.Dying == 0 && w.Home == 0 && !w.Cleare
 func (w *World) emit(e Event) { w.events = append(w.events, e) }
 
 // score adds points, and a life each time the score passes a multiple of
-// config.ExtraLifeEvery (DESIGN §5.4).
+// config.ExtraLifeEvery, up to the cap (DESIGN §5.4, D57).
 func (w *World) score(points int) {
 	s := w.Session
 	before := s.Score
 	s.AddScore(points)
 	if lives := s.Score/config.ExtraLifeEvery - before/config.ExtraLifeEvery; lives > 0 {
-		s.Lives += lives
-		w.emit(ExtraLife)
+		w.gainLives(lives)
 	}
+}
+
+// gainLives adds n lives, up to config.MaxLives, with ExtraLife if any
+// came (D57).
+func (w *World) gainLives(n int) {
+	s := w.Session
+	if s.Lives >= config.MaxLives {
+		return
+	}
+	s.Lives = min(s.Lives+n, config.MaxLives)
+	w.emit(ExtraLife)
 }
 
 // landed scores a hop into a row further than the hero has reached on
@@ -263,6 +287,8 @@ func (w *World) checkHazards(i int) {
 			w.dieAs(i, Splashed)
 		case lane.heronIn(left, right):
 			w.dieAs(i, Caught)
+		case i == Hero:
+			w.catchFirefly(p.LaneRow(), left, right)
 		}
 	case config.Rail:
 		if w.Rail.Hits(left, right) {
@@ -292,8 +318,8 @@ func NookAt(col int) int {
 // reachBank fills the nook the hero landed in, with any toadlets on its
 // back, ending the attempt with a success, or bumps the hero on the bank or
 // a filled nook (DESIGN §5.3). The fifth nook clears the level. Each
-// toadlet home adds to the nook's points, multiplied by the combo with
-// them (D53).
+// toadlet home, and fruit in the nook, add to the nook's points,
+// multiplied by the combo with them (D53, D59).
 func (w *World) reachBank() {
 	n := NookAt(w.Player.Col)
 	if n < 0 || w.Filled[n] {
@@ -303,7 +329,8 @@ func (w *World) reachBank() {
 	w.Filled[n] = true
 	secs := w.TicksLeft / config.TPS
 	toadlets := len(w.Line) * config.PointsToadlet
-	w.score(w.comboPoints(config.PointsGoal+toadlets) + secs*config.PointsPerSec)
+	fruit := w.takeFruit(n)
+	w.score(w.comboPoints(config.PointsGoal+toadlets+fruit) + secs*config.PointsPerSec)
 	w.Combo = Combo{} // the attempt is over; the combo was cashed in (D38)
 	w.Stats.Goals++
 	w.Stats.Toadlets += len(w.Line)

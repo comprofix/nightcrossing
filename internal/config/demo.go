@@ -8,4 +8,5 @@ const (
 	DemoWaitTicks = 6    // how long "wait" lasts as one of its moves
 	DemoTailTicks = 30   // after its last move, how long the hero must then survive standing still
 	DemoLevels    = 3    // the demo plays levels 1 to DemoLevels in turn
+	DemoFirefly   = 3    // a firefly caught is worth this many rows of progress to the autopilot (D58)
 )

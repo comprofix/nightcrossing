@@ -84,9 +84,9 @@ var (
 var StrollLevels = ModeLevels{
 	Levels: []LevelDef{
 		{Layout: strollLogs, SpeedPct: 100, GapPct: 100, Hint: "RIDE THE LOGS TO THE NOOKS ON THE FAR BANK"},
-		{Layout: strollLogs, SpeedPct: 110, GapPct: 95},
+		{Layout: strollLogs, SpeedPct: 110, GapPct: 95, Hint: "FRUIT IN A NOOK IS A BONUS"},
 		{Layout: strollBoats, SpeedPct: 100, GapPct: 100, Hint: "LILY PADS, A BARGE AND THE FERRY JOIN THE LOGS"},
-		{Layout: strollBoats, SpeedPct: 110, GapPct: 95},
+		{Layout: strollBoats, SpeedPct: 110, GapPct: 95, Hint: "CATCH A FIREFLY FOR AN EXTRA LIFE"},
 		{Layout: strollDivers, SpeedPct: 105, GapPct: 95, Hint: "LILY PADS THAT FLASH ARE ABOUT TO DIVE"},
 		{Layout: strollDivers, SpeedPct: 115, GapPct: 90, HeronPct: 15, Hint: "HERONS ON THE LOGS: DON'T LAND ON ONE"},
 		{Layout: strollSinking, SpeedPct: 115, GapPct: 90, HeronPct: 25, Hint: "A SINKING SHIP: RUN TO ITS STERN OR HOP OFF"},
@@ -95,4 +95,8 @@ var StrollLevels = ModeLevels{
 	// D20: level 38's speed, where even the tightest road gap still stays
 	// open about half a second.
 	CeilingPct: 225,
+	// Fruit from level 2, then fireflies on logs, lily pads and ships, one
+	// kind at a time (D60).
+	FruitFrom:   2,
+	FireflyFrom: [NumHosts]int{HostLogs: 4, HostPads: 5, HostShips: 7},
 }

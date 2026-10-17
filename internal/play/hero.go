@@ -19,6 +19,12 @@ type Hero struct {
 	Young string
 	Peep  *audio.Effect
 	Cry   *audio.Effect
+
+	// What comes to the river for it to catch, an extra life (D58): its
+	// sprite by night, and by day. Each is drawn flying right, with the
+	// frames of its wingbeat.
+	Pickup    string
+	DayPickup string
 }
 
 // A hero sprite's frames.
@@ -41,4 +47,5 @@ var hopFrames = [config.HopTicks]int{
 
 // Toad is the hero for 1.0 (DESIGN §2).
 var Toad = Hero{Name: "Toad", Sprite: "toad", Splash: "splash", Hop: ToadHop,
-	Young: "toadlet", Peep: ToadletPeep, Cry: ToadletCry}
+	Young: "toadlet", Peep: ToadletPeep, Cry: ToadletCry,
+	Pickup: "firefly", DayPickup: "dragonfly"}

@@ -57,8 +57,11 @@ func TestEveryEventHasASound(t *testing.T) {
 		world.TrainWarning: true, world.TrainGone: true,
 		world.WaveStart: true, world.WaveEnd: true, world.FogStart: true, world.FogEnd: true,
 		world.RainStart: true, world.RainEnd: true, world.StormStart: true, world.StormEnd: true,
-		world.FloodEnd: true}
-	for e := world.Hopped; e <= world.Refused; e++ {
+		world.FloodEnd: true,
+		// The pickups have their own sounds from M20; until then a firefly's
+		// life sounds as ExtraLife and fruit with the nook's Goal (D58, D59).
+		world.FireflyCaught: true, world.FireflyGone: true, world.FruitTaken: true}
+	for e := world.Hopped; e <= world.FruitTaken; e++ {
 		got := p.soundsFor(e)
 		switch {
 		case quiet[e] && len(got) > 0:
