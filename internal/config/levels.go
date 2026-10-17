@@ -123,6 +123,8 @@ type Level struct {
 	DayCycle   bool                       // the day and night cycle runs (D39)
 	Stormy     bool                       // the storm sky: always overcast, with lightning (D49)
 	Events     [NumEventKinds]EventTiming // the random events and how they run (DESIGN §6.1)
+	FirstStorm StormKind                  // the kind of the level's first storm, to teach it; AnyStorm for the mix (D51)
+	Storms     StormKind                  // every storm this kind, for testing (-storm, D52); AnyStorm for the mix
 	TimerTicks int                        // the time for each attempt
 	Hint       string
 }
@@ -162,6 +164,9 @@ type ModeLevels struct {
 	CycleFrom  int                // the first level with the day and night cycle; 0 for none (D39)
 	StormFrom  int                // the first level with the storm sky; 0 for none (D49)
 	EventsFrom [NumEventKinds]int // the first level with each random event; 0 for none (D41)
+	QuietPct   [NumEventKinds]int // each event's quiet at this % of its usual; 0 for 100 (D45)
+	WindFrom   int                // the first level with dry storms; 0 for none (D47, D51)
+	FloodFrom  int                // the first level with floods in wet storms; 0 for none (D48)
 }
 
 // Level is level n (1 for the first) as it is played.
@@ -175,7 +180,20 @@ func (m ModeLevels) Level(n int) Level {
 	lv.DayCycle = m.CycleFrom > 0 && n >= m.CycleFrom
 	lv.Stormy = m.StormFrom > 0 && n >= m.StormFrom
 	for k := range lv.Events {
-		lv.Events[k] = EventsOn(EventKind(k), m.EventsFrom[k], n)
+		t := EventsOn(EventKind(k), m.EventsFrom[k], n)
+		if pct := m.QuietPct[k]; pct > 0 {
+			t.QuietMin, t.QuietMax = t.QuietMin*pct/100, t.QuietMax*pct/100
+		}
+		lv.Events[k] = t
+	}
+	if s := &lv.Events[StormFront]; s.On() {
+		s.Beat, s.Size = WindBeat(m.WindFrom, n), FloodSize(m.FloodFrom, n)
+		switch n { // each level that brings a kind of storm in starts with it (D51)
+		case m.WindFrom:
+			lv.FirstStorm = DryStorm
+		case m.FloodFrom:
+			lv.FirstStorm = WetStorm
+		}
 	}
 	for r, l := range def.Layout.Lanes {
 		if len(l.Pattern) > 0 {

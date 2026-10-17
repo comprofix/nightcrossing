@@ -15,7 +15,7 @@ import (
 )
 
 // Storm's look (DESIGN §6.4): arrows on the water of a current row, and
-// wind streaks through a gust spell, building before each push.
+// wind streaks through a dry storm, building before each push.
 const (
 	arrowGapMin   = 36   // between a current's arrows, at its strongest
 	arrowGapMax   = 72   // and at its weakest
@@ -26,7 +26,7 @@ const (
 	arrowDimAlpha = 0.75 // a weak current's arrows
 	arrowY        = 12   // the arrows' line, down from the row's top
 
-	windStreaks = 120 // streaks across the field at the height of a gust
+	windStreaks = 120 // streaks across the field at the height of a push
 	windCalm    = 0.4 // the share of them through the spell between pushes
 	windLen     = 24  // a streak's length, in pixels
 	windFall    = 10  // pixels a tick
@@ -67,33 +67,44 @@ func (p *Play) drawCurrent(dst *ebiten.Image, r int) {
 	}
 }
 
-// updateWind eases the wind in through a gust spell's warning and out
-// after it, one step a tick, like the weather.
+// dryStorm is the storm, if a dry one is announced or on.
+func (p *Play) dryStorm() *world.Spell {
+	s := p.world.Spell(config.StormFront)
+	if s == nil || s.Phase == world.SpellQuiet || s.Wet {
+		return nil
+	}
+	return s
+}
+
+// updateWind eases the wind in through a dry storm's warning and out
+// after it rolls away, one step a tick, like the weather. Its direction is
+// kept as it dies away.
 func (p *Play) updateWind() {
-	s := p.world.Spell(config.Gust)
-	if s != nil && s.Phase != world.SpellQuiet {
+	if s := p.dryStorm(); s != nil {
 		p.windIn = min(p.windIn+1, config.OvercastTicks)
+		p.windDir = s.Dir
 	} else {
 		p.windIn = max(p.windIn-1, 0)
 	}
 }
 
 // windK is how hard the wind is blowing, 0–1, and which way: easing in
-// with the spell to a steady share, and building to full through the tell
+// with the storm to a steady share, and building to full through the tell
 // before each push (D47).
 func (p *Play) windK() (k float64, dir int) {
-	s := p.world.Spell(config.Gust)
-	if s == nil || p.windIn == 0 {
+	if p.windIn == 0 {
 		return 0, 0
 	}
 	k = windCalm * float64(p.windIn) / config.OvercastTicks
-	if n := s.NextPush(); n >= 0 && n <= config.GustTellTicks {
-		k = math.Max(k, 1-float64(n)/config.GustTellTicks*(1-windCalm))
+	if s := p.dryStorm(); s != nil {
+		if n := s.NextPush(); n >= 0 && n <= config.WindTellTicks {
+			k = math.Max(k, 1-float64(n)/config.WindTellTicks*(1-windCalm))
+		}
 	}
-	return k, s.Dir
+	return k, p.windDir
 }
 
-// drawWind draws the streaks of a gust spell blowing across the field,
+// drawWind draws the streaks of a dry storm's wind blowing across the field,
 // over the light so they show at any time of day. Each streak runs at a
 // steady pace from its own place, the same every game.
 func (p *Play) drawWind(dst *ebiten.Image) {
@@ -149,13 +160,14 @@ const (
 	noFlash        = 1 << 30         // flash before the first one
 )
 
-// drawFlood draws a flood on the verge: the water lapping up its river
-// edge from the warning on, puddles on the cells about to go under or
-// draining, and open water on those that are under (D48).
+// drawFlood draws a wet storm's flood on the verge: the water lapping up
+// its river edge from the storm's warning on, so the flood is seen coming,
+// puddles on the cells about to go under or draining, and open water on
+// those that are under (D48).
 func (p *Play) drawFlood(dst *ebiten.Image) {
 	w := p.world
-	s := w.Spell(config.Flood)
-	if s == nil || s.Phase == world.SpellQuiet || w.Lanes[config.VergeRow].Kind != config.Safe {
+	s := w.Spell(config.StormFront)
+	if s == nil || s.Phase == world.SpellQuiet || !s.Floods() || w.Lanes[config.VergeRow].Kind != config.Safe {
 		return
 	}
 	y := float32(cellY(config.VergeRow))
@@ -200,7 +212,7 @@ func (p *Play) drawChop(dst *ebiten.Image, r int) {
 
 // updateLightning runs the storm sky's lightning one tick: a flash every
 // lightningMin to lightningMax ticks, held back while an event is being
-// announced or a gust's push is coming, so it never hides a cue (D49). Its
+// announced or the wind's push is coming, so it never hides a cue (D49). Its
 // timing comes from the level and the count of flashes, not the game's
 // random numbers, so the world plays the same with or without it.
 func (p *Play) updateLightning() {
@@ -225,15 +237,15 @@ func (p *Play) flashGap() int {
 	return lightningMin + int(h%uint32(lightningMax-lightningMin+1))
 }
 
-// cueShowing reports whether an event is being announced or a gust's push
-// is coming.
+// cueShowing reports whether an event is being announced or the wind's
+// push is coming.
 func (p *Play) cueShowing() bool {
 	for i := range p.world.Spells {
 		s := &p.world.Spells[i]
 		if s.Phase == world.SpellWarning {
 			return true
 		}
-		if n := s.NextPush(); n >= 0 && n <= config.GustTellTicks+flashHold+flashFade {
+		if n := s.NextPush(); n >= 0 && n <= config.WindTellTicks+flashHold+flashFade {
 			return true
 		}
 	}

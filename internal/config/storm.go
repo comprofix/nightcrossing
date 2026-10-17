@@ -1,17 +1,18 @@
 package config
 
-// Storm is Rush Hour plus the river in a storm (DESIGN §6.4): currents from
-// level 1, wind gusts from level 2 and floods from level 3, under a storm
-// sky. It keeps everything from the modes before it from its level 1 (D27,
-// D45).
+// Storm is Rush Hour plus storms that roll in and away over the river and
+// road (DESIGN §6.4, D51): currents and wet storms from level 1, dry
+// storms and plain rain from level 2 and floods in wet storms from level
+// 3, under a storm sky. It keeps everything from the modes before it from
+// its level 1 (D27, D45).
 var Storm = Mode{
 	ID:   "storm",
 	Name: "Storm",
-	Desc: "Rush Hour, plus the river in a storm.",
+	Desc: "Rush Hour, plus storms that roll in and away.",
 	New: []Mechanic{
 		{"Currents", "ripples pull you along a platform"},
-		{"Gusts", "the wind pushes you one cell"},
-		{"Floods", "the verge goes under for a while"},
+		{"Wet storms", "rain, lightning, and floods on the verge"},
+		{"Dry storms", "high winds push you one cell"},
 	},
 	Also:   []string{"Everything in Stroll, Last Train and Rush Hour"},
 	Levels: stormLevels(),
@@ -32,9 +33,9 @@ var stormCurrents = [][]Current{
 	{{Row: 1, Push: -6}, {Row: 3, Push: 6}, {Row: 5, Push: -6}},
 }
 
-// stormLevels are Rush Hour's levels with all its events from level 1, the
-// storm sky throughout, and Storm's own mechanics coming in one a level
-// (D49, D50).
+// stormLevels are Rush Hour's levels with waves and fog from level 1, plain
+// rain from level 2 and less often, the storm sky throughout, and Storm's
+// own mechanics coming in one a level (D45, D49–D51).
 func stormLevels() ModeLevels {
 	m := rushHourLevels()
 	m.Levels = append([]LevelDef(nil), m.Levels...)
@@ -42,10 +43,11 @@ func stormLevels() ModeLevels {
 		m.Levels[i].Currents = stormCurrents[i]
 	}
 	m.Levels[0].Hint = "RIPPLES SHOW A CURRENT: IT PULLS YOU ALONG THE LOG"
-	m.Levels[1].Hint = "GUSTS FROM THE WEST OR EAST PUSH YOU ONE CELL"
-	m.Levels[2].Hint = "FLOODS: THE VERGE GOES UNDER, THE RIVER RUNS FASTER"
-	m.EventsFrom[Wave], m.EventsFrom[Fog], m.EventsFrom[Rain] = 1, 1, 1
-	m.EventsFrom[Gust], m.EventsFrom[Flood] = 2, 3
+	m.Levels[1].Hint = "HIGH WINDS PUSH YOU ONE CELL: STAND WHERE IT'S SAFE"
+	m.Levels[2].Hint = "A WET STORM FLOODS THE VERGE: THE RIVER RUNS FASTER"
+	m.EventsFrom[Wave], m.EventsFrom[Fog], m.EventsFrom[Rain], m.EventsFrom[StormFront] = 1, 1, 2, 1
+	m.QuietPct[Rain] = 150
+	m.WindFrom, m.FloodFrom = 2, 3
 	m.StormFrom = 1
 	return m
 }

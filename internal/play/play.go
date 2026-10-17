@@ -67,7 +67,8 @@ type Play struct {
 	overcast  int                    // how far fog or rain has dimmed the light, in ticks (D44)
 	fogIn     int                    // how far the fog is in, in ticks
 	rainIn    int                    // how far the rain is in, in ticks
-	windIn    int                    // how far a gust spell's wind is in, in ticks (D47)
+	windIn    int                    // how far a dry storm's wind is in, in ticks (D47)
+	windDir   int                    // the way it blows, kept as it dies away
 	flash     int                    // ticks since the storm sky's last lightning flash (D49)
 	flashes   int                    // how many flashes this level, for the next one's timing
 	nextFlash int                    // ticks until the next flash
@@ -89,6 +90,7 @@ func newLevel(ctx *scene.Context, levels config.ModeLevels, n int) *Play {
 // newPlay starts a given level for the game in progress, so tests can use
 // levels of their own.
 func newPlay(ctx *scene.Context, levels config.ModeLevels, level config.Level) *Play {
+	level.Storms = ctx.Storms // -storm, for testing (D52)
 	return build(ctx.Session, levels, level, ctx.RNG, !ctx.NoShaders)
 }
 
@@ -197,8 +199,8 @@ func (p *Play) tally(ctx *scene.Context) scene.Scene {
 // markCleared records the mode as cleared once its last level, level 8,
 // is cleared, for the MODE menu (D24).
 func (p *Play) markCleared(ctx *scene.Context) {
-	if ctx.StartLevel > 1 {
-		return // a test game, started part way
+	if ctx.Testing() {
+		return // a test game, started part way or with one kind of storm
 	}
 	if p.world.Level.Number >= len(p.levels.Levels) && ctx.Scores.MarkCleared(ctx.Session.Mode.ID) {
 		ctx.ScoresChanged()

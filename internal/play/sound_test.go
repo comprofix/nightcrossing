@@ -50,13 +50,14 @@ func TestEveryEventHasASound(t *testing.T) {
 	p := &Play{hero: Toad}
 	// The crossing bell rings through the warning (railEffect), not just on
 	// the event, and a train leaving is quiet. A wave starting or ending is
-	// quiet too: its traffic light shows it; and so are the weather's, which
-	// sound as they are announced.
+	// quiet too: its traffic light shows it; and so are the weather's and
+	// the storm's, which sound as they are announced. A flood sounds as it
+	// comes in, having no warning of its own (D48).
 	quiet := map[world.Event]bool{world.Landed: true, world.Respawned: true, world.LevelClear: true, world.GameOver: true,
 		world.TrainWarning: true, world.TrainGone: true,
 		world.WaveStart: true, world.WaveEnd: true, world.FogStart: true, world.FogEnd: true,
-		world.RainStart: true, world.RainEnd: true, world.GustStart: true, world.GustEnd: true,
-		world.FloodStart: true, world.FloodEnd: true}
+		world.RainStart: true, world.RainEnd: true, world.StormStart: true, world.StormEnd: true,
+		world.FloodEnd: true}
 	for e := world.Hopped; e <= world.FloodEnd; e++ {
 		got := p.soundsFor(e)
 		switch {

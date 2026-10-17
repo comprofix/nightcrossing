@@ -49,7 +49,7 @@ type Player struct {
 	Still    int   // ticks since the last landing, up to config.LandTicks
 	Death    Event // how the hero died, or 0 while alive
 	Sliding  bool  // the move under way is a rain slide, not a hop (D31)
-	Pushed   bool  // the move under way is a gust's push, not a hop (D47)
+	Pushed   bool  // the move under way is the wind's push, not a hop (D47)
 
 	fromX, toX int // where the current hop began and lands, in SubPx units
 	hopLeft    int // ticks left in the current hop; 0 when not hopping
@@ -147,14 +147,14 @@ func (w *World) updatePlayer(press Dir) {
 	// quick press never skips a splash or the bank.
 	w.checkHazards()
 	// In the rain a hop that lands on the road slides one more cell the
-	// same way; a slide never slides again, and a gust's push never slides
+	// same way; a slide never slides again, and the wind's push never slides
 	// (D31, D47).
 	if !slid && !pushed && w.playing() && w.Raining() && w.Lanes[p.Row].Kind == config.Road {
 		if w.move(p.Facing, true) {
 			return
 		}
 	}
-	// A gust's push that came mid-hop waits for the landing, and goes
+	// A push from the wind that came mid-hop waits for the landing, and goes
 	// before a queued press (D47).
 	if w.push != 0 && w.playing() && w.pushHero() {
 		return
@@ -211,7 +211,7 @@ func (p *Player) begin(row, x int) {
 	p.place()
 }
 
-// pushHero carries out the gust's waiting push, and reports whether it
+// pushHero carries out the wind's waiting push, and reports whether it
 // began (D47). It moves the hero exactly one cell sideways in a hop's
 // time, but is not a hop: it keeps the facing and the combo. On land it
 // keeps to the grid and doesn't happen at the field's edge; on a platform
@@ -241,7 +241,7 @@ func (w *World) pushHero() bool {
 // ride carries the hero with the river row it counts as being in
 // (DESIGN §5.2). A hop that lands on the river is carried along with it;
 // one that lands off the river still lands on its column. Landed on a row
-// with a current, or being pushed along it by a gust, the hero also
+// with a current, or being pushed along it by the wind, the hero also
 // slides along its platform; mid-hop the current does nothing (D46, D47).
 func (w *World) ride() {
 	p := &w.Player

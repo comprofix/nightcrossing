@@ -78,8 +78,8 @@ func (p *Play) effects(e world.Event) {
 	case world.Slid:
 		p.parts.Emit(at(skidSpray, x, y)) // the rain slide's skid (D31)
 	case world.Pushed:
-		b := at(windPuff, x, y) // a gust's push (D47)
-		if s := w.Spell(config.Gust); s != nil {
+		b := at(windPuff, x, y) // the wind's push (D47)
+		if s := w.Spell(config.StormFront); s != nil {
 			b.X -= float64(s.Dir * config.Cell / 2) // from the side the wind blows from
 		}
 		p.parts.Emit(b)

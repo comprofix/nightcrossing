@@ -90,18 +90,18 @@ func TestCurrentSlidesTheHeroOntoAHeron(t *testing.T) {
 	}
 }
 
-// gusty starts a gust spell on w pushing dir, its next push in one tick,
+// windy starts a dry storm on w pushing dir, its next push in one tick,
 // then one every beat ticks.
-func gusty(w *World, dir, beat int) {
-	w.Spells = []Spell{{Kind: config.Gust, Timing: config.EventTiming{QuietMin: 1 << 20, QuietMax: 1 << 20, Last: 1 << 20, Beat: beat},
-		Phase: SpellOn, Left: 1<<20 - beat + 1, Dir: dir}}
+func windy(w *World, dir, beat int) {
+	w.Spells = []Spell{{Kind: config.StormFront, Timing: config.EventTiming{QuietMin: 1 << 20, QuietMax: 1 << 20, Last: 1 << 20, Beat: beat},
+		Phase: SpellOn, Length: 1 << 20, Left: 1<<20 - beat + 1, Dir: dir}}
 }
 
-// TestGustPushesOneCellOnLand: on land the push is a forced sideways hop
+// TestWindPushesOneCellOnLand: on land the push is a forced sideways hop
 // of one cell on the grid, keeping the facing (D47).
-func TestGustPushesOneCellOnLand(t *testing.T) {
+func TestWindPushesOneCellOnLand(t *testing.T) {
 	w := newWorld(1)
-	gusty(w, 1, 90)
+	windy(w, 1, 90)
 	ev := run(w, None, config.HopTicks+1)
 	if count(ev, Pushed) != 1 || count(ev, Hopped) != 0 {
 		t.Fatalf("events %v: want one push, no hop", ev)
@@ -117,24 +117,24 @@ func TestGustPushesOneCellOnLand(t *testing.T) {
 	at(t, w, config.StartCol+2, config.StartRow)
 }
 
-// TestNoGustPushOffTheField: at the field's edge, on land, the push doesn't
+// TestNoWindPushOffTheField: at the field's edge, on land, the push doesn't
 // happen.
-func TestNoGustPushOffTheField(t *testing.T) {
+func TestNoWindPushOffTheField(t *testing.T) {
 	w := newWorld(1)
 	w.Player = newPlayer(config.Cols-1, config.StartRow)
-	gusty(w, 1, 90)
+	windy(w, 1, 90)
 	if ev := run(w, None, config.HopTicks+1); slices.Contains(ev, Pushed) {
 		t.Errorf("pushed off the field: %v", ev)
 	}
 	at(t, w, config.Cols-1, config.StartRow)
 }
 
-// TestGustWaitsForTheLanding: a push that comes mid-hop waits for the
+// TestWindWaitsForTheLanding: a push that comes mid-hop waits for the
 // landing, then goes before a queued press; it is delayed, never dodged.
-func TestGustWaitsForTheLanding(t *testing.T) {
+func TestWindWaitsForTheLanding(t *testing.T) {
 	w := newWorld(1)
 	run(w, Up, 3)
-	gusty(w, -1, 1000)
+	windy(w, -1, 1000)
 	ev := run(w, None, config.HopTicks-4) // up to the tick before it lands
 	if slices.Contains(ev, Pushed) {
 		t.Fatalf("pushed mid-hop: %v", ev)
@@ -146,11 +146,11 @@ func TestGustWaitsForTheLanding(t *testing.T) {
 	at(t, w, config.StartCol-1, config.StartRow-1)
 }
 
-// TestGustOnAPlatformDrifts: on a platform the push drifts the hero a cell
+// TestWindOnAPlatformDrifts: on a platform the push drifts the hero a cell
 // along it; past its end is a splash.
-func TestGustOnAPlatformDrifts(t *testing.T) {
+func TestWindOnAPlatformDrifts(t *testing.T) {
 	w := currentWorld(0, 8)
-	gusty(w, 1, 1000)
+	windy(w, 1, 1000)
 	x0 := w.Player.X
 	ev := run(w, None, config.HopTicks+1)
 	if count(ev, Pushed) != 1 || w.Player.X != x0+cellUnits || w.Dying > 0 {
@@ -158,17 +158,17 @@ func TestGustOnAPlatformDrifts(t *testing.T) {
 	}
 
 	w = currentWorld(0, 10) // the log's last cell
-	gusty(w, 1, 1000)
+	windy(w, 1, 1000)
 	if ev := run(w, None, config.HopTicks+1); !slices.Contains(ev, Splashed) {
 		t.Errorf("events %v: want a splash off the log's end", ev)
 	}
 }
 
-// TestGustAddsToTheCurrent: while a push drifts the hero, the current
+// TestWindAddsToTheCurrent: while a push drifts the hero, the current
 // still slides it.
-func TestGustAddsToTheCurrent(t *testing.T) {
+func TestWindAddsToTheCurrent(t *testing.T) {
 	w := currentWorld(4, 7)
-	gusty(w, 1, 1000)
+	windy(w, 1, 1000)
 	x0 := w.Player.X
 	run(w, None, 1) // the push begins: the hero is still before it
 	run(w, None, config.HopTicks)
@@ -177,16 +177,16 @@ func TestGustAddsToTheCurrent(t *testing.T) {
 	}
 }
 
-// TestGustNeverSlides: in the rain a push onto the road doesn't slide, and
+// TestWindNeverSlides: in the rain a push onto the road doesn't slide, and
 // the push is neither a hop for the combo nor breaks it.
-func TestGustNeverSlides(t *testing.T) {
+func TestWindNeverSlides(t *testing.T) {
 	w := wetWorld()
 	w.Level.Combo = true
 	w.Player = newPlayer(config.StartCol, 10)
 	w.furthest = 10
 	w.Combo = Combo{Hops: 2, Left: config.ComboTicks}
-	w.Spells = append(w.Spells, Spell{Kind: config.Gust, Timing: config.EventTiming{QuietMin: 1, QuietMax: 1, Last: 1 << 20, Beat: 1000},
-		Phase: SpellOn, Left: 1<<20 - 1000 + 1, Dir: 1})
+	w.Spells = append(w.Spells, Spell{Kind: config.StormFront, Timing: config.EventTiming{QuietMin: 1, QuietMax: 1, Last: 1 << 20, Beat: 1000},
+		Phase: SpellOn, Length: 1 << 20, Left: 1<<20 - 1000 + 1, Dir: 1})
 	ev := run(w, None, config.HopTicks+2)
 	if count(ev, Pushed) != 1 || slices.Contains(ev, Slid) {
 		t.Errorf("events %v: want a push and no slide", ev)
@@ -196,42 +196,199 @@ func TestGustNeverSlides(t *testing.T) {
 	}
 }
 
-// TestGustSpellRuns: a gust spell is announced with a direction, pushes on
-// its beat while on, and ends; the same seed blows the same way.
-func TestGustSpellRuns(t *testing.T) {
-	lv := testLevel()
-	lv.Events[config.Gust] = config.EventsOn(config.Gust, 1, 1)
-	g := lv.Events[config.Gust]
-	play := func(seed uint64) (*World, []Event) {
+// stormWorld is level n of Storm from seed.
+func stormWorld(n int, seed uint64) *World {
+	return New(session.New(config.Storm, config.StartLives), config.Storm.Levels.Level(n), rand.New(rand.NewPCG(seed, seed)))
+}
+
+// keep keeps the hero going on w for a long run: a full clock and lives.
+func keep(w *World) {
+	w.TicksLeft = w.Level.TimerTicks
+	w.Session.Lives = config.StartLives
+}
+
+// stormLog is one storm as it ran: when it was announced, began and
+// rolled away, its kind, and its pushes and flood.
+type stormLog struct {
+	warned, started, ended int64
+	wet                    bool
+	pushes                 int
+	floodAt                int64 // when its flood came in; 0 for none
+	floodEnds              int
+}
+
+// runStorms runs w for ticks, keeping the hero going, and logs each storm.
+// Rain must fall all through each wet storm.
+func runStorms(t *testing.T, w *World, ticks int) []stormLog {
+	t.Helper()
+	var out []stormLog
+	for range ticks {
+		ev := w.Update(None)
+		keep(w)
+		for _, e := range ev {
+			switch e {
+			case WetStormWarning, DryStormWarning:
+				out = append(out, stormLog{warned: w.Tick, wet: e == WetStormWarning})
+			case StormStart:
+				out[len(out)-1].started = w.Tick
+			case StormEnd:
+				out[len(out)-1].ended = w.Tick
+			case Pushed:
+				if len(out) > 0 {
+					out[len(out)-1].pushes++
+				}
+			case FloodStart:
+				out[len(out)-1].floodAt = w.Tick
+			case FloodEnd:
+				out[len(out)-1].floodEnds++
+			}
+		}
+		if s := w.Spell(config.StormFront); s.Phase == SpellOn && s.Wet && !w.Raining() {
+			t.Fatalf("tick %d: a wet storm with no rain", w.Tick)
+		}
+	}
+	return out
+}
+
+// TestStormFrontRuns: storms come after a clear spell, are announced with
+// their kind, hold for their seeded length and roll away. A wet storm
+// rains all through, and from level 3 floods the verge once, a little
+// after its rain sets in; a dry storm pushes on its beat and floods
+// nothing. The same seed plays the same storms (D51).
+func TestStormFrontRuns(t *testing.T) {
+	for _, n := range []int{2, 3, config.EventTopLevel} {
+		st := config.Storm.Levels.Level(n).Events[config.StormFront]
+		for seed := uint64(1); seed <= 3; seed++ {
+			logs := runStorms(t, stormWorld(n, seed), 6*60*config.TPS)
+			if len(logs) < 4 {
+				t.Fatalf("level %d seed %d: %d storms in six minutes", n, seed, len(logs))
+			}
+			if int(logs[0].warned) < st.QuietMin {
+				t.Errorf("level %d seed %d: the first storm warned at %d, inside the first clear spell", n, seed, logs[0].warned)
+			}
+			for i, l := range logs {
+				if l.ended == 0 {
+					continue // still on when the run ended
+				}
+				if got := l.started - l.warned; got != int64(config.Events[config.StormFront].WarnTicks) {
+					t.Errorf("level %d seed %d storm %d: warned %d ticks ahead", n, seed, i, got)
+				}
+				if got := int(l.ended - l.started); got < st.Last || got > st.LastMax {
+					t.Errorf("level %d seed %d storm %d: held %d ticks, want %d–%d", n, seed, i, got, st.Last, st.LastMax)
+				}
+				switch {
+				case l.wet && l.pushes > 0, !l.wet && l.floodAt > 0:
+					t.Errorf("level %d seed %d storm %d: wet %v with %d pushes and a flood at %d", n, seed, i, l.wet, l.pushes, l.floodAt)
+				case l.wet && n >= 3 && (l.floodAt-l.started != config.StormFloodDelay || l.floodEnds != 1):
+					t.Errorf("level %d seed %d storm %d: a wet storm flooding %d ticks in, draining %d times", n, seed, i, l.floodAt-l.started, l.floodEnds)
+				case l.wet && n < 3 && l.floodAt > 0:
+					t.Errorf("level %d seed %d storm %d: a flood before level 3", n, seed, i)
+				case !l.wet && l.pushes == 0:
+					t.Errorf("level %d seed %d storm %d: a dry storm that never pushed", n, seed, i)
+				}
+			}
+			if again := runStorms(t, stormWorld(n, seed), 6*60*config.TPS); !slices.Equal(logs, again) {
+				t.Errorf("level %d seed %d: the same seed played different storms", n, seed)
+			}
+		}
+	}
+}
+
+// TestStormKinds: level 1's storms are all wet; level 2's first is dry and
+// level 3's wet; then a seeded mix of both, never three of a kind in a
+// row, with dry storms blowing both ways. A testing kind makes every storm
+// that kind (D51, D52).
+func TestStormKinds(t *testing.T) {
+	kinds := func(lv config.Level, seed uint64) (wet []bool, dirs map[int]bool) {
 		w := New(session.New(config.Storm, config.StartLives), lv, rand.New(rand.NewPCG(seed, seed)))
-		var ev []Event
-		for range g.QuietMax + 3*config.TPS + g.Last {
-			ev = append(ev, w.Update(None)...)
+		s := w.Spell(config.StormFront)
+		dirs = map[int]bool{}
+		for range 60 {
+			wet = append(wet, s.Wet)
+			if !s.Wet {
+				dirs[s.Dir] = true
+			}
+			w.nextStorm(s)
 		}
-		return w, ev
+		return wet, dirs
 	}
-	dirs := map[int]bool{}
-	for seed := uint64(1); seed <= 6; seed++ {
-		w, ev := play(seed)
-		if count(ev, GustWarning) != 1 || count(ev, GustStart) != 1 || count(ev, GustEnd) != 1 {
-			t.Fatalf("seed %d: events %v, want one spell", seed, ev)
+	for seed := uint64(1); seed <= 8; seed++ {
+		if wet, _ := kinds(config.Storm.Levels.Level(1), seed); slices.Contains(wet, false) {
+			t.Errorf("seed %d: a dry storm on level 1", seed)
 		}
-		if got, want := count(ev, Pushed), (g.Last-1)/g.Beat; got != want {
-			t.Errorf("seed %d: %d pushes, want %d", seed, got, want)
+		for n, first := range map[int]bool{2: false, 3: true} {
+			if wet, _ := kinds(config.Storm.Levels.Level(n), seed); wet[0] != first {
+				t.Errorf("seed %d: level %d's first storm wet %v, want %v", seed, n, wet[0], first)
+			}
 		}
-		dirs[w.Spell(config.Gust).Dir] = true
-		if again, ev2 := play(seed); !slices.Equal(ev, ev2) || again.Player.X != w.Player.X {
-			t.Errorf("seed %d: the same seed played differently", seed)
+		wet, dirs := kinds(config.Storm.Levels.Level(config.EventTopLevel), seed)
+		for i := 2; i < len(wet); i++ {
+			if wet[i] == wet[i-1] && wet[i] == wet[i-2] {
+				t.Fatalf("seed %d: three storms in a row wet %v: %v", seed, wet[i], wet)
+			}
+		}
+		if !slices.Contains(wet, true) || !slices.Contains(wet, false) || len(dirs) != 2 {
+			t.Errorf("seed %d: storms %v, dry ones blowing %v", seed, wet, dirs)
+		}
+		for _, k := range []config.StormKind{config.WetStorm, config.DryStorm} {
+			for _, n := range []int{1, 2, config.EventTopLevel} {
+				lv := config.Storm.Levels.Level(n)
+				lv.Storms = k
+				if wet, _ := kinds(lv, seed); slices.Contains(wet, k == config.DryStorm) {
+					t.Errorf("seed %d level %d: storms %v, want them all kind %d", seed, n, wet, k)
+				}
+			}
 		}
 	}
-	if len(dirs) != 2 {
-		t.Errorf("over 6 seeds gusts only blew %v", dirs)
+}
+
+// TestWeatherAroundStorms: plain rain never comes in a storm and fog never
+// in a wet one; fog in a dry storm is only announced once the storm is on;
+// no weather is announced in the clear stretch after a storm; and the
+// weather still comes (D51).
+func TestWeatherAroundStorms(t *testing.T) {
+	lv := config.Storm.Levels.Level(config.EventTopLevel)
+	seen := map[config.EventKind]bool{}
+	for seed := uint64(1); seed <= 4; seed++ {
+		w := New(session.New(config.Storm, config.StartLives), lv, rand.New(rand.NewPCG(seed, seed)))
+		st := w.Spell(config.StormFront)
+		cleared := int64(-1 << 40)
+		for range 8 * 60 * config.TPS {
+			ev := w.Update(None)
+			keep(w)
+			if slices.Contains(ev, StormEnd) {
+				cleared = w.Tick
+			}
+			for _, e := range ev {
+				if e != FogWarning && e != RainWarning {
+					continue
+				}
+				if w.Tick-cleared < config.StormClearMin {
+					t.Fatalf("seed %d tick %d: weather %d announced %d ticks after a storm", seed, w.Tick, e, w.Tick-cleared)
+				}
+				if st.Phase != SpellQuiet && (e == RainWarning || st.Wet || st.Phase != SpellOn) {
+					t.Fatalf("seed %d tick %d: weather %d announced in a storm, wet %v, phase %d", seed, w.Tick, e, st.Wet, st.Phase)
+				}
+			}
+			rain, fog := w.Spell(config.Rain), w.Spell(config.Fog)
+			if st.Phase != SpellQuiet && (!st.Wet && rain.Phase != SpellQuiet || st.Wet && fog.Phase != SpellQuiet) {
+				t.Fatalf("seed %d tick %d: rain %d and fog %d in a storm, wet %v", seed, w.Tick, rain.Phase, fog.Phase, st.Wet)
+			}
+			for _, s := range []*Spell{rain, fog} {
+				if s.Phase == SpellOn {
+					seen[s.Kind] = true
+				}
+			}
+		}
+	}
+	if !seen[config.Rain] || !seen[config.Fog] {
+		t.Errorf("weathers seen: %v", seen)
 	}
 }
 
 // TestNextPush: the tell knows when the next push comes.
 func TestNextPush(t *testing.T) {
-	s := Spell{Kind: config.Gust, Timing: config.EventTiming{Last: 600, Beat: 180}, Phase: SpellWarning, Left: 120}
+	s := Spell{Kind: config.StormFront, Timing: config.EventTiming{Beat: 180}, Length: 600, Phase: SpellWarning, Left: 120}
 	if got := s.NextPush(); got != 300 {
 		t.Errorf("in the warning: next push in %d, want 300", got)
 	}
@@ -243,13 +400,15 @@ func TestNextPush(t *testing.T) {
 	if got := s.NextPush(); got != -1 {
 		t.Errorf("near the end: next push in %d, want none", got)
 	}
+	if s.Wet = true; s.NextPush() != -1 {
+		t.Error("a wet storm pushes")
+	}
 }
 
-// TestOneBigEventAtATime: a wave, a gust spell and a flood never overlap,
-// and each still comes (D48).
+// TestOneBigEventAtATime: a rush hour wave and a storm never overlap, and
+// each still comes (D48, D51).
 func TestOneBigEventAtATime(t *testing.T) {
 	lv := config.Storm.Levels.Level(config.EventTopLevel)
-	big := []config.EventKind{config.Wave, config.Gust, config.Flood}
 	for seed := uint64(1); seed <= 4; seed++ {
 		w := New(session.New(config.Storm, config.StartLives), lv, rand.New(rand.NewPCG(seed, seed)))
 		came := map[Event]int{}
@@ -257,20 +416,12 @@ func TestOneBigEventAtATime(t *testing.T) {
 			for _, e := range w.Update(None) {
 				came[e]++
 			}
-			if w.Dying > 0 {
-				w.Session.Lives = config.StartLives
-			}
-			on := 0
-			for _, k := range big {
-				if w.Spell(k).Phase != SpellQuiet {
-					on++
-				}
-			}
-			if on > 1 {
-				t.Fatalf("seed %d tick %d: %d big events at once", seed, w.Tick, on)
+			keep(w)
+			if w.Spell(config.Wave).Phase != SpellQuiet && w.Spell(config.StormFront).Phase != SpellQuiet {
+				t.Fatalf("seed %d tick %d: a wave in a storm", seed, w.Tick)
 			}
 		}
-		for _, e := range []Event{WaveStart, GustStart, FloodStart} {
+		for _, e := range []Event{WaveStart, StormStart} {
 			if came[e] == 0 {
 				t.Errorf("seed %d: no event %d in four minutes", seed, e)
 			}
@@ -322,12 +473,14 @@ func TestFloodCells(t *testing.T) {
 	}
 }
 
-// floodWorld is an all-safe level with a flood forced on over verge
-// columns 10–12, just started, with the hero on the verge at col.
+// floodWorld is an all-safe level with a wet storm forced on, its flood
+// over verge columns 10–12 just coming in, with the hero on the verge at
+// col.
 func floodWorld(col int) *World {
 	w := newWorld(1)
-	s := Spell{Kind: config.Flood, Timing: config.EventsOn(config.Flood, 1, 1), Phase: SpellOn}
-	s.Left = s.Timing.Last
+	s := Spell{Kind: config.StormFront, Wet: true, Timing: config.Storm.Levels.Level(3).Events[config.StormFront], Phase: SpellOn}
+	s.Length = s.Timing.Last
+	s.Left = s.Length - config.StormFloodDelay
 	for c := 10; c <= 12; c++ {
 		s.Cells[c] = true
 	}
@@ -351,7 +504,7 @@ func TestFloodPuddlesThenWater(t *testing.T) {
 	}
 
 	w = floodWorld(9)
-	ev := run(w, None, w.Spells[0].Timing.Last+1)
+	ev := run(w, None, w.Spells[0].Left+1)
 	if slices.Contains(ev, Splashed) || w.Puddled(9) || w.Flooded(9) {
 		t.Errorf("a hero beside the flood: events %v", ev)
 	}

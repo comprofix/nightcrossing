@@ -48,7 +48,7 @@ func (p *Play) updateWeather() {
 			*v = max(*v-1, 0)
 		}
 	}
-	fog, rain := p.weatherOn(config.Fog), p.weatherOn(config.Rain)
+	fog, rain := p.weatherOn(config.Fog), p.weatherOn(config.Rain) || p.wetStorm()
 	ease(&p.overcast, fog || rain || p.world.Level.Stormy) // the storm sky is always overcast (D49)
 	ease(&p.fogIn, fog)
 	ease(&p.rainIn, rain)
@@ -60,10 +60,21 @@ func (p *Play) weatherOn(k config.EventKind) bool {
 	return s != nil && s.Phase != world.SpellQuiet
 }
 
-// overcastK, fogK and rainK are how far in each is, 0–1.
+// wetStorm reports whether a wet storm is announced or on: it rains all
+// through (D51).
+func (p *Play) wetStorm() bool {
+	s := p.world.Spell(config.StormFront)
+	return s != nil && s.Phase != world.SpellQuiet && s.Wet
+}
+
+// overcastK, fogK and rainK are how far in each is, 0–1. Fog thins to
+// config.StormFogDensityPct as a dry storm's wind comes in (D51).
 func (p *Play) overcastK() float64 { return float64(p.overcast) / config.OvercastTicks }
-func (p *Play) fogK() float64      { return float64(p.fogIn) / config.OvercastTicks }
 func (p *Play) rainK() float64     { return float64(p.rainIn) / config.OvercastTicks }
+func (p *Play) fogK() float64 {
+	thin := 1 - (1-config.StormFogDensityPct/100.0)*float64(p.windIn)/config.OvercastTicks
+	return float64(p.fogIn) / config.OvercastTicks * thin
+}
 
 // overcast is look l dimmed and greyed k of the way to overcast (D44).
 func overcast(l fx.Look, k float64) fx.Look {

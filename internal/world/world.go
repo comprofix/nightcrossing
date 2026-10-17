@@ -17,42 +17,42 @@ type Event int
 
 // The events.
 const (
-	Hopped       Event = iota + 1 // the hero left a cell
-	Landed                        // the hero arrived in a cell
-	Squashed                      // a vehicle hit the hero
-	Splashed                      // the hero landed in the water, or its platform went under
-	Swept                         // a platform carried the hero off the field
-	Caught                        // the hero landed on a heron
-	Bumped                        // the hero landed on the bank or a filled nook
-	TimeUp                        // the attempt's time ran out
-	LowTime                       // the attempt's time is running low
-	Goal                          // the hero filled a nook
-	LevelClear                    // the last nook is filled
-	ExtraLife                     // the score earned a life
-	Respawned                     // a new attempt began on the start row
-	GameOver                      // the last life is gone
-	Struck                        // a train hit the hero (D37)
-	TrainWarning                  // the crossing lights start to flash: a train is coming
-	TrainComing                   // a train comes onto the field
-	TrainGone                     // the train has left the field
-	ComboUp                       // the hop combo's multiplier rose (D38)
-	WaveWarning                   // a rush hour wave is announced on a lane (D43)
-	WaveStart                     // the wave begins: its traffic comes on
-	WaveEnd                       // the wave ends: its extra traffic goes as it leaves
-	FogWarning                    // fog is announced (D29)
-	FogStart                      // the fog is in
-	FogEnd                        // the fog clears
-	RainWarning                   // rain is announced (D31)
-	RainStart                     // it rains: the road is slippery
-	RainEnd                       // the rain stops
-	Slid                          // the hero began a rain slide (D31)
-	GustWarning                   // a gust spell is announced, with its direction (D47)
-	GustStart                     // the gust spell begins
-	GustEnd                       // the gust spell ends
-	Pushed                        // a gust pushed the hero one cell (D47)
-	FloodWarning                  // a flood is announced (D48)
-	FloodStart                    // the flood begins: puddles on the verge, the river speeding up
-	FloodEnd                      // the flood has drained
+	Hopped          Event = iota + 1 // the hero left a cell
+	Landed                           // the hero arrived in a cell
+	Squashed                         // a vehicle hit the hero
+	Splashed                         // the hero landed in the water, or its platform went under
+	Swept                            // a platform carried the hero off the field
+	Caught                           // the hero landed on a heron
+	Bumped                           // the hero landed on the bank or a filled nook
+	TimeUp                           // the attempt's time ran out
+	LowTime                          // the attempt's time is running low
+	Goal                             // the hero filled a nook
+	LevelClear                       // the last nook is filled
+	ExtraLife                        // the score earned a life
+	Respawned                        // a new attempt began on the start row
+	GameOver                         // the last life is gone
+	Struck                           // a train hit the hero (D37)
+	TrainWarning                     // the crossing lights start to flash: a train is coming
+	TrainComing                      // a train comes onto the field
+	TrainGone                        // the train has left the field
+	ComboUp                          // the hop combo's multiplier rose (D38)
+	WaveWarning                      // a rush hour wave is announced on a lane (D43)
+	WaveStart                        // the wave begins: its traffic comes on
+	WaveEnd                          // the wave ends: its extra traffic goes as it leaves
+	FogWarning                       // fog is announced (D29)
+	FogStart                         // the fog is in
+	FogEnd                           // the fog clears
+	RainWarning                      // rain is announced (D31)
+	RainStart                        // it rains: the road is slippery
+	RainEnd                          // the rain stops
+	Slid                             // the hero began a rain slide (D31)
+	WetStormWarning                  // a wet storm is announced: heavy rain (D51)
+	DryStormWarning                  // a dry storm is announced: high winds, with their direction (D51)
+	StormStart                       // the storm is in: its rain or its wind begins
+	StormEnd                         // the storm rolls away
+	Pushed                           // the wind pushed the hero one cell (D47)
+	FloodStart                       // a wet storm's flood begins: puddles on the verge, the river speeding up (D48)
+	FloodEnd                         // the flood has drained
 )
 
 // Stats are the points earned on this level, for the level-clear tally.
@@ -84,10 +84,14 @@ type World struct {
 	Combo      Combo // the hop combo, on levels with it (D38)
 	Gained     int   // points multiplied by the combo this tick, for the pop-ups
 
-	furthest int // the furthest row reached this attempt
-	push     int // a gust's push waiting for the hero to land: -1 left, +1 right; 0 for none (D47)
-	rng      *rand.Rand
-	events   []Event
+	furthest   int   // the furthest row reached this attempt
+	push       int   // the wind's push waiting for the hero to land: -1 left, +1 right; 0 for none (D47)
+	clearUntil int64 // no weather starts before this tick: the clear stretch after a storm (D51)
+	storms     int   // storms chosen this level, counting the next
+	stormRun   int   // how many of them in a row are the latest's kind
+	lastWet    bool  // the latest storm chosen is wet
+	rng        *rand.Rand
+	events     []Event
 }
 
 // New starts level for the game in s. Every random choice comes from rng,
@@ -105,6 +109,9 @@ func New(s *session.Session, level config.Level, rng *rand.Rand) *World {
 	}
 	w.Rail = newRail(level, rng)
 	w.Spells = newSpells(level, rng)
+	if s := w.Spell(config.StormFront); s != nil {
+		w.nextStorm(s)
+	}
 	w.newAttempt()
 	return w
 }

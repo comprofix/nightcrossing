@@ -190,11 +190,13 @@ func (p *Play) soundsFor(e world.Event) []*audio.Effect {
 		return []*audio.Effect{Thunder}
 	case world.Slid:
 		return []*audio.Effect{Skid}
-	case world.GustWarning:
+	case world.WetStormWarning:
+		return []*audio.Effect{Thunder}
+	case world.DryStormWarning:
 		return []*audio.Effect{Howl}
 	case world.Pushed:
 		return []*audio.Effect{Whoosh}
-	case world.FloodWarning:
+	case world.FloodStart:
 		return []*audio.Effect{Rising}
 	case world.TimeUp:
 		return []*audio.Effect{TimeUp}

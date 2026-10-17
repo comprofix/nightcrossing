@@ -22,11 +22,17 @@ func main() {
 	seed := flag.Uint64("seed", 0, "random seed, for repeatable runs (0 picks one from the clock)")
 	level := flag.Int("level", 1, "start new games on this level, for testing; such games keep no high scores")
 	extra := flag.String("mode", "", "add a mode still being built to the MODE menu, by its ID, for testing")
-	noShaders := false
+	noShaders, storms := false, ""
 	if debug.Enabled {
 		flag.BoolVar(&noShaders, "noshaders", false, "draw without shaders, as on a machine that can't run them (debug builds only)")
+		flag.StringVar(&storms, "storm", "", "make every storm wet or dry, for testing; such games keep no high scores (debug builds only)")
 	}
 	flag.Parse()
+	kinds := map[string]config.StormKind{"": config.AnyStorm, "wet": config.WetStorm, "dry": config.DryStorm}
+	stormKind, ok := kinds[storms]
+	if !ok {
+		log.Fatalf("-storm %q: want wet or dry", storms)
+	}
 	modes := config.Modes
 	if *extra != "" {
 		m, ok := modeInProgress(*extra)
@@ -76,6 +82,7 @@ func main() {
 		log.Fatal(err)
 	}
 	g.StartAt(*level)
+	g.StormsOf(stormKind)
 	g.UseModes(modes)
 	if noShaders {
 		g.WithoutShaders()

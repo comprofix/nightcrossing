@@ -1,6 +1,7 @@
 package play
 
 import (
+	"math"
 	"slices"
 	"testing"
 
@@ -9,12 +10,12 @@ import (
 	"github.com/comprofix/nightcrossing/internal/world"
 )
 
-// TestGustCues: a gust spell's warning says which way it blows, the wind
+// TestWindCues: a dry storm's warning says which way it blows, the wind
 // eases in through it, and before each push it builds to full; after the
-// spell it dies away (D47).
-func TestGustCues(t *testing.T) {
+// storm it dies away (D47, D51).
+func TestWindCues(t *testing.T) {
 	h := scenetest.New(t, 5)
-	h.Ctx.StartLevel = 2
+	h.Ctx.StartLevel = 2 // its first storm is dry
 	p := New(h.Ctx, config.Storm).(*Play)
 	w := p.World()
 	step := func() []world.Event {
@@ -32,17 +33,17 @@ func TestGustCues(t *testing.T) {
 		t.Fatalf("no %v in %d ticks", e, limit)
 	}
 	if k, _ := p.windK(); k != 0 {
-		t.Fatalf("wind %v before any gust", k)
+		t.Fatalf("wind %v before any storm", k)
 	}
-	until(world.GustWarning, 2*60*config.TPS)
-	s := w.Spell(config.Gust)
-	if got, want := p.eventMessage(), config.GustMessage(s.Dir); got != want {
+	until(world.DryStormWarning, 2*60*config.TPS)
+	s := w.Spell(config.StormFront)
+	if got, want := p.eventMessage(), config.StormMessage(false, s.Dir); got != want {
 		t.Errorf("warning %q, want %q", got, want)
 	}
-	until(world.GustStart, config.Events[config.Gust].WarnTicks+1)
+	until(world.StormStart, config.Events[config.StormFront].WarnTicks+1)
 	calm, dir := p.windK()
 	if calm <= 0 || dir != s.Dir {
-		t.Errorf("wind %v blowing %d through the spell, want it on, blowing %d", calm, dir, s.Dir)
+		t.Errorf("wind %v blowing %d through the storm, want it on, blowing %d", calm, dir, s.Dir)
 	}
 	for s.NextPush() > 1 {
 		step()
@@ -50,12 +51,42 @@ func TestGustCues(t *testing.T) {
 	if k, _ := p.windK(); k <= calm {
 		t.Errorf("wind %v just before a push, want it stronger than the calm %v", k, calm)
 	}
-	until(world.GustEnd, s.Timing.Last)
+	until(world.StormEnd, s.Length)
 	for range config.OvercastTicks + 1 {
 		step()
 	}
 	if k, _ := p.windK(); k != 0 {
-		t.Errorf("wind %v after the spell, want none", k)
+		t.Errorf("wind %v after the storm, want none", k)
+	}
+}
+
+// TestStormWeatherLooks: a wet storm's warning names it and its rain
+// shows all through; fog thins as a dry storm's wind comes in (D51).
+func TestStormWeatherLooks(t *testing.T) {
+	h := scenetest.New(t, 5)
+	p := New(h.Ctx, config.Storm).(*Play) // level 1: every storm is wet
+	w := p.World()
+	for w.Spell(config.StormFront).Phase != world.SpellWarning {
+		w.TicksLeft = w.Level.TimerTicks
+		p.updateEffects()
+		w.Update(world.None)
+	}
+	if got, want := p.eventMessage(), config.StormMessage(true, 0); got != want {
+		t.Errorf("warning %q, want %q", got, want)
+	}
+	for range config.OvercastTicks {
+		p.updateEffects()
+		w.Update(world.None)
+	}
+	if p.rainK() != 1 || !w.Raining() {
+		t.Errorf("rain shown %v, raining %v once the wet storm is in", p.rainK(), w.Raining())
+	}
+
+	p.fogIn, p.windIn = config.OvercastTicks, 0
+	thick := p.fogK()
+	p.windIn = config.OvercastTicks
+	if got, want := p.fogK(), thick*config.StormFogDensityPct/100; math.Abs(got-want) > 1e-9 {
+		t.Errorf("fog %v in a dry storm's wind, want %v", got, want)
 	}
 }
 
