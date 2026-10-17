@@ -54,13 +54,20 @@ func (p *Play) effects(e world.Event) {
 	w := p.world
 	pl := &w.Player
 	x, y := p.heroCentre()
+	if f := w.Fallen(); f != nil && e != world.Hopped {
+		x, y = centreOf(f) // a death shows where it happened: the hero's or a toadlet's (D53)
+	}
 	switch e {
 	case world.Hopped:
 		if w.Lanes[pl.FromRow].Kind != config.River {
 			p.parts.Emit(at(hopDust, x, cellY(pl.FromRow)+config.Cell-4))
 		}
 	case world.Splashed, world.Swept:
-		p.parts.Emit(at(splashDrops, x, cellY(pl.LaneRow())+config.Cell/2))
+		row := pl.LaneRow()
+		if f := w.Fallen(); f != nil {
+			row = f.LaneRow()
+		}
+		p.parts.Emit(at(splashDrops, x, cellY(row)+config.Cell/2))
 	case world.Squashed:
 		p.parts.Emit(at(crashSparks, x, y))
 	case world.Struck:

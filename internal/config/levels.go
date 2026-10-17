@@ -109,6 +109,7 @@ type LevelDef struct {
 	HeronPct int       // the chance, per log, that a heron stands on it (D34)
 	Hint     string    // shown when the level starts, for a new mechanic
 	Currents []Current // the river rows with a current (D46, D50)
+	Toadlets int       // the toadlets in the hero's line (D53, D54)
 }
 
 // Level is a level as it is played: its lanes at their real speeds and
@@ -124,6 +125,7 @@ type Level struct {
 	Events     [NumEventKinds]EventTiming // the random events and how they run (DESIGN §6.1)
 	FirstStorm StormKind                  // the kind of the level's first storm, to teach it; AnyStorm for the mix (D51)
 	Storms     StormKind                  // every storm this kind, for testing (-storm, D52); AnyStorm for the mix
+	Toadlets   int                        // the toadlets that follow the hero (D53)
 	TimerTicks int                        // the time for each attempt
 	Hint       string
 }
@@ -149,6 +151,7 @@ func (m ModeLevels) Def(n int) (def LevelDef, speedPct int) {
 	d := m.Levels[last-LoopLevels+k%LoopLevels]
 	d.GapPct = m.Levels[last-1].GapPct
 	d.Currents = m.Levels[last-1].Currents // the loops keep the last level's currents (D50)
+	d.Toadlets = m.Levels[last-1].Toadlets // and its line of toadlets (D54)
 	d.Hint = ""                            // each hint shows once, on the level that brings it in
 	return d, min(d.SpeedPct+(k/LoopLevels+1)*LoopSpeedStepPct, m.CeilingPct)
 }
@@ -170,7 +173,8 @@ type ModeLevels struct {
 // Level is level n (1 for the first) as it is played.
 func (m ModeLevels) Level(n int) Level {
 	def, speed := m.Def(n)
-	lv := Level{Number: n, HeronPct: def.HeronPct, Trains: m.Trains, TimerTicks: TimerTicks(n), Hint: def.Hint}
+	lv := Level{Number: n, HeronPct: def.HeronPct, Trains: m.Trains, Toadlets: def.Toadlets, Hint: def.Hint,
+		TimerTicks: TimerTicks(n) + def.Toadlets*ToadletSecs*TPS} // a second a toadlet, to file in (D53)
 	if m.Trains {
 		lv.Train = TrainsOn(n)
 	}
@@ -185,10 +189,12 @@ func (m ModeLevels) Level(n int) Level {
 	}
 	if s := &lv.Events[StormFront]; s.On() {
 		s.Beat, s.Size = WindBeat(m.WindFrom, n), FloodSize(m.FloodFrom, n)
-		switch n { // each level that brings a kind of storm in starts with it (D51)
-		case m.WindFrom:
+		switch { // each level that brings a kind of storm in starts with it (D51)
+		case m.WindFrom == m.FloodFrom:
+			// Both kinds come in at once, carried over from Storm: the mix (D54).
+		case n == m.WindFrom:
 			lv.FirstStorm = DryStorm
-		case m.FloodFrom:
+		case n == m.FloodFrom:
 			lv.FirstStorm = WetStorm
 		}
 	}

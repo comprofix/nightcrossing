@@ -241,15 +241,49 @@ func (p *Play) drawShipPiece(ctx *scene.Context, dst *ebiten.Image, e world.Enti
 	ctx.Sheet(Sheet).Sprite(name).Draw(dst, 0, x, y, flip)
 }
 
-// drawHero draws the hero turned to face its way, on its leap frame while
-// hopping, rising and falling over the hop, then squashed for a moment on
-// landing (DESIGN §3.3). A dead hero lies flat where it was hit, or
-// splashes where it went in the water.
+// drawHero draws the hero, and its line of toadlets (D53), each turned to
+// face its way, on its leap frame while hopping, rising and falling over
+// the hop, then squashed for a moment on landing (DESIGN §3.3). A dead one
+// lies flat where it was hit, or splashes where it went in the water. The
+// line on land is drawn under the hero; riders on its back over it, side
+// by side, and they go with a dead hero. Until M18's sprites, a toadlet is
+// the hero's sprite drawn small (D56).
 func (p *Play) drawHero(ctx *scene.Context, dst *ebiten.Image) {
-	pl := &p.world.Player
-	if p.world.Home > 0 {
+	w := p.world
+	if w.Home > 0 {
 		return // it is in its nook, drawn with the bank
 	}
+	small := float64(config.ToadletPx) / config.Cell
+	for i := range w.Line {
+		if !p.onBack(i) {
+			p.drawToad(ctx, dst, &w.Line[i].Player, small, 0)
+		}
+	}
+	p.drawToad(ctx, dst, &w.Player, 1, 0)
+	if w.Player.Death != 0 {
+		return
+	}
+	n := float64(len(w.Line))
+	for i := range w.Line {
+		if p.onBack(i) {
+			p.drawToad(ctx, dst, &w.Line[i].Player, small, (float64(i)-(n-1)/2)*riderGapPx)
+		}
+	}
+}
+
+// onBack reports whether toadlet i is drawn on the hero's back: riding, or
+// gathered in its cell, so a gathered line shows (D53).
+func (p *Play) onBack(i int) bool {
+	t, h := &p.world.Line[i], &p.world.Player
+	return t.Riding || !t.Hopping() && !h.Hopping() && t.Row == h.Row && t.X == h.X
+}
+
+// riderGapPx is how far apart riders sit on the hero's back.
+const riderGapPx = 6
+
+// drawToad draws the hero or a toadlet, pl, at scale times the hero's size,
+// in the middle of its cell, dx pixels across from there.
+func (p *Play) drawToad(ctx *scene.Context, dst *ebiten.Image, pl *world.Player, scale, dx float64) {
 	sheet := ctx.Sheet(Sheet)
 	sp := sheet.Sprite(p.hero.Sprite)
 
@@ -269,15 +303,17 @@ func (p *Play) drawHero(ctx *scene.Context, dst *ebiten.Image) {
 		frame = frameLand // a skid or a gust's push, feet down: no leap (D31, D47)
 	case pl.Hopping():
 		frame = hopFrames[max(pl.HopProgress()-1, 0)] // a queued hop can show at 0
-		lift = p.heroLift()
+		lift = liftOf(pl) * scale
 	case pl.Still < config.LandTicks:
 		frame = frameLand
 	}
 
-	x := float64(config.FieldX) + float64(pl.X)/config.SubPx
-	y := float64(config.FieldY) + float64(pl.Y)/config.SubPx - lift
+	inset := (1 - scale) * config.Cell / 2
+	x := float64(config.FieldX) + float64(pl.X)/config.SubPx + inset + dx
+	y := float64(config.FieldY) + float64(pl.Y)/config.SubPx - lift + inset
 	var op ebiten.DrawImageOptions
 	op.GeoM = facing(pl.Facing, sp.W, sp.H)
+	op.GeoM.Scale(scale, scale)
 	op.GeoM.Translate(x, y)
 	dst.DrawImage(sp.Frame(frame), &op)
 }
@@ -376,8 +412,11 @@ func (p *Play) drawHerons(ctx *scene.Context, dst *ebiten.Image, r int) {
 const lampHeadY = 3
 
 // heroLift is how high the hero is off the ground mid-hop, in pixels.
-func (p *Play) heroLift() float64 {
-	pl := &p.world.Player
+func (p *Play) heroLift() float64 { return liftOf(&p.world.Player) }
+
+// liftOf is how high pl, the hero or a toadlet, is off the ground mid-hop,
+// in pixels, at the hero's size.
+func liftOf(pl *world.Player) float64 {
 	if !pl.Hopping() || pl.Sliding || pl.Pushed || pl.Death != 0 {
 		return 0
 	}
@@ -386,10 +425,12 @@ func (p *Play) heroLift() float64 {
 }
 
 // heroCentre is the middle of the hero on the screen, as drawn.
-func (p *Play) heroCentre() (x, y float64) {
-	pl := &p.world.Player
+func (p *Play) heroCentre() (x, y float64) { return centreOf(&p.world.Player) }
+
+// centreOf is the middle of pl, the hero or a toadlet, on the screen.
+func centreOf(pl *world.Player) (x, y float64) {
 	return float64(config.FieldX) + float64(pl.X)/config.SubPx + config.Cell/2,
-		float64(config.FieldY) + float64(pl.Y)/config.SubPx + config.Cell/2 - p.heroLift()
+		float64(config.FieldY) + float64(pl.Y)/config.SubPx + config.Cell/2 - liftOf(pl)
 }
 
 // wheelStepPx is how far a vehicle goes between its wheel frames.

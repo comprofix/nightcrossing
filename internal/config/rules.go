@@ -17,6 +17,10 @@ const (
 
 	// LowTimeSecs is when the low time warning sounds (DESIGN §5.4).
 	LowTimeSecs = 10
+
+	// ToadletSecs is the time added to the timer for each toadlet in
+	// School Run's line, so it can file in (D53).
+	ToadletSecs = 1
 )
 
 // TimerTicks is the time for each attempt on level n (1 for the first), in
@@ -31,6 +35,7 @@ const (
 	PointsGoal     = 100  // filling a nook
 	PointsPerSec   = 10   // the time bonus, for each whole second left
 	PointsAllGoals = 1000 // filling the fifth nook
+	PointsToadlet  = 50   // each toadlet home with the hero, added to the nook's points (D53)
 	ExtraLifeEvery = 20_000
 )
 
