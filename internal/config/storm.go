@@ -48,6 +48,5 @@ func stormLevels() ModeLevels {
 	m.EventsFrom[Wave], m.EventsFrom[Fog], m.EventsFrom[Rain], m.EventsFrom[StormFront] = 1, 1, 2, 1
 	m.QuietPct[Rain] = 150
 	m.WindFrom, m.FloodFrom = 2, 3
-	m.StormFrom = 1
 	return m
 }

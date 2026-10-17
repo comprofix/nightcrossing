@@ -121,7 +121,6 @@ type Level struct {
 	Train      TrainTiming                // how the trains run, when they do (D17)
 	Combo      bool                       // the hop combo is on (D38)
 	DayCycle   bool                       // the day and night cycle runs (D39)
-	Stormy     bool                       // the storm sky: always overcast, with lightning (D49)
 	Events     [NumEventKinds]EventTiming // the random events and how they run (DESIGN §6.1)
 	FirstStorm StormKind                  // the kind of the level's first storm, to teach it; AnyStorm for the mix (D51)
 	Storms     StormKind                  // every storm this kind, for testing (-storm, D52); AnyStorm for the mix
@@ -162,7 +161,6 @@ type ModeLevels struct {
 	Trains     bool               // trains from level 1 (DESIGN §6.2)
 	ComboFrom  int                // the first level with the hop combo; 0 for none (D38)
 	CycleFrom  int                // the first level with the day and night cycle; 0 for none (D39)
-	StormFrom  int                // the first level with the storm sky; 0 for none (D49)
 	EventsFrom [NumEventKinds]int // the first level with each random event; 0 for none (D41)
 	QuietPct   [NumEventKinds]int // each event's quiet at this % of its usual; 0 for 100 (D45)
 	WindFrom   int                // the first level with dry storms; 0 for none (D47, D51)
@@ -178,7 +176,6 @@ func (m ModeLevels) Level(n int) Level {
 	}
 	lv.Combo = m.ComboFrom > 0 && n >= m.ComboFrom
 	lv.DayCycle = m.CycleFrom > 0 && n >= m.CycleFrom
-	lv.Stormy = m.StormFrom > 0 && n >= m.StormFrom
 	for k := range lv.Events {
 		t := EventsOn(EventKind(k), m.EventsFrom[k], n)
 		if pct := m.QuietPct[k]; pct > 0 {

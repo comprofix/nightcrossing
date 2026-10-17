@@ -69,9 +69,11 @@ type Play struct {
 	rainIn    int                    // how far the rain is in, in ticks
 	windIn    int                    // how far a dry storm's wind is in, in ticks (D47)
 	windDir   int                    // the way it blows, kept as it dies away
-	flash     int                    // ticks since the storm sky's last lightning flash (D49)
+	stormSky  int                    // how far a storm's sky has rolled in, in ticks (D49, D51)
+	flash     int                    // ticks since a storm's last lightning flash (D49)
 	flashes   int                    // how many flashes this level, for the next one's timing
-	nextFlash int                    // ticks until the next flash
+	nextFlash int                    // ticks until the next flash, in a storm
+	storming  bool                   // a storm was on last tick, so lightning knows when one begins
 	fogImg    *ebiten.Image          // a drawing buffer: one fog patch
 }
 
@@ -107,10 +109,6 @@ func build(s *session.Session, levels config.ModeLevels, level config.Level, rng
 		parts:  fx.NewParticles(rand.New(rand.NewPCG(rng.Uint64(), rng.Uint64()))),
 		sky:    skyBefore,
 		flash:  noFlash,
-	}
-	if level.Stormy {
-		p.overcast = config.OvercastTicks // the storm sky is overcast from the start (D49)
-		p.nextFlash = p.flashGap()
 	}
 	return p
 }

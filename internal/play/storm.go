@@ -149,15 +149,16 @@ const (
 	chopFlecks = 6 // the wind's chop on each river row
 	chopTicks  = 5 // it changes this often
 
-	lightningMin   = 15 * config.TPS // between flashes, at least
-	lightningMax   = 30 * config.TPS // and at most
-	lightningRetry = config.TPS / 4  // a flash held back by a warning or a tell tries again after this
-	flashHold      = 4               // ticks a flash holds at its brightest
-	flashFade      = 18              // ticks it fades over
-	flashMix       = 0.6             // how far it lifts the light toward daylight
-	flashSoft      = 0.25            // and with reduced motion, a soft lift instead
-	thunderDelay   = 20              // ticks from the flash to its thunder
-	noFlash        = 1 << 30         // flash before the first one
+	lightningFirst = 2 * config.TPS // a storm's first flash comes within this of it beginning
+	lightningMin   = 4 * config.TPS // between flashes, at least
+	lightningMax   = 8 * config.TPS // and at most
+	lightningRetry = config.TPS / 4 // a flash held back by a warning or a tell tries again after this
+	flashHold      = 4              // ticks a flash holds at its brightest
+	flashFade      = 18             // ticks it fades over
+	flashMix       = 0.6            // how far it lifts the light toward daylight
+	flashSoft      = 0.25           // and with reduced motion, a soft lift instead
+	thunderDelay   = 20             // ticks from the flash to its thunder
+	noFlash        = 1 << 30        // flash before the first one
 )
 
 // drawFlood draws a wet storm's flood on the verge: the water lapping up
@@ -194,11 +195,11 @@ func (p *Play) drawFlood(dst *ebiten.Image) {
 	}
 }
 
-// drawChop draws the wind's chop on river row r under the storm sky: white
-// flecks that come and go (D49).
+// drawChop draws the wind's chop on river row r all through Storm, storm
+// or clear: white flecks that come and go (D49).
 func (p *Play) drawChop(dst *ebiten.Image, r int) {
 	w := p.world
-	if !w.Level.Stormy {
+	if w.Spell(config.StormFront) == nil {
 		return
 	}
 	c := gfx.RGBA(resurrect64.Mist)
@@ -210,16 +211,22 @@ func (p *Play) drawChop(dst *ebiten.Image, r int) {
 	}
 }
 
-// updateLightning runs the storm sky's lightning one tick: a flash every
-// lightningMin to lightningMax ticks, held back while an event is being
-// announced or the wind's push is coming, so it never hides a cue (D49). Its
-// timing comes from the level and the count of flashes, not the game's
-// random numbers, so the world plays the same with or without it.
+// updateLightning runs a storm's lightning one tick: only while a storm is
+// on, the first flash within lightningFirst ticks of it beginning, then one
+// every lightningMin to lightningMax ticks, held back while an event is
+// being announced or the wind's push is coming, so it never hides a cue
+// (D49). A flash already showing fades out after the storm. Its timing
+// comes from the level and the count of flashes, not the game's random
+// numbers, so the world plays the same with or without it.
 func (p *Play) updateLightning() {
-	if !p.world.Level.Stormy {
+	p.flash = min(p.flash+1, noFlash)
+	on := p.stormOn()
+	if on && !p.storming {
+		p.nextFlash = 1 + p.flashRoll(lightningFirst)
+	}
+	if p.storming = on; !on {
 		return
 	}
-	p.flash = min(p.flash+1, noFlash)
 	if p.nextFlash--; p.nextFlash > 0 {
 		return
 	}
@@ -228,13 +235,13 @@ func (p *Play) updateLightning() {
 		return
 	}
 	p.flash, p.flashes = 0, p.flashes+1
-	p.nextFlash = p.flashGap()
+	p.nextFlash = lightningMin + p.flashRoll(lightningMax-lightningMin+1)
 }
 
-// flashGap is how long until the next flash.
-func (p *Play) flashGap() int {
+// flashRoll is a number from 0 to n-1 for the next flash's timing.
+func (p *Play) flashRoll(n int) int {
 	h := noise(int64(p.world.Level.Number), int64(p.flashes), 11)
-	return lightningMin + int(h%uint32(lightningMax-lightningMin+1))
+	return int(h % uint32(n))
 }
 
 // cueShowing reports whether an event is being announced or the wind's
@@ -253,7 +260,7 @@ func (p *Play) cueShowing() bool {
 }
 
 // thunderNow reports whether the last flash's thunder sounds this tick.
-func (p *Play) thunderNow() bool { return p.world.Level.Stormy && p.flash == thunderDelay }
+func (p *Play) thunderNow() bool { return p.flash == thunderDelay }
 
 // lightning is look l lit by a flash, if one is showing: lifted toward
 // daylight at once and fading, or with reduced motion a soft lift that

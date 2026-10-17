@@ -39,19 +39,29 @@ const (
 
 // updateWeather eases the overcast, the fog and the rain toward whether
 // they are announced or on, one step a tick, over config.OvercastTicks:
-// they come in through the warning and lift after.
+// they come in through the warning and lift after. A wet storm's rain
+// comes in the same way. A storm's own sky rolls in once it begins and
+// away after it ends, over config.StormSkyTicks (D49, D51).
 func (p *Play) updateWeather() {
-	ease := func(v *int, on bool) {
+	ease := func(v *int, on bool, most int) {
 		if on {
-			*v = min(*v+1, config.OvercastTicks)
+			*v = min(*v+1, most)
 		} else {
 			*v = max(*v-1, 0)
 		}
 	}
-	fog, rain := p.weatherOn(config.Fog), p.weatherOn(config.Rain) || p.wetStorm()
-	ease(&p.overcast, fog || rain || p.world.Level.Stormy) // the storm sky is always overcast (D49)
-	ease(&p.fogIn, fog)
-	ease(&p.rainIn, rain)
+	fog, rain := p.weatherOn(config.Fog), p.weatherOn(config.Rain)
+	ease(&p.overcast, fog || rain, config.OvercastTicks)
+	ease(&p.fogIn, fog, config.OvercastTicks)
+	ease(&p.rainIn, rain || p.wetStorm(), config.OvercastTicks)
+	ease(&p.stormSky, p.stormOn(), config.StormSkyTicks)
+}
+
+// stormOn reports whether a storm is on: past its warning, before it rolls
+// away.
+func (p *Play) stormOn() bool {
+	s := p.world.Spell(config.StormFront)
+	return s != nil && s.Phase == world.SpellOn
 }
 
 // weatherOn reports whether weather k is announced or on.
@@ -67,10 +77,13 @@ func (p *Play) wetStorm() bool {
 	return s != nil && s.Phase != world.SpellQuiet && s.Wet
 }
 
-// overcastK, fogK and rainK are how far in each is, 0–1. Fog thins to
+// overcastK, fogK and rainK are how far in each is, 0–1. The overcast is
+// the weather's or the storm's sky, whichever is further in. Fog thins to
 // config.StormFogDensityPct as a dry storm's wind comes in (D51).
-func (p *Play) overcastK() float64 { return float64(p.overcast) / config.OvercastTicks }
-func (p *Play) rainK() float64     { return float64(p.rainIn) / config.OvercastTicks }
+func (p *Play) overcastK() float64 {
+	return math.Max(float64(p.overcast)/config.OvercastTicks, float64(p.stormSky)/config.StormSkyTicks)
+}
+func (p *Play) rainK() float64 { return float64(p.rainIn) / config.OvercastTicks }
 func (p *Play) fogK() float64 {
 	thin := 1 - (1-config.StormFogDensityPct/100.0)*float64(p.windIn)/config.OvercastTicks
 	return float64(p.fogIn) / config.OvercastTicks * thin
