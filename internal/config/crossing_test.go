@@ -18,6 +18,16 @@ import (
 //     below before the ship's stern goes under (D33).
 //   - Rail: the quiet between trains is long enough to hop on and off
 //     (D17, D37).
+//   - Currents (D46): each is weaker than its row's platforms; a hero
+//     riding a current row moves at the platform's speed or, with the
+//     current, faster (it can hop back against the slide, but not slow
+//     the platform), and waits for the row above at the worse of the two;
+//     and sliding one cell takes at least CrossOpenTicks, so a hero who
+//     lands a cell in from a platform's end has time to hop.
+//   - Gusts (D47): each push can carry a riding hero a cell nearer the
+//     edge, so the ride is shortened by a cell a beat; and every river row
+//     keeps a platform at least two cells long that always holds, so a
+//     push can be taken on it.
 //
 // A failure names the mode, the level and the row.
 func TestEveryLevelCanBeCrossed(t *testing.T) {
@@ -55,6 +65,17 @@ func crossingProblems(lv Level) []error {
 				errs = append(errs, fmt.Errorf("row %d: %d quiet ticks between trains, want %d", r, lv.Train.QuietMin, CrossOpenTicks))
 			}
 		case River:
+			if c := l.Current; c != 0 {
+				if abs(c) >= l.Speed {
+					errs = append(errs, fmt.Errorf("row %d: a current of %d is not weaker than the platforms' %d", r, c, l.Speed))
+				}
+				if t := Cell * sub / abs(c); t < CrossOpenTicks {
+					errs = append(errs, fmt.Errorf("row %d: the current slides the hero a cell in %d ticks, want %d", r, t, CrossOpenTicks))
+				}
+			}
+			if lv.Events[Gust].On() && !holdsAPush(l) {
+				errs = append(errs, fmt.Errorf("row %d: no platform two cells long that always holds, to take a gust's push", r))
+			}
 			below := lv.Lanes[r+1]
 			wait, ok := boardTicks(lv, r, below)
 			if !ok {
@@ -62,7 +83,11 @@ func crossingProblems(lv Level) []error {
 				continue
 			}
 			if below.Kind == River {
-				if ride := (fieldUnits - Cell*sub) / below.Speed; wait > ride {
+				v := below.Speed + max(below.Current, 0)
+				if g := lv.Events[Gust]; g.On() {
+					v += Cell * sub / g.Beat // a push a beat, toward the edge
+				}
+				if ride := (fieldUnits - Cell*sub) / v; wait > ride {
 					errs = append(errs, fmt.Errorf("row %d: up to %d ticks to wait for a platform, but row %d carries the hero off in %d", r, wait, r+1, ride))
 				}
 			}
@@ -103,19 +128,49 @@ func boardTicks(lv Level, r int, below Lane) (int, bool) {
 // boardTicksFrom is the longest a hero riding in lane from (or standing,
 // if from is not a river) may wait for a platform in river lane to that
 // will hold it, and whether one ever comes.
+// On a row with a current the hero may move at its platform's speed or
+// slide along with the current, so the slower of the two meetings counts.
 func boardTicksFrom(to, from Lane) (int, bool) {
-	v := to.Dir * to.Speed
-	if from.Kind == River {
-		v -= from.Dir * from.Speed
-	}
-	if v < 0 {
-		v = -v
-	}
 	water, ok := widestWater(to)
-	if !ok || v == 0 {
+	if !ok {
 		return 0, false
 	}
-	return (water + Cell) * SubPx / v, true
+	vels := []int{0} // standing on land
+	if from.Kind == River {
+		vels = []int{from.Dir * from.Speed, from.Dir * (from.Speed + from.Current)}
+	}
+	worst := 0
+	for _, hv := range vels {
+		v := abs(to.Dir*to.Speed - hv)
+		if v == 0 {
+			return 0, false
+		}
+		worst = max(worst, (water+Cell)*SubPx/v)
+	}
+	return worst, true
+}
+
+// holdsAPush reports whether river lane l has a platform at least two
+// cells long that always holds the hero: not one that dives or sinks, and
+// for a log, still two cells with a heron on one (D34, D47).
+func holdsAPush(l Lane) bool {
+	for _, s := range l.Pattern {
+		n := s.Entity.Length
+		if s.Entity == LogShort || s.Entity == LogLong {
+			n -= Cell
+		}
+		if !s.Dives && !s.Sinks && n >= 2*Cell {
+			return true
+		}
+	}
+	return false
+}
+
+func abs(n int) int {
+	if n < 0 {
+		return -n
+	}
+	return n
 }
 
 // widestWater is the widest stretch, in pixels, along river lane l with no
