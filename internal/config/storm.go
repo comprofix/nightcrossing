@@ -14,7 +14,7 @@ var Storm = Mode{
 		{"Wet storms", "rain, lightning, and floods on the verge"},
 		{"Dry storms", "high winds push you one cell"},
 	},
-	Also:   []string{"Everything in Stroll, Last Train and Rush Hour"},
+	Also:   []string{"Everything in Stroll, Last Train and Rush Hour", PickupsAlso},
 	Levels: stormLevels(),
 }
 

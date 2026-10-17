@@ -30,15 +30,32 @@ func (m *Menu) Size(font *gfx.Font) (w, h int) {
 		}
 	}
 	w += 2 * font.Size // the "> " cursor
-	return w, len(m.Items)*(font.Size+LineGap) - LineGap
+	if m.Scrolls() {
+		w += 2 * font.Size // the " ^" marks
+	}
+	return w, m.Shown()*(font.Size+LineGap) - LineGap
 }
 
 // Draw draws the menu with its top-left corner at (x, y): disabled items in
 // sc.Dim, the selected item in sc.Highlight after a "> " cursor. Sliders
-// line up in one column, each followed by its percentage.
+// line up in one column, each followed by its percentage. A menu that
+// scrolls shows the items around the cursor, with a "^" at the right of
+// the top line while there are more above, and a "v" at the bottom while
+// there are more below.
 func (m *Menu) Draw(dst *ebiten.Image, font *gfx.Font, x, y int, sc gfx.Scheme) {
 	col := m.sliderColumn(font)
-	for i := range m.Items {
+	first, n := m.First(), m.Shown()
+	if m.Scrolls() {
+		w, _ := m.Size(font)
+		mx, line := x+w-font.Size, font.Size+LineGap
+		if first > 0 {
+			font.DrawShadowed(dst, "^", mx, y, sc.Dim, sc.Shadow)
+		}
+		if first+n < len(m.Items) {
+			font.DrawShadowed(dst, "v", mx, y+(n-1)*line, sc.Dim, sc.Shadow)
+		}
+	}
+	for i := first; i < first+n; i++ {
 		c := sc.Text
 		switch {
 		case m.Items[i].IsDisabled():

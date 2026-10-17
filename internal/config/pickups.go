@@ -93,3 +93,7 @@ func FruitPoints(from, last, n int) int {
 
 // FruitOf is the index in Fruits of level n's fruit.
 func FruitOf(n int) int { return min(n, len(Fruits)) - 1 }
+
+// PickupsAlso is the line on each later mode's intro, under ALSO, for the
+// pickups it has from level 1 (D60).
+const PickupsAlso = "Fruit and fireflies, and dragonflies by day"

@@ -13,7 +13,7 @@ var SchoolRun = Mode{
 		{"More toadlets", "a second from level 5"},
 		{"Home together", "+50 for each toadlet home"},
 	},
-	Also:   []string{"Everything in Stroll, Last Train, Rush Hour and Storm"},
+	Also:   []string{"Everything in Stroll, Last Train, Rush Hour and Storm", PickupsAlso},
 	Levels: schoolRunLevels(),
 }
 

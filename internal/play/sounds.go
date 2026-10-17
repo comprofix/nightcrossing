@@ -171,10 +171,32 @@ var (
 	}}
 )
 
+// The pickups' sounds (D58, D59). Each plays on the harmony channel, so it
+// sounds with the 1UP or the nook's home run on the lead.
+var (
+	// FireflyTwinkle is a firefly caught: a soft high twinkle.
+	FireflyTwinkle = &audio.Effect{Name: "firefly", Channel: 1, Priority: 4, Part: audio.Part{
+		Voice: audio.Voice{Wave: audio.Triangle, Decay: audio.Ticks(5), Sustain: 0.4, Release: audio.Ticks(8), Volume: 0.55},
+		Notes: audio.Notes("E6:2 B6:2 E7:3 -:2 B6:2 E7:8"),
+	}}
+	// DragonflyBuzz is a dragonfly caught: a quick buzzing trill, then a
+	// chirp.
+	DragonflyBuzz = &audio.Effect{Name: "dragonfly", Channel: 1, Priority: 4, Part: audio.Part{
+		Voice: audio.Voice{Wave: audio.Pulse12, Decay: audio.Ticks(4), Sustain: 0.5, Release: audio.Ticks(4), Volume: 0.5},
+		Notes: audio.Notes("A5:1 C6:1 A5:1 C6:1 A5:1 C6:1 E6:2 A6:6"),
+	}}
+	// FruitPick is fruit taken with its nook: a bright sparkle just after
+	// the home run starts.
+	FruitPick = &audio.Effect{Name: "fruit", Channel: 1, Priority: 4, Part: audio.Part{
+		Voice: audio.Voice{Wave: audio.Pulse25, Decay: audio.Ticks(4), Sustain: 0.4, Release: audio.Ticks(6), Volume: 0.5},
+		Notes: audio.Notes("-:4 G6:3 C7:3 E7:8"),
+	}}
+)
+
 // Sounds are the game's tunes and effects, listed for the sound test.
 var Sounds = audio.Bank{
 	Tunes:   []*audio.Tune{NightTitle, Stroll, LevelClearJingle, GameOverJingle, HighScores},
-	Effects: []*audio.Effect{ToadHop, Crash, Bump, Splash, Bubbles, Squawk, Home, OneUp, TimeLow, TimeUp, Bell, Horn, HornLow, Rumble, TrainCrash, ComboUp, HornChorus, HornChorusLow, FogHorn, Thunder, Skid, Howl, Whoosh, Rising, DistantThunder, ToadletPeep, ToadletCry},
+	Effects: []*audio.Effect{ToadHop, Crash, Bump, Splash, Bubbles, Squawk, Home, OneUp, TimeLow, TimeUp, Bell, Horn, HornLow, Rumble, TrainCrash, ComboUp, HornChorus, HornChorusLow, FogHorn, Thunder, Skid, Howl, Whoosh, Rising, DistantThunder, ToadletPeep, ToadletCry, FireflyTwinkle, DragonflyBuzz, FruitPick},
 }
 
 // soundsFor is the effects an event plays (DESIGN §3.4). The level clear
@@ -224,6 +246,13 @@ func (p *Play) soundsFor(e world.Event) []*audio.Effect {
 		return []*audio.Effect{p.hero.Peep}
 	case world.ExtraLife:
 		return []*audio.Effect{OneUp}
+	case world.FireflyCaught:
+		if p.world != nil && p.world.Flyer.Day {
+			return []*audio.Effect{p.hero.DayCatch}
+		}
+		return []*audio.Effect{p.hero.Catch}
+	case world.FruitTaken:
+		return []*audio.Effect{FruitPick}
 	}
 	return nil
 }

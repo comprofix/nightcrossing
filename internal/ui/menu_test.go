@@ -122,3 +122,43 @@ func TestDisabledIfIsSkippedAndSliderText(t *testing.T) {
 		t.Errorf("slider text %q", got)
 	}
 }
+
+// TestMenuScrolls: a menu with more items than Rows shows Rows at a time,
+// moving the window only as far as it must to keep the cursor in view,
+// both ways and when the cursor wraps.
+func TestMenuScrolls(t *testing.T) {
+	m := &Menu{Rows: 3}
+	for range 6 {
+		m.Items = append(m.Items, Item{Label: "X"})
+	}
+	var steps []input.Step
+	for _, k := range []ebiten.Key{
+		ebiten.KeyArrowDown, ebiten.KeyArrowDown, ebiten.KeyArrowDown, ebiten.KeyArrowDown, // to 4
+		ebiten.KeyArrowUp, ebiten.KeyArrowUp, ebiten.KeyArrowUp, // back to 1
+		ebiten.KeyArrowUp, ebiten.KeyArrowUp, // to 0, then round to 5
+	} {
+		steps = append(steps, input.Press(k), input.Idle(1))
+	}
+	in := feed(steps...)
+	want := []struct{ cursor, first int }{
+		{1, 0}, {2, 0}, {3, 1}, {4, 2},
+		{3, 2}, {2, 2}, {1, 1},
+		{0, 0}, {5, 3},
+	}
+	for i, w := range want {
+		for range 2 {
+			in.Update()
+			m.Update(in)
+		}
+		if m.Cursor != w.cursor || m.First() != w.first {
+			t.Fatalf("move %d: cursor %d, first %d; want %d, %d", i, m.Cursor, m.First(), w.cursor, w.first)
+		}
+	}
+	if !m.Scrolls() || m.Shown() != 3 {
+		t.Errorf("scrolls %v, shows %d: want 3 of 6", m.Scrolls(), m.Shown())
+	}
+	short := &Menu{Rows: 8, Items: m.Items}
+	if short.Scrolls() || short.Shown() != 6 || short.First() != 0 {
+		t.Errorf("a menu shorter than Rows: scrolls %v, shows %d", short.Scrolls(), short.Shown())
+	}
+}

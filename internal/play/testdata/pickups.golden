@@ -1,0 +1,9 @@
+tick 542: fruit in nook 4
+tick 574: firefly comes in at x -24
+tick 643: firefly lands in row 5 at x 122
+tick 771: firefly caught, 4 lives
+tick 1067: fruit taken, 800 points
+grid 26x13  mode stroll  level 8
+tick 1617  ticks left 1341
+score 4170  lives 4
+hero cell 3,0  at 1152,0  facing up  hopping false

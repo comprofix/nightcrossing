@@ -58,8 +58,9 @@ func (s *Intro) Draw(ctx *Context, dst *ebiten.Image) {
 	for _, n := range m.New {
 		w = max(w, descX+f.Small.Width(n.Desc))
 	}
-	also := strings.Join(m.Also, ", ")
-	w = max(w, 2*f.Small.Size+f.Small.Width(also))
+	for _, a := range m.Also {
+		w = max(w, 2*f.Small.Size+f.Small.Width(a))
+	}
 	x := (config.Project.ScreenWidth - w) / 2
 
 	f.Small.DrawShadowed(dst, "NEW IN THIS MODE", x, y, sc.Title, sc.Shadow)
@@ -74,8 +75,10 @@ func (s *Intro) Draw(ctx *Context, dst *ebiten.Image) {
 		y += line
 		f.Small.DrawShadowed(dst, "ALSO", x, y, sc.Title, sc.Shadow)
 		y += line
-		f.Small.DrawShadowed(dst, also, x+2*f.Small.Size, y, sc.Text, sc.Shadow)
-		y += line
+		for _, a := range m.Also {
+			f.Small.DrawShadowed(dst, a, x+2*f.Small.Size, y, sc.Text, sc.Shadow)
+			y += line
+		}
 	}
 
 	y += line

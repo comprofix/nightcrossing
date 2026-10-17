@@ -15,7 +15,7 @@ type Mode struct {
 	Name   string     // shown in menus
 	Desc   string     // one line, under the MODE menu and on the intro
 	New    []Mechanic // what this mode brings, for the intro
-	Also   []string   // what carries over from the modes before it
+	Also   []string   // what carries over from the modes before it, a line each
 	Levels ModeLevels // its levels and loops
 }
 
@@ -30,6 +30,8 @@ var Stroll = Mode{
 		{"Lily pads", "they dive when they flash"},
 		{"Sinking ships", "run to the stern or hop off"},
 		{"Herons", "don't land on one"},
+		{"Fruit", "fill its nook for a bonus"},
+		{"Fireflies", "catch one for an extra life"},
 	},
 	Levels: StrollLevels,
 }
@@ -50,7 +52,7 @@ var LastTrain = Mode{
 		{"Hop combo", "keep hopping forward for x2, x3, x4"},
 		{"Day and night", "dawn to night as you fill the nooks"},
 	},
-	Also:   []string{"Road, river, diving platforms, herons"},
+	Also:   []string{"Road, river, diving platforms, herons", PickupsAlso},
 	Levels: lastTrainLevels(),
 }
 
@@ -86,7 +88,7 @@ var RushHour = Mode{
 		{"Fog", "it hides the cars: watch for headlights"},
 		{"Rain", "on the road you slide one more cell"},
 	},
-	Also:   []string{"Everything in Stroll and Last Train"},
+	Also:   []string{"Everything in Stroll and Last Train", PickupsAlso},
 	Levels: rushHourLevels(),
 }
 
