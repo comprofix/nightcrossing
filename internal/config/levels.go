@@ -79,6 +79,15 @@ type Lane struct {
 	Dir     int     // +1 moves right, -1 moves left
 	Speed   int     // SubPx units per tick: at 100% in a layout, as it runs in a Level
 	Pattern []Spawn // repeated along the lane
+	Current int     // how fast a river row's current slides the hero along a platform, in SubPx units per tick: + with the row's flow, - against it; 0 for none (D46)
+}
+
+// Current is a river row's current on a level (D46, D50): Push is its
+// strength in SubPx units per tick at 100% speed, + with the row's flow
+// and - against it.
+type Current struct {
+	Row  int
+	Push int
 }
 
 // Layout is a hand-written set of lanes, top to bottom, at 100% speed
@@ -97,8 +106,9 @@ type LevelDef struct {
 	Layout   *Layout
 	SpeedPct int
 	GapPct   int
-	HeronPct int    // the chance, per log, that a heron stands on it (D34)
-	Hint     string // shown when the level starts, for a new mechanic
+	HeronPct int       // the chance, per log, that a heron stands on it (D34)
+	Hint     string    // shown when the level starts, for a new mechanic
+	Currents []Current // the river rows with a current (D46, D50)
 }
 
 // Level is a level as it is played: its lanes at their real speeds and
@@ -136,7 +146,8 @@ func (m ModeLevels) Def(n int) (def LevelDef, speedPct int) {
 	k := n - last - 1 // levels played since the loops began
 	d := m.Levels[last-LoopLevels+k%LoopLevels]
 	d.GapPct = m.Levels[last-1].GapPct
-	d.Hint = "" // each hint shows once, on the level that brings it in
+	d.Currents = m.Levels[last-1].Currents // the loops keep the last level's currents (D50)
+	d.Hint = ""                            // each hint shows once, on the level that brings it in
 	return d, min(d.SpeedPct+(k/LoopLevels+1)*LoopSpeedStepPct, m.CeilingPct)
 }
 
@@ -177,5 +188,19 @@ func (m ModeLevels) Level(n int) Level {
 		}
 		lv.Lanes[r] = l
 	}
+	for _, c := range def.Currents {
+		lv.Lanes[c.Row].Current = scaleSigned(c.Push, speed)
+	}
 	return lv
+}
+
+// scaleSigned is v at pct%, keeping its sign and never rounding to 0.
+func scaleSigned(v, pct int) int {
+	switch {
+	case v > 0:
+		return max(1, v*pct/100)
+	case v < 0:
+		return -max(1, -v*pct/100)
+	}
+	return 0
 }

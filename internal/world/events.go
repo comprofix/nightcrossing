@@ -25,6 +25,32 @@ type Spell struct {
 	Phase  SpellPhase
 	Left   int // ticks left of this phase
 	Lane   int // the wave's road row, from its warning to its end
+	Dir    int // the way a gust spell pushes, from its warning to its end: -1 left, +1 right (D47)
+}
+
+// NextPush is how many ticks until a gust spell's next push, or -1 if it
+// pushes no more: it pushes every Beat ticks while it is on (D47).
+func (s *Spell) NextPush() int {
+	beat := s.Timing.Beat
+	if s.Kind != config.Gust || beat <= 0 {
+		return -1
+	}
+	switch s.Phase {
+	case SpellWarning:
+		if beat < s.Timing.Last {
+			return s.Left + beat
+		}
+	case SpellOn:
+		if n := beat - (s.Timing.Last-s.Left)%beat; n < s.Left {
+			return n
+		}
+	}
+	return -1 // quiet, or the spell ends first
+}
+
+// pushesNow reports whether a gust spell pushes this tick.
+func (s *Spell) pushesNow() bool {
+	return s.Phase == SpellOn && s.Kind == config.Gust && s.Timing.Beat > 0 && (s.Timing.Last-s.Left)%s.Timing.Beat == 0
 }
 
 // newSpells are the level's random events, each starting with a quiet.
@@ -61,11 +87,15 @@ func (w *World) Spell(k config.EventKind) *Spell {
 }
 
 // updateSpells runs each random event one tick: its quiet, its warning,
-// then the event itself, giving out the events for each change.
+// then the event itself, giving out the events for each change. A gust
+// spell pushes the hero on its beat while it is on.
 func (w *World) updateSpells() {
 	for i := range w.Spells {
 		s := &w.Spells[i]
 		if s.Left--; s.Left > 0 {
+			if s.pushesNow() {
+				w.gust(s.Dir)
+			}
 			continue
 		}
 		switch s.Phase {
@@ -93,6 +123,10 @@ func (w *World) warn(s *Spell) {
 		s.Left = config.EventRetryTicks // one weather at a time (D42)
 		return
 	}
+	if config.Events[s.Kind].Big && w.bigBut(s.Kind) {
+		s.Left = config.EventRetryTicks // one big event at a time (D48)
+		return
+	}
 	switch s.Kind {
 	case config.Wave:
 		var lanes []int
@@ -111,6 +145,12 @@ func (w *World) warn(s *Spell) {
 		w.emit(FogWarning)
 	case config.Rain:
 		w.emit(RainWarning)
+	case config.Gust:
+		s.Dir = 1
+		if w.rng.IntN(2) == 0 {
+			s.Dir = -1
+		}
+		w.emit(GustWarning)
 	}
 	s.Phase, s.Left = SpellWarning, config.Events[s.Kind].WarnTicks
 }
@@ -125,6 +165,8 @@ func (w *World) start(s *Spell) {
 		w.emit(FogStart)
 	case config.Rain:
 		w.emit(RainStart)
+	case config.Gust:
+		w.emit(GustStart)
 	}
 }
 
@@ -138,7 +180,28 @@ func (w *World) end(s *Spell) {
 		w.emit(FogEnd)
 	case config.Rain:
 		w.emit(RainEnd)
+	case config.Gust:
+		w.emit(GustEnd)
 	}
+}
+
+// gust pushes the hero one cell dir, now if it is still or when it next
+// lands (D47). A hero dying or home in a nook is not pushed.
+func (w *World) gust(dir int) {
+	if w.playing() {
+		w.push = dir
+	}
+}
+
+// bigBut reports whether a big event other than k is announced or on: a
+// wave, a gust spell and a flood never overlap (D48).
+func (w *World) bigBut(k config.EventKind) bool {
+	for _, s := range w.Spells {
+		if s.Kind != k && config.Events[s.Kind].Big && s.Phase != SpellQuiet {
+			return true
+		}
+	}
+	return false
 }
 
 // rushHour reports whether it is dawn or dusk on a level with the day and

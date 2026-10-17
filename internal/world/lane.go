@@ -22,6 +22,7 @@ type Lane struct {
 	Entities []Entity
 	HeronPct int  // the chance a log coming on has a heron (DESIGN §5.2, D34)
 	Waving   bool // a rush hour wave is on: its vehicles come on as they come round (D43)
+	Current  int  // the current's slide along a platform, SubPx units per tick: + with the flow, - against (D46)
 
 	lastHeron bool // the last log to come on had a heron
 }
@@ -77,7 +78,7 @@ const fieldWidth = config.Cols * config.Cell * config.SubPx
 // platform starts at a random point in its cycle, so they don't all go
 // under together.
 func newLane(l config.Lane, heronPct int, waves bool, rng *rand.Rand) Lane {
-	lane := Lane{Kind: l.Kind, Dir: l.Dir, Speed: l.Speed, HeronPct: heronPct}
+	lane := Lane{Kind: l.Kind, Dir: l.Dir, Speed: l.Speed, HeronPct: heronPct, Current: l.Current}
 	if len(l.Pattern) == 0 {
 		return lane
 	}
@@ -167,6 +168,11 @@ func (e *Entity) updateSink(rng *rand.Rand) {
 // Step is how far the lane moves things in one tick, in SubPx units, with
 // its direction's sign.
 func (l *Lane) Step() int { return l.Dir * l.Speed }
+
+// Slide is how far the lane's current moves a hero on one of its
+// platforms in one tick, on top of the platform's own Step, in SubPx units
+// with its direction's sign (D46).
+func (l *Lane) Slide() int { return l.Dir * l.Current }
 
 // X is where e's left end is, from the field's left edge, in SubPx units.
 func (e Entity) X() int { return e.U - Buffer }

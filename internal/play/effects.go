@@ -37,6 +37,8 @@ var (
 		Colours: colours(resurrect64.Gold, resurrect64.Lemon, resurrect64.Honey)}
 	skidSpray = fx.Burst{Count: 12, Speed: 1.6, Up: 0.8, Gravity: 0.1, Drag: 0.9, Life: 20, Size: 1,
 		Colours: colours(resurrect64.Sky, resurrect64.Mist, resurrect64.Fog)}
+	windPuff = fx.Burst{Count: 10, Speed: 1.4, Drag: 0.9, Life: 18, Size: 1,
+		Colours: colours(resurrect64.Mist, resurrect64.Fog, resurrect64.White)}
 	oneUpSparkles = fx.Burst{Count: 14, Speed: 1.1, Up: 1, Gravity: 0.02, Drag: 0.95, Life: 40, Size: 1,
 		Colours: colours(resurrect64.Leaf, resurrect64.Lime, resurrect64.White)}
 )
@@ -75,6 +77,12 @@ func (p *Play) effects(e world.Event) {
 		}
 	case world.Slid:
 		p.parts.Emit(at(skidSpray, x, y)) // the rain slide's skid (D31)
+	case world.Pushed:
+		b := at(windPuff, x, y) // a gust's push (D47)
+		if s := w.Spell(config.Gust); s != nil {
+			b.X -= float64(s.Dir * config.Cell / 2) // from the side the wind blows from
+		}
+		p.parts.Emit(b)
 	case world.ExtraLife:
 		p.parts.Emit(at(oneUpSparkles, x, y))
 	}
@@ -86,6 +94,7 @@ func (p *Play) updateEffects() {
 	p.updatePops()
 	p.updateSky()
 	p.updateWeather()
+	p.updateWind()
 	for i := range p.nookGlow {
 		p.nookGlow[i] = max(p.nookGlow[i]-1, 0)
 	}

@@ -49,6 +49,7 @@ type Player struct {
 	Still    int   // ticks since the last landing, up to config.LandTicks
 	Death    Event // how the hero died, or 0 while alive
 	Sliding  bool  // the move under way is a rain slide, not a hop (D31)
+	Pushed   bool  // the move under way is a gust's push, not a hop (D47)
 
 	fromX, toX int // where the current hop began and lands, in SubPx units
 	hopLeft    int // ticks left in the current hop; 0 when not hopping
@@ -115,6 +116,9 @@ func floorDiv(a, b int) int {
 // latest such press wins. Hops that would leave the playfield are ignored.
 func (w *World) updatePlayer(press Dir) {
 	p := &w.Player
+	if w.push != 0 && !p.Hopping() {
+		w.pushHero() // a press this tick comes mid-push, as mid-hop (D47)
+	}
 	if press != None {
 		switch {
 		case !p.Hopping():
@@ -135,19 +139,25 @@ func (w *World) updatePlayer(press Dir) {
 	p.FromRow = p.Row
 	p.fromX = p.toX
 	p.Still = 0
-	slid := p.Sliding
+	slid, pushed := p.Sliding, p.Pushed
 	w.emit(Landed)
 	w.landed()
-	p.Sliding = false
+	p.Sliding, p.Pushed = false, false
 	// Where it landed counts before a queued hop can carry it on, so a
 	// quick press never skips a splash or the bank.
 	w.checkHazards()
 	// In the rain a hop that lands on the road slides one more cell the
-	// same way; a slide never slides again (D31).
-	if !slid && w.playing() && w.Raining() && w.Lanes[p.Row].Kind == config.Road {
+	// same way; a slide never slides again, and a gust's push never slides
+	// (D31, D47).
+	if !slid && !pushed && w.playing() && w.Raining() && w.Lanes[p.Row].Kind == config.Road {
 		if w.move(p.Facing, true) {
 			return
 		}
+	}
+	// A gust's push that came mid-hop waits for the landing, and goes
+	// before a queued press (D47).
+	if w.push != 0 && w.playing() && w.pushHero() {
+		return
 	}
 	if d := p.queued; d != None && w.playing() {
 		p.queued = None
@@ -179,11 +189,8 @@ func (w *World) move(d Dir, slide bool) bool {
 	if m := x + cellUnits/2; m < 0 || m >= fieldWidth {
 		return false
 	}
-	p.FromRow, p.Row = p.Row, row
-	p.fromX, p.toX = p.X, x
-	p.hopLeft = config.HopTicks
+	p.begin(row, x)
 	p.Sliding = slide
-	p.place()
 	if slide {
 		w.emit(Slid)
 		return true
@@ -196,9 +203,46 @@ func (w *World) move(d Dir, slide bool) bool {
 	return true
 }
 
+// begin starts a move to row at x, taking a hop's time.
+func (p *Player) begin(row, x int) {
+	p.FromRow, p.Row = p.Row, row
+	p.fromX, p.toX = p.X, x
+	p.hopLeft = config.HopTicks
+	p.place()
+}
+
+// pushHero carries out the gust's waiting push, and reports whether it
+// began (D47). It moves the hero exactly one cell sideways in a hop's
+// time, but is not a hop: it keeps the facing and the combo. On land it
+// keeps to the grid and doesn't happen at the field's edge; on a platform
+// it drifts along it and stops at the edge.
+func (w *World) pushHero() bool {
+	p := &w.Player
+	d := w.push
+	w.push = 0
+	var x int
+	if w.Lanes[p.Row].Kind == config.River {
+		x = min(max(p.X+d*cellUnits, -cellUnits/2), fieldWidth-1-cellUnits/2)
+		if x == p.X {
+			return false
+		}
+	} else {
+		x = (columnOf(p.X) + d) * cellUnits
+		if m := x + cellUnits/2; m < 0 || m >= fieldWidth {
+			return false
+		}
+	}
+	p.begin(p.Row, x)
+	p.Pushed = true
+	w.emit(Pushed)
+	return true
+}
+
 // ride carries the hero with the river row it counts as being in
 // (DESIGN §5.2). A hop that lands on the river is carried along with it;
-// one that lands off the river still lands on its column.
+// one that lands off the river still lands on its column. Landed on a row
+// with a current, or being pushed along it by a gust, the hero also
+// slides along its platform; mid-hop the current does nothing (D46, D47).
 func (w *World) ride() {
 	p := &w.Player
 	lane := &w.Lanes[p.LaneRow()]
@@ -206,6 +250,9 @@ func (w *World) ride() {
 		return
 	}
 	step := lane.Step()
+	if !p.Hopping() || p.Pushed {
+		step += lane.Slide()
+	}
 	p.fromX += step
 	if !p.Hopping() || w.Lanes[p.Row].Kind == config.River {
 		p.toX += step

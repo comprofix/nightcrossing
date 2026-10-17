@@ -12,15 +12,18 @@ const (
 	Wave EventKind = iota // a rush hour wave on one road lane (D43)
 	Fog                   // fog over the road (D29, D44)
 	Rain                  // rain: the road is slippery (D31, D44)
+	Gust                  // a gust spell: the wind pushes the hero one cell at a time (D47)
 	NumEventKinds
 )
 
 // EventTiming is how one kind of event runs on a level: the quiet between
-// them, a random length from QuietMin to QuietMax ticks, and how long each
-// lasts. A zero QuietMax means the event is off.
+// them, a random length from QuietMin to QuietMax ticks, how long each
+// lasts, and for a gust spell the ticks between its pushes (D47). A zero
+// QuietMax means the event is off.
 type EventTiming struct {
 	QuietMin, QuietMax int
 	Last               int
+	Beat               int
 }
 
 // On reports whether the event runs at all.
@@ -33,6 +36,7 @@ type EventDef struct {
 	WarnTicks  int
 	Message    string
 	Weather    bool // only one weather at a time (D42)
+	Big        bool // only one big event at a time: a wave, a gust spell or a flood (D48)
 	First, Top EventTiming
 }
 
@@ -41,6 +45,7 @@ var Events = [NumEventKinds]EventDef{
 	Wave: {
 		WarnTicks: 2 * TPS,
 		Message:   "TRAFFIC BUILDING: A RUSH IS COMING",
+		Big:       true,
 		First:     EventTiming{QuietMin: 16 * TPS, QuietMax: 22 * TPS, Last: 8 * TPS},
 		Top:       EventTiming{QuietMin: 7 * TPS, QuietMax: 11 * TPS, Last: 12 * TPS},
 	},
@@ -58,7 +63,31 @@ var Events = [NumEventKinds]EventDef{
 		First:     EventTiming{QuietMin: 24 * TPS, QuietMax: 32 * TPS, Last: 10 * TPS},
 		Top:       EventTiming{QuietMin: 14 * TPS, QuietMax: 20 * TPS, Last: 14 * TPS},
 	},
+	Gust: {
+		WarnTicks: 2 * TPS,
+		Message:   GustMessages[1], // each spell shows its own direction: see GustMessage
+		Big:       true,
+		First:     EventTiming{QuietMin: 20 * TPS, QuietMax: 28 * TPS, Last: 8 * TPS, Beat: 3 * TPS},
+		Top:       EventTiming{QuietMin: 12 * TPS, QuietMax: 18 * TPS, Last: 12 * TPS, Beat: 2 * TPS},
+	},
 }
+
+// GustMessages are a gust spell's warnings, by the way it blows: a wind
+// from the east pushes the hero west (left), one from the west east (D47).
+var GustMessages = [2]string{"GUSTS FROM THE EAST", "GUSTS FROM THE WEST"}
+
+// GustMessage is the warning for a gust spell that pushes the hero dir:
+// -1 left, +1 right.
+func GustMessage(dir int) string {
+	if dir < 0 {
+		return GustMessages[0]
+	}
+	return GustMessages[1]
+}
+
+// GustTellTicks is how long the wind streaks build before each push, so a
+// push is never a surprise (D47).
+const GustTellTicks = TPS / 2
 
 // EventTopLevel is the level events reach their most often and longest on,
 // as the trains do (D17, D41).
@@ -78,6 +107,7 @@ func EventsOn(k EventKind, from, n int) EventTiming {
 		QuietMin: at(d.First.QuietMin, d.Top.QuietMin),
 		QuietMax: at(d.First.QuietMax, d.Top.QuietMax),
 		Last:     at(d.First.Last, d.Top.Last),
+		Beat:     at(d.First.Beat, d.Top.Beat),
 	}
 }
 
@@ -87,7 +117,7 @@ func EventsOn(k EventKind, from, n int) EventTiming {
 const LevelCalmTicks = 6 * TPS
 
 // EventRetryTicks is how soon an event that could not start yet (the calm
-// start, or another weather on) tries again.
+// start, another weather on, or another big event on) tries again.
 const EventRetryTicks = TPS
 
 // WaveRushPct shortens the quiet between waves at dawn and dusk, the

@@ -46,6 +46,10 @@ const (
 	RainStart                     // it rains: the road is slippery
 	RainEnd                       // the rain stops
 	Slid                          // the hero began a rain slide (D31)
+	GustWarning                   // a gust spell is announced, with its direction (D47)
+	GustStart                     // the gust spell begins
+	GustEnd                       // the gust spell ends
+	Pushed                        // a gust pushed the hero one cell (D47)
 )
 
 // Stats are the points earned on this level, for the level-clear tally.
@@ -78,6 +82,7 @@ type World struct {
 	Gained     int   // points multiplied by the combo this tick, for the pop-ups
 
 	furthest int // the furthest row reached this attempt
+	push     int // a gust's push waiting for the hero to land: -1 left, +1 right; 0 for none (D47)
 	rng      *rand.Rand
 	events   []Event
 }
@@ -107,6 +112,7 @@ func (w *World) newAttempt() {
 	w.TicksLeft = w.Level.TimerTicks
 	w.furthest = config.StartRow
 	w.Combo = Combo{}
+	w.push = 0
 }
 
 // Update advances the world by one tick. press is the direction pressed
@@ -280,6 +286,7 @@ func (w *World) die(how Event) {
 	w.Player.Death = how
 	w.Player.queued = None
 	w.Combo = Combo{}
+	w.push = 0
 	w.Dying = config.DeathTicks
 	w.Session.LoseLife()
 	w.emit(how)

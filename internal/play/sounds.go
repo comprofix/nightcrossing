@@ -124,6 +124,17 @@ var (
 		Voice: audio.Voice{Wave: audio.Noise, Decay: audio.Ticks(10), Release: audio.Ticks(2), Volume: 0.6},
 		Notes: []audio.Note{{Hz: 5000, Dur: audio.Ticks(3)}, {Hz: 3000, Dur: audio.Ticks(5)}},
 	}}
+	// Howl is a gust spell being announced (D47): the wind rising, holding
+	// and dying away, a long breath of noise.
+	Howl = &audio.Effect{Name: "gust howl", Channel: 3, Priority: 3, Part: audio.Part{
+		Voice: audio.Voice{Wave: audio.Noise, Attack: audio.Ticks(24), Sustain: 0.8, Release: audio.Ticks(30), Volume: 0.6},
+		Notes: []audio.Note{{Hz: 500, Dur: audio.Ticks(20)}, {Hz: 800, Dur: audio.Ticks(30)}, {Hz: 650, Dur: audio.Ticks(30)}, {Hz: 420, Dur: audio.Ticks(30)}},
+	}}
+	// Whoosh is a gust pushing the hero a cell (D47): a quick rush of air.
+	Whoosh = &audio.Effect{Name: "whoosh", Channel: 3, Priority: 3, Part: audio.Part{
+		Voice: audio.Voice{Wave: audio.Noise, Attack: audio.Ticks(3), Decay: audio.Ticks(12), Release: audio.Ticks(4), Volume: 0.6},
+		Notes: []audio.Note{{Hz: 1200, Dur: audio.Ticks(3)}, {Hz: 2200, Dur: audio.Ticks(5)}, {Hz: 1400, Dur: audio.Ticks(8)}},
+	}}
 	// Squawk is a heron catching the hero: a harsh falling cry.
 	Squawk = &audio.Effect{Name: "squawk", Channel: 1, Priority: 4, Part: audio.Part{
 		Voice: audio.Voice{Wave: audio.Pulse12, Decay: audio.Ticks(16), Sustain: 0.3, Release: audio.Ticks(6), Volume: 0.7},
@@ -134,7 +145,7 @@ var (
 // Sounds are the game's tunes and effects, listed for the sound test.
 var Sounds = audio.Bank{
 	Tunes:   []*audio.Tune{NightTitle, Stroll, LevelClearJingle, GameOverJingle, HighScores},
-	Effects: []*audio.Effect{ToadHop, Crash, Bump, Splash, Bubbles, Squawk, Home, OneUp, TimeLow, TimeUp, Bell, Horn, HornLow, Rumble, TrainCrash, ComboUp, HornChorus, HornChorusLow, FogHorn, Thunder, Skid},
+	Effects: []*audio.Effect{ToadHop, Crash, Bump, Splash, Bubbles, Squawk, Home, OneUp, TimeLow, TimeUp, Bell, Horn, HornLow, Rumble, TrainCrash, ComboUp, HornChorus, HornChorusLow, FogHorn, Thunder, Skid, Howl, Whoosh},
 }
 
 // soundsFor is the effects an event plays (DESIGN §3.4). The level clear
@@ -166,6 +177,10 @@ func (p *Play) soundsFor(e world.Event) []*audio.Effect {
 		return []*audio.Effect{Thunder}
 	case world.Slid:
 		return []*audio.Effect{Skid}
+	case world.GustWarning:
+		return []*audio.Effect{Howl}
+	case world.Pushed:
+		return []*audio.Effect{Whoosh}
 	case world.TimeUp:
 		return []*audio.Effect{TimeUp}
 	case world.LowTime:

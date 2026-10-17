@@ -55,8 +55,8 @@ func TestEveryEventHasASound(t *testing.T) {
 	quiet := map[world.Event]bool{world.Landed: true, world.Respawned: true, world.LevelClear: true, world.GameOver: true,
 		world.TrainWarning: true, world.TrainGone: true,
 		world.WaveStart: true, world.WaveEnd: true, world.FogStart: true, world.FogEnd: true,
-		world.RainStart: true, world.RainEnd: true}
-	for e := world.Hopped; e <= world.Slid; e++ {
+		world.RainStart: true, world.RainEnd: true, world.GustStart: true, world.GustEnd: true}
+	for e := world.Hopped; e <= world.Pushed; e++ {
 		got := p.soundsFor(e)
 		switch {
 		case quiet[e] && len(got) > 0:

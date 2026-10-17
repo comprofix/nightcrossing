@@ -67,6 +67,7 @@ type Play struct {
 	overcast int                    // how far fog or rain has dimmed the light, in ticks (D44)
 	fogIn    int                    // how far the fog is in, in ticks
 	rainIn   int                    // how far the rain is in, in ticks
+	windIn   int                    // how far a gust spell's wind is in, in ticks (D47)
 	fogImg   *ebiten.Image          // a drawing buffer: one fog patch
 }
 

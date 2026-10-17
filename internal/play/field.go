@@ -113,6 +113,7 @@ func (p *Play) drawField(ctx *scene.Context, dst *ebiten.Image) {
 	p.drawSignals(ctx, field)
 	for r := range w.Lanes {
 		if w.Lanes[r].Kind == config.River {
+			p.drawCurrent(field, r)
 			p.drawWakes(field, r)
 		}
 	}
@@ -131,6 +132,7 @@ func (p *Play) drawField(ctx *scene.Context, dst *ebiten.Image) {
 		p.drawOutlines(ctx, out)
 	}
 	p.drawRain(out)
+	p.drawWind(out)
 	p.parts.Draw(out, 0, 0)
 	if debug.Enabled {
 		p.drawHitBoxes(ctx, out)
@@ -260,8 +262,8 @@ func (p *Play) drawHero(ctx *scene.Context, dst *ebiten.Image) {
 	switch {
 	case pl.Death != 0:
 		frame = frameSquashed
-	case pl.Sliding:
-		frame = frameLand // a skid, feet down: no leap (D31)
+	case pl.Sliding, pl.Pushed:
+		frame = frameLand // a skid or a gust's push, feet down: no leap (D31, D47)
 	case pl.Hopping():
 		frame = hopFrames[max(pl.HopProgress()-1, 0)] // a queued hop can show at 0
 		lift = p.heroLift()
@@ -373,7 +375,7 @@ const lampHeadY = 3
 // heroLift is how high the hero is off the ground mid-hop, in pixels.
 func (p *Play) heroLift() float64 {
 	pl := &p.world.Player
-	if !pl.Hopping() || pl.Sliding || pl.Death != 0 {
+	if !pl.Hopping() || pl.Sliding || pl.Pushed || pl.Death != 0 {
 		return 0
 	}
 	t := float64(pl.HopProgress()) / config.HopTicks
