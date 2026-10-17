@@ -27,7 +27,8 @@ func (w *World) Clone(rng *rand.Rand) *World {
 // hop it tries every move config.DemoLookahead moves ahead on copies of the
 // world, and takes the first move of the line that gets furthest toward an
 // empty nook without dying. A toadlet's death counts as the hero's, so it
-// escorts a line of them (D53, D55).
+// escorts a line of them (D53, D55). A firefly caught on the way counts
+// for a few rows, so it takes one its route can reach (D58).
 type Autopilot struct{}
 
 // moves are the autopilot's moves, best first: on a tie the earlier wins.
@@ -45,7 +46,7 @@ func (Autopilot) Next(w *World) Dir {
 	best, bestV := None, dead-1
 	for _, d := range moves {
 		c := w.Clone(rand.New(rand.NewPCG(uint64(w.Tick), 0)))
-		if v := value(c, d, config.DemoLookahead); v > bestV {
+		if v := value(c, d, config.DemoLookahead, w.Stats.Fireflies); v > bestV {
 			best, bestV = d, v
 		}
 	}
@@ -53,13 +54,15 @@ func (Autopilot) Next(w *World) Dir {
 }
 
 // value plays move d on w, then the best of depth-1 more moves, and is how
-// good the best line is. w is changed.
-func value(w *World, d Dir, depth int) int {
+// good the best line is. caught is how many fireflies were caught before
+// the line began. w is changed.
+func value(w *World, d Dir, depth, caught int) int {
 	if t, ok := step(w, d); !ok {
 		return dead + t
 	}
+	bonus := (w.Stats.Fireflies - caught) * config.DemoFirefly * config.Cols * 2
 	if w.Home > 0 || w.Cleared {
-		return 1000 * config.Rows // a nook filled: as good as it gets
+		return 1000*config.Rows + bonus // a nook filled: as good as it gets
 	}
 	if depth == 1 {
 		for t := range config.DemoTailTicks {
@@ -67,11 +70,11 @@ func value(w *World, d Dir, depth int) int {
 				return dead + config.DemoTailTicks*config.DemoLookahead + t
 			}
 		}
-		return progress(w)
+		return progress(w) + bonus
 	}
 	best := dead - 1
 	for _, d := range moves {
-		best = max(best, value(w.Clone(w.rng), d, depth-1))
+		best = max(best, value(w.Clone(w.rng), d, depth-1, caught))
 	}
 	return best
 }

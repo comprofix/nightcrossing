@@ -126,6 +126,10 @@ type Level struct {
 	FirstStorm StormKind                  // the kind of the level's first storm, to teach it; AnyStorm for the mix (D51)
 	Storms     StormKind                  // every storm this kind, for testing (-storm, D52); AnyStorm for the mix
 	Toadlets   int                        // the toadlets that follow the hero (D53)
+	FireflyPct int                        // the chance of a firefly in a crossing; 0 for none (D58)
+	FireflyOn  [NumHosts]bool             // the platforms a firefly can ride (D60)
+	FruitPts   int                        // what fruit in a nook is worth; 0 for no fruit (D59)
+	Fruit      int                        // which of Fruits it is
 	TimerTicks int                        // the time for each attempt
 	Hint       string
 }
@@ -168,6 +172,9 @@ type ModeLevels struct {
 	QuietPct   [NumEventKinds]int // each event's quiet at this % of its usual; 0 for 100 (D45)
 	WindFrom   int                // the first level with dry storms; 0 for none (D47, D51)
 	FloodFrom  int                // the first level with floods in wet storms; 0 for none (D48)
+
+	FruitFrom   int           // the first level with fruit in the nooks; 0 for none (D59, D60)
+	FireflyFrom [NumHosts]int // the first level with a firefly on each kind of platform; 0 for none (D58, D60)
 }
 
 // Level is level n (1 for the first) as it is played.
@@ -178,6 +185,17 @@ func (m ModeLevels) Level(n int) Level {
 	if m.Trains {
 		lv.Train = TrainsOn(n)
 	}
+	last := len(m.Levels)
+	if lv.FruitPts = FruitPoints(m.FruitFrom, last, n); lv.FruitPts > 0 {
+		lv.Fruit = FruitOf(n)
+	}
+	first := 0 // the first level with a firefly on any platform
+	for h, from := range m.FireflyFrom {
+		if lv.FireflyOn[h] = from > 0 && n >= from; from > 0 && (first == 0 || from < first) {
+			first = from
+		}
+	}
+	lv.FireflyPct = FireflyPct(first, n)
 	lv.Combo = m.ComboFrom > 0 && n >= m.ComboFrom
 	lv.DayCycle = m.CycleFrom > 0 && n >= m.CycleFrom
 	for k := range lv.Events {

@@ -29,8 +29,7 @@ const Sheet = "nightcrossing"
 const (
 	hudHiX     = 136
 	hudLevelX  = 240
-	hudLivesX  = 304
-	hudLivesW  = 100 // room for the lives before the combo and the timer
+	hudLivesX  = 296 // room for config.MaxLives lives before the combo (D57)
 	hudLifeGap = 2
 	timeBarW   = 120
 	timeBarH   = 8
@@ -159,6 +158,8 @@ func (p *Play) Update(ctx *scene.Context) error {
 			ctx.Shake.Start(shakeTicks, softShakePx)
 		case world.Struck:
 			ctx.Shake.Start(shakeTicks, struckShakePx)
+		case world.ExtraLife:
+			p.popUp("1UP", oneUpLiftPx) // from points or a firefly (D57)
 		case world.TrainComing:
 			ctx.Shake.Start(trainShakeTicks, trainShakePx) // DESIGN §3.3
 		case world.LevelClear:
@@ -181,8 +182,16 @@ func (p *Play) Update(ctx *scene.Context) error {
 // level (DESIGN §7). The points are already in the score; the tally shows
 // where they came from.
 func (p *Play) tally(ctx *scene.Context) scene.Scene {
-	st := p.world.Stats
 	n := p.world.Level.Number
+	return scene.NewTally(fmt.Sprintf("LEVEL %d CLEAR", n), p.tallyLines(), func() scene.Scene {
+		return newLevel(ctx, p.levels, n+1)
+	})
+}
+
+// tallyLines are the tally's lines: one for each kind of points the level
+// can earn.
+func (p *Play) tallyLines() []scene.TallyLine {
+	st := p.world.Stats
 	lines := []scene.TallyLine{
 		{Label: "HOPS", Points: st.Hops},
 		{Label: fmt.Sprintf("HOME %d x %d", st.Goals, config.PointsGoal), Points: st.Goals * config.PointsGoal},
@@ -193,12 +202,16 @@ func (p *Play) tally(ctx *scene.Context) scene.Scene {
 		lines = append(lines, scene.TallyLine{Label: fmt.Sprintf("TOADLETS %d x %d", st.Toadlets, config.PointsToadlet),
 			Points: st.Toadlets * config.PointsToadlet}) // D53
 	}
+	if p.world.Level.FruitPts > 0 {
+		lines = append(lines, scene.TallyLine{Label: "FRUIT", Points: st.Fruit}) // D59
+	}
+	if st.AtCap > 0 {
+		lines = append(lines, scene.TallyLine{Label: "FIREFLY BONUS", Points: st.AtCap}) // fireflies at full lives (D57)
+	}
 	if p.world.Level.Combo {
 		lines = append(lines, scene.TallyLine{Label: "COMBO BONUS", Points: st.Combo})
 	}
-	return scene.NewTally(fmt.Sprintf("LEVEL %d CLEAR", n), lines, func() scene.Scene {
-		return newLevel(ctx, p.levels, n+1)
-	})
+	return lines
 }
 
 // markCleared records the mode as cleared once its last level, level 8,
@@ -279,7 +292,7 @@ func (p *Play) drawHUD(ctx *scene.Context, dst *ebiten.Image) {
 
 	life := ctx.Sheet(Sheet).Sprite("life")
 	ly := float64((config.HUDHeight - life.H) / 2)
-	for i := range min(s.Lives, hudLivesW/(life.W+hudLifeGap)) {
+	for i := range min(s.Lives, config.MaxLives) {
 		life.Draw(dst, 0, float64(hudLivesX+i*(life.W+hudLifeGap)), ly, false)
 	}
 

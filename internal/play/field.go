@@ -131,6 +131,7 @@ func (p *Play) drawField(ctx *scene.Context, dst *ebiten.Image) {
 	p.addLights(ctx, p.light)
 	p.light.Draw(dst, 0, 0)
 	out := dst.SubImage(bounds).(*ebiten.Image)
+	p.drawFlyer(ctx, out)
 	if ctx.Settings.HighContrast {
 		p.drawOutlines(ctx, out)
 	}
@@ -389,6 +390,60 @@ func (p *Play) drawBank(ctx *scene.Context, dst *ebiten.Image, r int) {
 			x := cellX(c) + float64(config.NookWidth*config.Cell-toad.W)/2
 			toad.Draw(dst, frameRest, x, cellY(r), false)
 		}
+	}
+	if n := p.world.FruitNook; n >= 0 {
+		fruit := sheet.Sprite("fruit")
+		x := cellX(config.Nooks[n]) + float64(config.NookWidth*config.Cell-fruit.W)/2
+		fruit.Draw(dst, min(p.world.Level.Fruit, fruit.Frames()-1), x, cellY(r)+float64(config.Cell-fruit.H)/2, false)
+	}
+}
+
+// How the firefly or dragonfly moves its wings and body (D58): a fast
+// beat in flight, a slower flutter and a bob where it has landed.
+const (
+	flyBeatTicks  = 2  // ticks for each frame of the wingbeat in flight
+	perchBeatTick = 5  // and landed
+	bobTicks      = 20 // ticks for each step of the bob, up or down
+	bobPx         = 1
+)
+
+// beat is the wingbeat's frames, round and round: spread, half, folded,
+// half.
+var beat = [...]int{0, 1, 2, 1}
+
+// flyer is the sprite of the firefly or dragonfly visiting, its frame now,
+// where its top-left is drawn, and whether it is mirrored; nil if none is
+// visiting.
+func (p *Play) flyer(ctx *scene.Context) (sp *gfx.Sprite, frame int, x, y float64, flip bool) {
+	f := &p.world.Flyer
+	if !f.Visiting {
+		return nil, 0, 0, 0, false
+	}
+	name := p.hero.Pickup
+	if f.Day {
+		name = p.hero.DayPickup
+	}
+	sp = ctx.Sheet(Sheet).Sprite(name)
+	t, step := int(p.world.Tick), flyBeatTicks
+	if f.Landed {
+		step = perchBeatTick
+	}
+	frame = min(beat[t/step%len(beat)], sp.Frames()-1)
+	x = float64(config.FieldX) + math.Floor(float64(f.X)/config.SubPx) + float64(config.Cell-sp.W)/2
+	y = float64(config.FieldY) + math.Floor(float64(f.Y)/config.SubPx) + float64(config.Cell-sp.H)/2
+	if f.Landed && t/bobTicks%2 == 0 {
+		y -= bobPx
+	}
+	return sp, frame, x, y, f.Facing < 0
+}
+
+// drawFlyer draws the firefly or dragonfly, if one is visiting, above
+// everything on the river: it flies over the hero too (D58). It is drawn
+// after the lighting, in its own colours: a firefly makes its own light,
+// and the night's glow would blur it into a blob.
+func (p *Play) drawFlyer(ctx *scene.Context, dst *ebiten.Image) {
+	if sp, frame, x, y, flip := p.flyer(ctx); sp != nil {
+		sp.Draw(dst, frame, x, y, flip)
 	}
 }
 

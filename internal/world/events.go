@@ -190,13 +190,7 @@ func (w *World) rushHour() bool {
 	if !w.Level.DayCycle {
 		return false
 	}
-	filled := 0
-	for _, f := range w.Filled {
-		if f {
-			filled++
-		}
-	}
-	t := config.DayCycle[filled]
+	t := config.DayCycle[w.filled()]
 	return t == config.Dawn || t == config.Dusk
 }
 
