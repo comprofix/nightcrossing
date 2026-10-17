@@ -36,7 +36,7 @@ var Stroll = Mode{
 
 // Modes are the built modes, in order: only built modes are shown, and the
 // list grows with each version (D26).
-var Modes = []Mode{Stroll, LastTrain, RushHour}
+var Modes = []Mode{Stroll, LastTrain, RushHour, Storm}
 
 // LastTrain is Stroll plus trains on the track, the hop combo and the day
 // and night cycle (DESIGN §6.2). Its own mechanics come in one level at a
@@ -69,8 +69,8 @@ func lastTrainLevels() ModeLevels {
 }
 
 // ModesInProgress are modes being built and not yet in Modes. The -mode
-// flag adds one to the menus, for testing (D37).
-var ModesInProgress = []Mode{Storm}
+// flag adds one to the menus, for testing (D37). None just now.
+var ModesInProgress []Mode
 
 // RushHour is Last Train plus the road in bad weather (DESIGN §6.3): rush
 // hour waves from level 1, fog from level 2 and rain from level 3. It keeps the trains,

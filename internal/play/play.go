@@ -58,17 +58,20 @@ type Play struct {
 	ticks  int // since the level started
 	clear  int // ticks since the level was cleared; 0 until then
 
-	light    *fx.Lighting
-	parts    *fx.Particles
-	nookGlow [len(config.Nooks)]int // ticks left of each nook's flare as a toad arrives
-	outline  *ebiten.Image          // a drawing buffer for high contrast's outlines
-	pops     []pop                  // points popping up over the toad (D38)
-	sky      int                    // where the day and night cycle is (D39; see sky.go)
-	overcast int                    // how far fog or rain has dimmed the light, in ticks (D44)
-	fogIn    int                    // how far the fog is in, in ticks
-	rainIn   int                    // how far the rain is in, in ticks
-	windIn   int                    // how far a gust spell's wind is in, in ticks (D47)
-	fogImg   *ebiten.Image          // a drawing buffer: one fog patch
+	light     *fx.Lighting
+	parts     *fx.Particles
+	nookGlow  [len(config.Nooks)]int // ticks left of each nook's flare as a toad arrives
+	outline   *ebiten.Image          // a drawing buffer for high contrast's outlines
+	pops      []pop                  // points popping up over the toad (D38)
+	sky       int                    // where the day and night cycle is (D39; see sky.go)
+	overcast  int                    // how far fog or rain has dimmed the light, in ticks (D44)
+	fogIn     int                    // how far the fog is in, in ticks
+	rainIn    int                    // how far the rain is in, in ticks
+	windIn    int                    // how far a gust spell's wind is in, in ticks (D47)
+	flash     int                    // ticks since the storm sky's last lightning flash (D49)
+	flashes   int                    // how many flashes this level, for the next one's timing
+	nextFlash int                    // ticks until the next flash
+	fogImg    *ebiten.Image          // a drawing buffer: one fog patch
 }
 
 // New starts a game in a mode, on its first level, or on ctx.StartLevel
@@ -94,14 +97,20 @@ func newPlay(ctx *scene.Context, levels config.ModeLevels, level config.Level) *
 func build(s *session.Session, levels config.ModeLevels, level config.Level, rng *rand.Rand, shaders bool) *Play {
 	w := world.New(s, level, rng)
 	pr := config.Project
-	return &Play{
+	p := &Play{
 		world:  w,
 		hero:   Toad,
 		levels: levels,
 		light:  fx.NewLighting(pr.ScreenWidth, pr.ScreenHeight, shaders),
 		parts:  fx.NewParticles(rand.New(rand.NewPCG(rng.Uint64(), rng.Uint64()))),
 		sky:    skyBefore,
+		flash:  noFlash,
 	}
+	if level.Stormy {
+		p.overcast = config.OvercastTicks // the storm sky is overcast from the start (D49)
+		p.nextFlash = p.flashGap()
+	}
+	return p
 }
 
 // World is the game's state, for tests.
@@ -123,6 +132,9 @@ func (p *Play) Update(ctx *scene.Context) error {
 	}
 	p.ticks++
 	p.updateEffects()
+	if p.thunderNow() {
+		ctx.Audio.PlayEffect(DistantThunder) // a beat after the flash (D49)
+	}
 	if p.clear > 0 {
 		if p.clear++; p.clear > clearTicks {
 			ctx.Switch(p.tally(ctx))

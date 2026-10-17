@@ -245,32 +245,162 @@ func TestNextPush(t *testing.T) {
 	}
 }
 
-// TestOneBigEventAtATime: a wave never starts during a gust spell, nor a
-// gust during a wave (D48).
+// TestOneBigEventAtATime: a wave, a gust spell and a flood never overlap,
+// and each still comes (D48).
 func TestOneBigEventAtATime(t *testing.T) {
 	lv := config.Storm.Levels.Level(config.EventTopLevel)
+	big := []config.EventKind{config.Wave, config.Gust, config.Flood}
 	for seed := uint64(1); seed <= 4; seed++ {
 		w := New(session.New(config.Storm, config.StartLives), lv, rand.New(rand.NewPCG(seed, seed)))
-		gusts := 0
+		came := map[Event]int{}
 		for range 4 * 60 * config.TPS {
 			for _, e := range w.Update(None) {
-				if e == GustStart {
-					gusts++
-				}
+				came[e]++
 			}
 			if w.Dying > 0 {
 				w.Session.Lives = config.StartLives
 			}
-			if w.Over {
-				break
+			on := 0
+			for _, k := range big {
+				if w.Spell(k).Phase != SpellQuiet {
+					on++
+				}
 			}
-			wave, gust := w.Spell(config.Wave), w.Spell(config.Gust)
-			if wave.Phase != SpellQuiet && gust.Phase != SpellQuiet {
-				t.Fatalf("seed %d tick %d: a wave and a gust spell at once", seed, w.Tick)
+			if on > 1 {
+				t.Fatalf("seed %d tick %d: %d big events at once", seed, w.Tick, on)
 			}
 		}
-		if gusts == 0 {
-			t.Errorf("seed %d: no gust spell in four minutes", seed)
+		for _, e := range []Event{WaveStart, GustStart, FloodStart} {
+			if came[e] == 0 {
+				t.Errorf("seed %d: no event %d in four minutes", seed, e)
+			}
 		}
+	}
+}
+
+// TestFloodCells: a flood takes stretches of 2–4 verge cells with at least
+// 3 dry cells between them and at the edges, never more than half the
+// verge, and the same seed floods the same cells (D48).
+func TestFloodCells(t *testing.T) {
+	for n := 4; n <= 14; n++ {
+		for seed := uint64(1); seed <= 40; seed++ {
+			cells := floodCells(n, rand.New(rand.NewPCG(seed, seed)))
+			if again := floodCells(n, rand.New(rand.NewPCG(seed, seed))); again != cells {
+				t.Fatalf("n %d seed %d: the same seed flooded different cells", n, seed)
+			}
+			flooded, run := 0, 0
+			var runs []int // alternating lengths, starting with a dry run
+			wet := false
+			for c, f := range cells {
+				if f {
+					flooded++
+				}
+				if c > 0 && f != wet {
+					runs = append(runs, run)
+					run = 0
+				}
+				wet = f
+				run++
+			}
+			runs = append(runs, run)
+			if cells[0] {
+				runs = append([]int{0}, runs...) // no dry run at the left edge
+			}
+			if flooded == 0 || flooded > min(n, config.FloodMostCells) {
+				t.Fatalf("n %d seed %d: %d cells flooded", n, seed, flooded)
+			}
+			for i, r := range runs {
+				edge := i == 0 || i == len(runs)-1
+				switch {
+				case i%2 == 1 && (r < config.FloodStretchMin || r > config.FloodStretchMax):
+					t.Fatalf("n %d seed %d: a stretch of %d flooded cells: %v", n, seed, r, cells)
+				case i%2 == 0 && r < config.FloodDryMin && !(edge && r == 0):
+					t.Fatalf("n %d seed %d: only %d dry cells between floods: %v", n, seed, r, cells)
+				}
+			}
+		}
+	}
+}
+
+// floodWorld is an all-safe level with a flood forced on over verge
+// columns 10–12, just started, with the hero on the verge at col.
+func floodWorld(col int) *World {
+	w := newWorld(1)
+	s := Spell{Kind: config.Flood, Timing: config.EventsOn(config.Flood, 1, 1), Phase: SpellOn}
+	s.Left = s.Timing.Last
+	for c := 10; c <= 12; c++ {
+		s.Cells[c] = true
+	}
+	w.Spells = []Spell{s}
+	w.Player = newPlayer(col, config.VergeRow)
+	w.furthest = config.VergeRow
+	return w
+}
+
+// TestFloodPuddlesThenWater: flooded cells show puddles and are still dry
+// ground for a second, then are water: a hero standing on one splashes,
+// one on a dry cell beside it doesn't. At the end they drain the same way.
+func TestFloodPuddlesThenWater(t *testing.T) {
+	w := floodWorld(11)
+	run(w, None, config.FloodPuddleTicks-1)
+	if !w.Puddled(11) || w.Flooded(11) || w.Dying > 0 {
+		t.Fatalf("puddled %v flooded %v dying %d: want puddles on dry ground first", w.Puddled(11), w.Flooded(11), w.Dying)
+	}
+	if ev := run(w, None, 2); !slices.Contains(ev, Splashed) {
+		t.Errorf("events %v: want a splash as the water comes", ev)
+	}
+
+	w = floodWorld(9)
+	ev := run(w, None, w.Spells[0].Timing.Last+1)
+	if slices.Contains(ev, Splashed) || w.Puddled(9) || w.Flooded(9) {
+		t.Errorf("a hero beside the flood: events %v", ev)
+	}
+	if count(ev, FloodEnd) != 1 {
+		t.Errorf("events %v: want the flood to end", ev)
+	}
+
+	w = floodWorld(9)
+	s := &w.Spells[0]
+	s.Left = config.FloodPuddleTicks + 1
+	run(w, None, 1)
+	if w.Flooded(10) || !w.Puddled(10) {
+		t.Errorf("draining: flooded %v puddled %v, want puddles again", w.Flooded(10), w.Puddled(10))
+	}
+}
+
+// TestHoppingIntoTheFlood: a hop that lands on flooded verge is a splash;
+// one over it isn't, until it lands.
+func TestHoppingIntoTheFlood(t *testing.T) {
+	w := floodWorld(9)
+	run(w, None, config.FloodPuddleTicks+1)
+	ev := run(w, Right, config.HopTicks/2)
+	if slices.Contains(ev, Splashed) {
+		t.Fatalf("splashed mid-hop: %v", ev)
+	}
+	if ev = run(w, None, config.HopTicks); !slices.Contains(ev, Splashed) {
+		t.Errorf("events %v: want a splash on landing in the flood", ev)
+	}
+}
+
+// TestFloodSurge: the river runs 20% faster in a flood, easing in over a
+// second as it comes and out as it drains, and its current with it.
+func TestFloodSurge(t *testing.T) {
+	w := floodWorld(0)
+	w.Lanes[riverRow] = Lane{Kind: config.River, Dir: -1, Speed: 50, Current: 10}
+	run(w, None, config.FloodSurgeTicks/2)
+	if got := w.Lanes[riverRow].Surge; got <= 0 || got >= config.FloodSurgePct {
+		t.Errorf("half a second in: surge %d%%, want it easing in", got)
+	}
+	run(w, None, config.FloodSurgeTicks)
+	l := &w.Lanes[riverRow]
+	if l.Surge != config.FloodSurgePct || l.Step() != -60 || l.Slide() != -12 {
+		t.Errorf("surge %d%%, step %d, slide %d: want 20%%, -60, -12", l.Surge, l.Step(), l.Slide())
+	}
+	if w.Lanes[config.StartRow].Surge != 0 {
+		t.Error("the flood sped up a lane that isn't river")
+	}
+	run(w, None, w.Spells[0].Left+1)
+	if l.Surge != 0 {
+		t.Errorf("after the flood: surge %d%%", l.Surge)
 	}
 }

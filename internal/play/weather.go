@@ -49,7 +49,7 @@ func (p *Play) updateWeather() {
 		}
 	}
 	fog, rain := p.weatherOn(config.Fog), p.weatherOn(config.Rain)
-	ease(&p.overcast, fog || rain)
+	ease(&p.overcast, fog || rain || p.world.Level.Stormy) // the storm sky is always overcast (D49)
 	ease(&p.fogIn, fog)
 	ease(&p.rainIn, rain)
 }

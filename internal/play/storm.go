@@ -8,6 +8,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/vector"
 
 	"github.com/comprofix/nightcrossing/internal/config"
+	"github.com/comprofix/nightcrossing/internal/fx"
 	"github.com/comprofix/nightcrossing/internal/gfx"
 	"github.com/comprofix/nightcrossing/internal/gfx/palettes/resurrect64"
 	"github.com/comprofix/nightcrossing/internal/world"
@@ -125,6 +126,145 @@ func (p *Play) drawWind(dst *ebiten.Image) {
 			vector.FillRect(dst, x0, y0, part, 1, col, false)
 		}
 	}
+}
+
+// The flood's look on the verge, and the storm sky (D48, D49).
+const (
+	lapDepth   = 3 // how far the water laps up onto the verge, in pixels
+	lapStep    = 2 // the width of each lap
+	lapTicks   = 7 // the laps change this often
+	puddleW    = 7 // a puddle, in pixels
+	puddleH    = 3
+	chopFlecks = 6 // the wind's chop on each river row
+	chopTicks  = 5 // it changes this often
+
+	lightningMin   = 15 * config.TPS // between flashes, at least
+	lightningMax   = 30 * config.TPS // and at most
+	lightningRetry = config.TPS / 4  // a flash held back by a warning or a tell tries again after this
+	flashHold      = 4               // ticks a flash holds at its brightest
+	flashFade      = 18              // ticks it fades over
+	flashMix       = 0.6             // how far it lifts the light toward daylight
+	flashSoft      = 0.25            // and with reduced motion, a soft lift instead
+	thunderDelay   = 20              // ticks from the flash to its thunder
+	noFlash        = 1 << 30         // flash before the first one
+)
+
+// drawFlood draws a flood on the verge: the water lapping up its river
+// edge from the warning on, puddles on the cells about to go under or
+// draining, and open water on those that are under (D48).
+func (p *Play) drawFlood(dst *ebiten.Image) {
+	w := p.world
+	s := w.Spell(config.Flood)
+	if s == nil || s.Phase == world.SpellQuiet || w.Lanes[config.VergeRow].Kind != config.Safe {
+		return
+	}
+	y := float32(cellY(config.VergeRow))
+	water, crest := gfx.RGBA(resurrect64.Navy), gfx.RGBA(resurrect64.Cobalt)
+	for x := 0; x < w.Cols*config.Cell; x += lapStep {
+		d := float32(1 + noise(w.Tick/lapTicks, int64(x), 9)%lapDepth)
+		vector.FillRect(dst, float32(config.FieldX+x), y, lapStep, d, water, false)
+	}
+	for c := range w.Cols {
+		x := float32(cellX(c))
+		switch {
+		case w.Flooded(c):
+			vector.FillRect(dst, x, y, config.Cell, config.Cell, water, false)
+			for i, wr := range waveRows {
+				off := float32((int(w.Tick)/(waveBob/2) + i*7 + c*3) % (config.Cell - waveLen))
+				vector.FillRect(dst, x+off, y+float32(wr.y), waveLen, 1, crest, false)
+			}
+		case w.Puddled(c):
+			for _, pd := range [][2]float32{{3, 5}, {12, 14}} {
+				vector.FillRect(dst, x+pd[0], y+pd[1], puddleW, puddleH, water, false)
+				vector.FillRect(dst, x+pd[0]+1, y+pd[1], puddleW-3, 1, crest, false)
+			}
+		}
+	}
+}
+
+// drawChop draws the wind's chop on river row r under the storm sky: white
+// flecks that come and go (D49).
+func (p *Play) drawChop(dst *ebiten.Image, r int) {
+	w := p.world
+	if !w.Level.Stormy {
+		return
+	}
+	c := gfx.RGBA(resurrect64.Mist)
+	for k := range chopFlecks {
+		h := noise(w.Tick/chopTicks, int64(r+50), int64(k))
+		x := float32(config.FieldX) + float32(h%uint32(w.Cols*config.Cell))
+		y := float32(cellY(r)) + float32(3+h>>12%(config.Cell-6))
+		vector.FillRect(dst, x, y, 2, 1, c, false)
+	}
+}
+
+// updateLightning runs the storm sky's lightning one tick: a flash every
+// lightningMin to lightningMax ticks, held back while an event is being
+// announced or a gust's push is coming, so it never hides a cue (D49). Its
+// timing comes from the level and the count of flashes, not the game's
+// random numbers, so the world plays the same with or without it.
+func (p *Play) updateLightning() {
+	if !p.world.Level.Stormy {
+		return
+	}
+	p.flash = min(p.flash+1, noFlash)
+	if p.nextFlash--; p.nextFlash > 0 {
+		return
+	}
+	if p.cueShowing() {
+		p.nextFlash = lightningRetry
+		return
+	}
+	p.flash, p.flashes = 0, p.flashes+1
+	p.nextFlash = p.flashGap()
+}
+
+// flashGap is how long until the next flash.
+func (p *Play) flashGap() int {
+	h := noise(int64(p.world.Level.Number), int64(p.flashes), 11)
+	return lightningMin + int(h%uint32(lightningMax-lightningMin+1))
+}
+
+// cueShowing reports whether an event is being announced or a gust's push
+// is coming.
+func (p *Play) cueShowing() bool {
+	for i := range p.world.Spells {
+		s := &p.world.Spells[i]
+		if s.Phase == world.SpellWarning {
+			return true
+		}
+		if n := s.NextPush(); n >= 0 && n <= config.GustTellTicks+flashHold+flashFade {
+			return true
+		}
+	}
+	return false
+}
+
+// thunderNow reports whether the last flash's thunder sounds this tick.
+func (p *Play) thunderNow() bool { return p.world.Level.Stormy && p.flash == thunderDelay }
+
+// lightning is look l lit by a flash, if one is showing: lifted toward
+// daylight at once and fading, or with reduced motion a soft lift that
+// rises and falls (D49).
+func (p *Play) lightning(l fx.Look, reduced bool) fx.Look {
+	t := p.flash
+	if t >= flashHold+flashFade {
+		return l
+	}
+	var k float64
+	switch {
+	case reduced:
+		k = flashSoft * math.Sin(math.Pi*float64(t)/(flashHold+flashFade))
+	case t < flashHold:
+		k = flashMix
+	default:
+		k = flashMix * (1 - float64(t-flashHold)/flashFade)
+	}
+	day := gfx.RGBA(resurrect64.White)
+	m := func(a, b uint8) uint8 { return uint8(math.Round(float64(a) + (float64(b)-float64(a))*k)) }
+	l.Ambient = color.RGBA{m(l.Ambient.R, day.R), m(l.Ambient.G, day.G), m(l.Ambient.B, day.B), 255}
+	l.Level += (1 - l.Level) * k
+	return l
 }
 
 func abs(n int) int {

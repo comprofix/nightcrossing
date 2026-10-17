@@ -50,6 +50,9 @@ const (
 	GustStart                     // the gust spell begins
 	GustEnd                       // the gust spell ends
 	Pushed                        // a gust pushed the hero one cell (D47)
+	FloodWarning                  // a flood is announced (D48)
+	FloodStart                    // the flood begins: puddles on the verge, the river speeding up
+	FloodEnd                      // the flood has drained
 )
 
 // Stats are the points earned on this level, for the level-clear tally.
@@ -126,7 +129,11 @@ func (w *World) Update(press Dir) []Event {
 		return w.events
 	}
 	w.Tick++
+	surge := w.surge()
 	for r := range w.Lanes {
+		if w.Lanes[r].Kind == config.River {
+			w.Lanes[r].Surge = surge
+		}
 		if len(w.Lanes[r].Entities) > 0 {
 			w.Lanes[r].update(w.rng)
 		}
@@ -211,6 +218,8 @@ func (w *World) updateTimer() {
 //     §6.2).
 //   - Bank: on landing, the hero fills an empty nook or bumps into the bank
 //     (DESIGN §5.3).
+//   - Verge: in a flood, a cell under water is a splash once the hero is
+//     down, whether it landed there or the water came to it (D48).
 func (w *World) checkHazards() {
 	p := &w.Player
 	lane := &w.Lanes[p.LaneRow()]
@@ -238,6 +247,10 @@ func (w *World) checkHazards() {
 	case config.Bank:
 		if !p.Hopping() {
 			w.reachBank()
+		}
+	case config.Safe:
+		if !p.Hopping() && p.Row == config.VergeRow && w.Flooded(columnOf(p.X)) {
+			w.die(Splashed)
 		}
 	}
 }

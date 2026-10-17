@@ -135,6 +135,19 @@ var (
 		Voice: audio.Voice{Wave: audio.Noise, Attack: audio.Ticks(3), Decay: audio.Ticks(12), Release: audio.Ticks(4), Volume: 0.6},
 		Notes: []audio.Note{{Hz: 1200, Dur: audio.Ticks(3)}, {Hz: 2200, Dur: audio.Ticks(5)}, {Hz: 1400, Dur: audio.Ticks(8)}},
 	}}
+	// Rising is a flood being announced (D48): water rushing in, a low swell
+	// that grows and runs on.
+	Rising = &audio.Effect{Name: "rising water", Channel: 3, Priority: 3, Part: audio.Part{
+		Voice: audio.Voice{Wave: audio.Noise, Attack: audio.Ticks(30), Sustain: 0.9, Release: audio.Ticks(30), Volume: 0.7},
+		Notes: []audio.Note{{Hz: 260, Dur: audio.Ticks(30)}, {Hz: 380, Dur: audio.Ticks(30)}, {Hz: 320, Dur: audio.Ticks(40)}},
+	}}
+	// DistantThunder is the storm sky's thunder, a beat after a flash (D49):
+	// a low roll with no crack, unlike rain's warning, and quieter than any
+	// cue, so it never covers one.
+	DistantThunder = &audio.Effect{Name: "distant thunder", Channel: 3, Priority: 1, Part: audio.Part{
+		Voice: audio.Voice{Wave: audio.Noise, Attack: audio.Ticks(8), Decay: audio.Ticks(70), Sustain: 0.2, Release: audio.Ticks(20), Volume: 0.5},
+		Notes: []audio.Note{{Hz: 140, Dur: audio.Ticks(40)}, {Hz: 90, Dur: audio.Ticks(60)}},
+	}}
 	// Squawk is a heron catching the hero: a harsh falling cry.
 	Squawk = &audio.Effect{Name: "squawk", Channel: 1, Priority: 4, Part: audio.Part{
 		Voice: audio.Voice{Wave: audio.Pulse12, Decay: audio.Ticks(16), Sustain: 0.3, Release: audio.Ticks(6), Volume: 0.7},
@@ -145,7 +158,7 @@ var (
 // Sounds are the game's tunes and effects, listed for the sound test.
 var Sounds = audio.Bank{
 	Tunes:   []*audio.Tune{NightTitle, Stroll, LevelClearJingle, GameOverJingle, HighScores},
-	Effects: []*audio.Effect{ToadHop, Crash, Bump, Splash, Bubbles, Squawk, Home, OneUp, TimeLow, TimeUp, Bell, Horn, HornLow, Rumble, TrainCrash, ComboUp, HornChorus, HornChorusLow, FogHorn, Thunder, Skid, Howl, Whoosh},
+	Effects: []*audio.Effect{ToadHop, Crash, Bump, Splash, Bubbles, Squawk, Home, OneUp, TimeLow, TimeUp, Bell, Horn, HornLow, Rumble, TrainCrash, ComboUp, HornChorus, HornChorusLow, FogHorn, Thunder, Skid, Howl, Whoosh, Rising, DistantThunder},
 }
 
 // soundsFor is the effects an event plays (DESIGN §3.4). The level clear
@@ -181,6 +194,8 @@ func (p *Play) soundsFor(e world.Event) []*audio.Effect {
 		return []*audio.Effect{Howl}
 	case world.Pushed:
 		return []*audio.Effect{Whoosh}
+	case world.FloodWarning:
+		return []*audio.Effect{Rising}
 	case world.TimeUp:
 		return []*audio.Effect{TimeUp}
 	case world.LowTime:

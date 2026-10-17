@@ -23,6 +23,7 @@ type Lane struct {
 	HeronPct int  // the chance a log coming on has a heron (DESIGN §5.2, D34)
 	Waving   bool // a rush hour wave is on: its vehicles come on as they come round (D43)
 	Current  int  // the current's slide along a platform, SubPx units per tick: + with the flow, - against (D46)
+	Surge    int  // how much faster a flood makes the river run, in percent (D48)
 
 	lastHeron bool // the last log to come on had a heron
 }
@@ -118,7 +119,7 @@ func (l *Lane) update(rng *rand.Rand) {
 	for i := range l.Entities {
 		e := &l.Entities[i]
 		wasOff := e.off()
-		e.U = ((e.U+l.Dir*l.Speed)%l.Loop + l.Loop) % l.Loop
+		e.U = ((e.U+l.Step())%l.Loop + l.Loop) % l.Loop
 		if e.Wave && e.off() {
 			e.Out = !l.Waving // only while wholly off the field, so none pops in or out
 		}
@@ -166,13 +167,13 @@ func (e *Entity) updateSink(rng *rand.Rand) {
 }
 
 // Step is how far the lane moves things in one tick, in SubPx units, with
-// its direction's sign.
-func (l *Lane) Step() int { return l.Dir * l.Speed }
+// its direction's sign: faster in a flood (D48).
+func (l *Lane) Step() int { return l.Dir * (l.Speed + l.Speed*l.Surge/100) }
 
 // Slide is how far the lane's current moves a hero on one of its
 // platforms in one tick, on top of the platform's own Step, in SubPx units
-// with its direction's sign (D46).
-func (l *Lane) Slide() int { return l.Dir * l.Current }
+// with its direction's sign (D46): faster in a flood, like the river (D48).
+func (l *Lane) Slide() int { return l.Dir * (l.Current + l.Current*l.Surge/100) }
 
 // X is where e's left end is, from the field's left edge, in SubPx units.
 func (e Entity) X() int { return e.U - Buffer }

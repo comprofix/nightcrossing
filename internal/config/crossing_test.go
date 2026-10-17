@@ -28,6 +28,10 @@ import (
 //     edge, so the ride is shortened by a cell a beat; and every river row
 //     keeps a platform at least two cells long that always holds, so a
 //     push can be taken on it.
+//   - Floods (D48): the river and its currents run FloodSurgePct faster, so
+//     the ride is shorter; and a hero riding the row above the verge,
+//     at its slowest, gets past the longest flooded stretch to a dry cell
+//     before that row, at its fastest, carries it off.
 //
 // A failure names the mode, the level and the row.
 func TestEveryLevelCanBeCrossed(t *testing.T) {
@@ -83,12 +87,15 @@ func crossingProblems(lv Level) []error {
 				continue
 			}
 			if below.Kind == River {
-				v := below.Speed + max(below.Current, 0)
-				if g := lv.Events[Gust]; g.On() {
-					v += Cell * sub / g.Beat // a push a beat, toward the edge
-				}
-				if ride := (fieldUnits - Cell*sub) / v; wait > ride {
+				if ride := (fieldUnits - Cell*sub) / rideSpeed(lv, below); wait > ride {
 					errs = append(errs, fmt.Errorf("row %d: up to %d ticks to wait for a platform, but row %d carries the hero off in %d", r, wait, r+1, ride))
+				}
+			}
+			if below.Kind == Safe && lv.Events[Flood].On() {
+				slowest := l.Speed - max(-l.Current, 0)
+				past := (FloodStretchMax + 1) * Cell * sub / slowest
+				if ride := (fieldUnits - Cell*sub) / rideSpeed(lv, l); past > ride {
+					errs = append(errs, fmt.Errorf("row %d: %d ticks to ride past a flood to a dry verge cell, but the row carries the hero off in %d", r, past, ride))
 				}
 			}
 			for _, s := range l.Pattern {
@@ -148,6 +155,22 @@ func boardTicksFrom(to, from Lane) (int, bool) {
 		worst = max(worst, (water+Cell)*SubPx/v)
 	}
 	return worst, true
+}
+
+// rideSpeed is the fastest a hero riding river lane l can be carried
+// toward the edge, in SubPx units a tick: its platforms, with the current
+// if it runs that way, and then a gust's push each beat or a flood's surge,
+// whichever is worse; the two never come together (D46–D48).
+func rideSpeed(lv Level, l Lane) int {
+	v := l.Speed + max(l.Current, 0)
+	worst := v
+	if g := lv.Events[Gust]; g.On() {
+		worst = max(worst, v+Cell*SubPx/g.Beat)
+	}
+	if lv.Events[Flood].On() {
+		worst = max(worst, v*(100+FloodSurgePct)/100)
+	}
+	return worst
 }
 
 // holdsAPush reports whether river lane l has a platform at least two
