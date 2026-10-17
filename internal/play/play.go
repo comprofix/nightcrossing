@@ -10,6 +10,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 
+	"github.com/comprofix/nightcrossing/internal/audio"
 	"github.com/comprofix/nightcrossing/internal/config"
 	"github.com/comprofix/nightcrossing/internal/fx"
 	"github.com/comprofix/nightcrossing/internal/gfx"
@@ -48,6 +49,8 @@ const (
 	bannerTicks    = 2 * config.TPS        // the level number shows this long at the start
 	levelHintTicks = config.LevelCalmTicks // a new level's hint shows this long, before any event (DESIGN §6.1)
 	clearTicks     = config.TPS            // the cleared level shows this long before the tally
+	cryLeadTicks   = 10                    // a toadlet's cry comes this far ahead of its death's sound (D56)
+	peepGapTicks   = 8                     // the toadlets getting home peep this far apart, after the home run (D56)
 )
 
 // Play is a level of a game in progress.
@@ -55,8 +58,9 @@ type Play struct {
 	world  *world.World
 	hero   Hero
 	levels config.ModeLevels
-	ticks  int // since the level started
-	clear  int // ticks since the level was cleared; 0 until then
+	ticks  int         // since the level started
+	clear  int         // ticks since the level was cleared; 0 until then
+	later  []lateSound // sounds waiting to play
 
 	light     *fx.Lighting
 	parts     *fx.Particles
@@ -144,11 +148,10 @@ func (p *Play) Update(ctx *scene.Context) error {
 	if ctx.Audio.Tune() != Stroll {
 		ctx.Audio.PlayTune(Stroll) // the gameplay loop (DESIGN §3.4)
 	}
+	p.playLater(ctx)
 	for _, e := range p.world.Update(pressed(in)) {
 		p.effects(e)
-		for _, s := range p.soundsFor(e) {
-			ctx.Audio.PlayEffect(s)
-		}
+		p.sound(ctx, e)
 		switch e {
 		case world.Squashed, world.Bumped:
 			ctx.Shake.Start(shakeTicks, shakePx)
@@ -336,4 +339,52 @@ func best(ctx *scene.Context) int {
 		return es[0].Score
 	}
 	return 0
+}
+
+// lateSound is an effect waiting to play at a tick of the level.
+type lateSound struct {
+	at     int
+	effect *audio.Effect
+}
+
+// sound plays event e's effects. A toadlet's death cries first, with the
+// death's own sound a beat later, and a nook filled with toadlets peeps for
+// each of them after the home run (D56).
+func (p *Play) sound(ctx *scene.Context, e world.Event) {
+	delay := 0
+	if f := p.world.Fallen(); f != nil && f != &p.world.Player && e == f.Death && p.world.Dying == config.DeathTicks {
+		ctx.Audio.PlayEffect(p.hero.Cry)
+		delay = cryLeadTicks
+	}
+	for _, s := range p.soundsFor(e) {
+		p.playIn(ctx, s, delay)
+	}
+	if e == world.Goal {
+		run := int(audio.Length(Home.Part.Notes) / audio.Ticks(1))
+		for i := range p.world.Line {
+			p.playIn(ctx, p.hero.Peep, run+i*peepGapTicks)
+		}
+	}
+}
+
+// playIn plays s in ticks ticks, or now for 0.
+func (p *Play) playIn(ctx *scene.Context, s *audio.Effect, ticks int) {
+	if ticks == 0 {
+		ctx.Audio.PlayEffect(s)
+		return
+	}
+	p.later = append(p.later, lateSound{at: p.ticks + ticks, effect: s})
+}
+
+// playLater plays the waiting effects that are due.
+func (p *Play) playLater(ctx *scene.Context) {
+	kept := p.later[:0]
+	for _, s := range p.later {
+		if s.at <= p.ticks {
+			ctx.Audio.PlayEffect(s.effect)
+		} else {
+			kept = append(kept, s)
+		}
+	}
+	p.later = kept
 }

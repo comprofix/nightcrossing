@@ -41,6 +41,7 @@ func TestSprites(t *testing.T) {
 	}
 	want := map[string][2]int{
 		Toad.Sprite: {config.Cell, config.Cell},
+		Toad.Young:  {16, 16}, // two thirds of the hero (D56)
 		"verge":     {config.Cell, config.Cell},
 		"life":      {12, 12},
 		"track":     {config.Cell, config.Cell},
@@ -56,8 +57,10 @@ func TestSprites(t *testing.T) {
 			t.Errorf("sprite %q is %d×%d, want %d×%d", name, got[0], got[1], wh[0], wh[1])
 		}
 	}
-	if n := frames[Toad.Sprite]; n != frameTuck+1 {
-		t.Errorf("the hero sprite has %d frames, want %d", n, frameTuck+1)
+	for _, name := range []string{Toad.Sprite, Toad.Young} {
+		if n := frames[name]; n != frameTuck+1 {
+			t.Errorf("sprite %q has %d frames, want the hero's %d", name, n, frameTuck+1)
+		}
 	}
 	if n := frames["pad"]; n != frameRing+1 {
 		t.Errorf("the lily pad has %d frames, want %d", n, frameRing+1)
@@ -100,7 +103,8 @@ func TestNewGame(t *testing.T) {
 		if s := h.Ctx.Session; s.Mode.ID != sk.ID || s.Lives != config.StartLives || s.Score != 0 {
 			t.Errorf("%s: session %+v", sk.ID, s)
 		}
-		if got, want := p.World().TicksLeft, config.TimerTicks(1); got != want {
+		want := config.TimerTicks(1) + sk.Levels.Level(1).Toadlets*config.ToadletSecs*config.TPS // School Run: a second a toadlet (D53)
+		if got := p.World().TicksLeft; got != want {
 			t.Errorf("%s: %d ticks on the clock, want %d", sk.ID, got, want)
 		}
 	}
@@ -115,6 +119,9 @@ func summary(p *Play, ctx *scene.Context) string {
 	fmt.Fprintf(&b, "score %d  lives %d\n", s.Score, s.Lives)
 	pl := w.Player
 	fmt.Fprintf(&b, "hero cell %d,%d  at %d,%d  facing %v  hopping %v\n", pl.Col, pl.Row, pl.X, pl.Y, pl.Facing, pl.Hopping())
+	for i, t := range w.Line {
+		fmt.Fprintf(&b, "toadlet %d cell %d,%d  at %d,%d  riding %v\n", i, t.Col, t.Row, t.X, t.Y, t.Riding)
+	}
 	return b.String()
 }
 
@@ -269,7 +276,11 @@ func TestRoadReplay(t *testing.T) {
 				}
 				if h.Ctx.Session.Lives < lives {
 					key = ebiten.KeyArrowUp // back to the start row
-					fmt.Fprintf(&log, "tick %d: died in row %d (was in %d), %d lives left\n", w.Tick, w.Player.LaneRow(), row, h.Ctx.Session.Lives)
+					who := ""
+					if f := w.Fallen(); f != &w.Player {
+						who = fmt.Sprintf(" (a toadlet, in row %d)", f.LaneRow())
+					}
+					fmt.Fprintf(&log, "tick %d: died in row %d (was in %d)%s, %d lives left\n", w.Tick, w.Player.LaneRow(), row, who, h.Ctx.Session.Lives)
 				}
 			}
 			scenetest.Current[*Ended](h)

@@ -140,16 +140,16 @@ func checkpointWorld(n int) *World {
 }
 
 // TestTheVergeIsACheckpoint: a hop from the verge onto the river is refused
-// until the whole line is in the hero's cell; then the toadlets ride on its
-// back (D53).
+// until the whole line is in the hero's cell, with Refused for the peep;
+// then the toadlets ride on its back (D53, D56).
 func TestTheVergeIsACheckpoint(t *testing.T) {
 	w := checkpointWorld(2)
-	if ev := hops(w, Up, 1); count(ev, Hopped) != 0 {
-		t.Fatalf("events %v: hopped onto the river with the line behind", ev)
+	if ev := hops(w, Up, 1); count(ev, Hopped) != 0 || count(ev, Refused) != 1 {
+		t.Fatalf("events %v: want the hop onto the river refused with the line behind", ev)
 	}
 	at(t, w, config.StartCol, config.VergeRow)
 	run(w, None, config.BunchTicks) // the line bunches up
-	if ev := hops(w, Up, 1); count(ev, Hopped) != 1 || count(ev, Splashed) != 0 {
+	if ev := hops(w, Up, 1); count(ev, Hopped) != 1 || count(ev, Splashed) != 0 || count(ev, Refused) != 0 {
 		t.Fatalf("events %v: want a hop onto the log with the line gathered", ev)
 	}
 	for i, tl := range w.Line {

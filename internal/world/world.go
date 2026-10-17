@@ -53,6 +53,7 @@ const (
 	Pushed                           // the wind pushed the hero one cell (D47)
 	FloodStart                       // a wet storm's flood begins: puddles on the verge, the river speeding up (D48)
 	FloodEnd                         // the flood has drained
+	Refused                          // a hop off the verge onto the river, refused: the line isn't gathered (D53)
 )
 
 // Stats are the points earned on this level, for the level-clear tally.

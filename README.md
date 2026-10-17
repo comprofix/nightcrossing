@@ -53,6 +53,17 @@ left, 1000 for the fifth nook. An extra life every 20,000.
     push is safe.
   - Neither kind is harder; which comes next is the luck of the weather.
     Rain and fog can come in the clear spells too.
+- **School Run:** Storm from level 1, plus toadlets to walk across:
+  - **The escort.** A toadlet follows your trail, one move behind: your
+    hops, your slides in the rain and the wind's pushes. If anything gets
+    it, you lose a life. From level 5 there are two.
+  - **Stop to gather them.** Stand still on the grass for a moment and the
+    line catches up into your cell, and is pushed with you.
+  - **The river.** Gather the line on the verge and the toadlets ride on
+    your back over the water. Hop onto the river with one left behind and
+    it peeps: you can't go yet.
+  - **Home together.** Reach a nook and they all get home with you: +50
+    for each toadlet, with your combo.
 
 ![The intro shown before a mode starts](docs/screenshots/intro.png)
 

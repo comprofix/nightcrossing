@@ -46,6 +46,3 @@ func schoolRunLevels() ModeLevels {
 // clear each School Run level within this many minutes (D55). A starting
 // value.
 const EscortCheckMins = 5
-
-// ToadletPx is a toadlet's size, about two thirds of the hero's (D56).
-const ToadletPx = 16

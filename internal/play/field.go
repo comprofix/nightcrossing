@@ -246,27 +246,25 @@ func (p *Play) drawShipPiece(ctx *scene.Context, dst *ebiten.Image, e world.Enti
 // the hop, then squashed for a moment on landing (DESIGN §3.3). A dead one
 // lies flat where it was hit, or splashes where it went in the water. The
 // line on land is drawn under the hero; riders on its back over it, side
-// by side, and they go with a dead hero. Until M18's sprites, a toadlet is
-// the hero's sprite drawn small (D56).
+// by side, and they go with a dead hero (D56).
 func (p *Play) drawHero(ctx *scene.Context, dst *ebiten.Image) {
 	w := p.world
 	if w.Home > 0 {
 		return // it is in its nook, drawn with the bank
 	}
-	small := float64(config.ToadletPx) / config.Cell
 	for i := range w.Line {
 		if !p.onBack(i) {
-			p.drawToad(ctx, dst, &w.Line[i].Player, small, 0)
+			p.drawToad(ctx, dst, &w.Line[i].Player, p.hero.Young, 0)
 		}
 	}
-	p.drawToad(ctx, dst, &w.Player, 1, 0)
+	p.drawToad(ctx, dst, &w.Player, p.hero.Sprite, 0)
 	if w.Player.Death != 0 {
 		return
 	}
 	n := float64(len(w.Line))
 	for i := range w.Line {
 		if p.onBack(i) {
-			p.drawToad(ctx, dst, &w.Line[i].Player, small, (float64(i)-(n-1)/2)*riderGapPx)
+			p.drawToad(ctx, dst, &w.Line[i].Player, p.hero.Young, (float64(i)-(n-1)/2)*riderGapPx)
 		}
 	}
 }
@@ -281,11 +279,13 @@ func (p *Play) onBack(i int) bool {
 // riderGapPx is how far apart riders sit on the hero's back.
 const riderGapPx = 6
 
-// drawToad draws the hero or a toadlet, pl, at scale times the hero's size,
-// in the middle of its cell, dx pixels across from there.
-func (p *Play) drawToad(ctx *scene.Context, dst *ebiten.Image, pl *world.Player, scale, dx float64) {
+// drawToad draws the hero or a toadlet, pl, as the sprite name, in the
+// middle of its cell, dx pixels across from there. A smaller sprite leaps
+// lower, in step with its size.
+func (p *Play) drawToad(ctx *scene.Context, dst *ebiten.Image, pl *world.Player, name string, dx float64) {
 	sheet := ctx.Sheet(Sheet)
-	sp := sheet.Sprite(p.hero.Sprite)
+	sp := sheet.Sprite(name)
+	scale := float64(sp.W) / config.Cell
 
 	frame, lift := frameRest, 0.0
 	switch pl.Death {
@@ -308,12 +308,10 @@ func (p *Play) drawToad(ctx *scene.Context, dst *ebiten.Image, pl *world.Player,
 		frame = frameLand
 	}
 
-	inset := (1 - scale) * config.Cell / 2
-	x := float64(config.FieldX) + float64(pl.X)/config.SubPx + inset + dx
-	y := float64(config.FieldY) + float64(pl.Y)/config.SubPx - lift + inset
+	x := float64(config.FieldX) + float64(pl.X)/config.SubPx + float64(config.Cell-sp.W)/2 + dx
+	y := float64(config.FieldY) + float64(pl.Y)/config.SubPx - lift + float64(config.Cell-sp.H)/2
 	var op ebiten.DrawImageOptions
 	op.GeoM = facing(pl.Facing, sp.W, sp.H)
-	op.GeoM.Scale(scale, scale)
 	op.GeoM.Translate(x, y)
 	dst.DrawImage(sp.Frame(frame), &op)
 }

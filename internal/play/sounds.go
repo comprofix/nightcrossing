@@ -155,10 +155,26 @@ var (
 	}}
 )
 
+// The toadlets' sounds (D56).
+var (
+	// ToadletPeep is a toadlet left behind at the verge, or getting home: a
+	// tiny high chirp.
+	ToadletPeep = &audio.Effect{Name: "toadlet peep", Channel: 1, Priority: 3, Part: audio.Part{
+		Voice: audio.Voice{Wave: audio.Pulse25, Decay: audio.Ticks(3), Volume: 0.45},
+		Notes: audio.Notes("G6:2 C7:3"),
+	}}
+	// ToadletCry is a toadlet dying: a high falling wail, before the death's
+	// own sound.
+	ToadletCry = &audio.Effect{Name: "toadlet cry", Channel: 0, Priority: 4, Part: audio.Part{
+		Voice: audio.Voice{Wave: audio.Pulse12, Decay: audio.Ticks(10), Sustain: 0.3, Release: audio.Ticks(4), Volume: 0.6},
+		Notes: audio.Notes("C7:3 B6:3 G6:4 D6:6"),
+	}}
+)
+
 // Sounds are the game's tunes and effects, listed for the sound test.
 var Sounds = audio.Bank{
 	Tunes:   []*audio.Tune{NightTitle, Stroll, LevelClearJingle, GameOverJingle, HighScores},
-	Effects: []*audio.Effect{ToadHop, Crash, Bump, Splash, Bubbles, Squawk, Home, OneUp, TimeLow, TimeUp, Bell, Horn, HornLow, Rumble, TrainCrash, ComboUp, HornChorus, HornChorusLow, FogHorn, Thunder, Skid, Howl, Whoosh, Rising, DistantThunder},
+	Effects: []*audio.Effect{ToadHop, Crash, Bump, Splash, Bubbles, Squawk, Home, OneUp, TimeLow, TimeUp, Bell, Horn, HornLow, Rumble, TrainCrash, ComboUp, HornChorus, HornChorusLow, FogHorn, Thunder, Skid, Howl, Whoosh, Rising, DistantThunder, ToadletPeep, ToadletCry},
 }
 
 // soundsFor is the effects an event plays (DESIGN §3.4). The level clear
@@ -204,6 +220,8 @@ func (p *Play) soundsFor(e world.Event) []*audio.Effect {
 		return []*audio.Effect{TimeLow}
 	case world.Goal:
 		return []*audio.Effect{Home}
+	case world.Refused:
+		return []*audio.Effect{p.hero.Peep}
 	case world.ExtraLife:
 		return []*audio.Effect{OneUp}
 	}
