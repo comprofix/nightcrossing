@@ -63,6 +63,10 @@ type Context struct {
 
 	StartLevel int
 
+	// Storms makes every storm one kind, for testing; the -storm flag sets
+	// it in debug builds. Such games go on no high score table either.
+	Storms config.StormKind
+
 	// NoShaders is set when the game's shader effects can't run, so the
 	// options for them are dimmed. Debug builds can set it with -noshaders.
 	NoShaders bool
@@ -73,6 +77,11 @@ type Context struct {
 	settingsChanged bool
 	scoresChanged   bool
 }
+
+// Testing reports whether games are started for testing, part way in or
+// with every storm one kind: they go on no high score table and clear no
+// mode.
+func (c *Context) Testing() bool { return c.StartLevel > 1 || c.Storms != config.AnyStorm }
 
 // ModeList is the modes the menus offer: Modes, or config.Modes if unset.
 func (c *Context) ModeList() []config.Mode {

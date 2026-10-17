@@ -88,8 +88,8 @@ func (p *Play) addWaveLights(l *fx.Lighting) {
 func (p *Play) eventMessage() string {
 	for _, s := range p.world.Spells {
 		if s.Phase == world.SpellWarning {
-			if s.Kind == config.Gust {
-				return config.GustMessage(s.Dir) // which way it blows (D47)
+			if s.Kind == config.StormFront {
+				return config.StormMessage(s.Wet, s.Dir) // its kind, and which way a dry one blows (D51)
 			}
 			return config.Events[s.Kind].Message
 		}

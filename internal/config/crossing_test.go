@@ -24,14 +24,15 @@ import (
 //     the platform), and waits for the row above at the worse of the two;
 //     and sliding one cell takes at least CrossOpenTicks, so a hero who
 //     lands a cell in from a platform's end has time to hop.
-//   - Gusts (D47): each push can carry a riding hero a cell nearer the
-//     edge, so the ride is shortened by a cell a beat; and every river row
-//     keeps a platform at least two cells long that always holds, so a
-//     push can be taken on it.
-//   - Floods (D48): the river and its currents run FloodSurgePct faster, so
-//     the ride is shorter; and a hero riding the row above the verge,
-//     at its slowest, gets past the longest flooded stretch to a dry cell
-//     before that row, at its fastest, carries it off.
+//   - Wind (D47), in dry storms: each push can carry a riding hero a cell
+//     nearer the edge, so the ride is shortened by a cell a beat; and
+//     every river row keeps a platform at least two cells long that always
+//     holds, so a push can be taken on it.
+//   - Floods (D48), in wet storms: the river and its currents run
+//     FloodSurgePct faster, so the ride is shorter; and a hero riding the
+//     row above the verge, at its slowest, gets past the longest flooded
+//     stretch to a dry cell before that row, at its fastest, carries it
+//     off.
 //
 // A failure names the mode, the level and the row.
 func TestEveryLevelCanBeCrossed(t *testing.T) {
@@ -77,8 +78,8 @@ func crossingProblems(lv Level) []error {
 					errs = append(errs, fmt.Errorf("row %d: the current slides the hero a cell in %d ticks, want %d", r, t, CrossOpenTicks))
 				}
 			}
-			if lv.Events[Gust].On() && !holdsAPush(l) {
-				errs = append(errs, fmt.Errorf("row %d: no platform two cells long that always holds, to take a gust's push", r))
+			if lv.Events[StormFront].Beat > 0 && !holdsAPush(l) {
+				errs = append(errs, fmt.Errorf("row %d: no platform two cells long that always holds, to take the wind's push", r))
 			}
 			below := lv.Lanes[r+1]
 			wait, ok := boardTicks(lv, r, below)
@@ -91,7 +92,7 @@ func crossingProblems(lv Level) []error {
 					errs = append(errs, fmt.Errorf("row %d: up to %d ticks to wait for a platform, but row %d carries the hero off in %d", r, wait, r+1, ride))
 				}
 			}
-			if below.Kind == Safe && lv.Events[Flood].On() {
+			if below.Kind == Safe && lv.Events[StormFront].Size > 0 {
 				slowest := l.Speed - max(-l.Current, 0)
 				past := (FloodStretchMax + 1) * Cell * sub / slowest
 				if ride := (fieldUnits - Cell*sub) / rideSpeed(lv, l); past > ride {
@@ -159,15 +160,16 @@ func boardTicksFrom(to, from Lane) (int, bool) {
 
 // rideSpeed is the fastest a hero riding river lane l can be carried
 // toward the edge, in SubPx units a tick: its platforms, with the current
-// if it runs that way, and then a gust's push each beat or a flood's surge,
-// whichever is worse; the two never come together (D46–D48).
+// if it runs that way, and then a dry storm's push each beat or a wet
+// storm's flood surge, whichever is worse; the two never come together
+// (D46–D48, D51).
 func rideSpeed(lv Level, l Lane) int {
 	v := l.Speed + max(l.Current, 0)
 	worst := v
-	if g := lv.Events[Gust]; g.On() {
-		worst = max(worst, v+Cell*SubPx/g.Beat)
+	if s := lv.Events[StormFront]; s.Beat > 0 {
+		worst = max(worst, v+Cell*SubPx/s.Beat)
 	}
-	if lv.Events[Flood].On() {
+	if lv.Events[StormFront].Size > 0 {
 		worst = max(worst, v*(100+FloodSurgePct)/100)
 	}
 	return worst

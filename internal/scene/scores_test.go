@@ -127,4 +127,8 @@ func TestTestGamesMakeNoTable(t *testing.T) {
 	if _, ok := AfterGame(h.ctx, config.Modes[0], 5000).(*HighScoreTable); !ok {
 		t.Error("a game started part way was offered the table")
 	}
+	h.ctx.StartLevel, h.ctx.Storms = 0, config.DryStorm
+	if _, ok := AfterGame(h.ctx, config.Modes[0], 5000).(*HighScoreTable); !ok {
+		t.Error("a game with every storm one kind was offered the table")
+	}
 }

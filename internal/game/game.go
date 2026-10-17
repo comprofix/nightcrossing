@@ -293,6 +293,10 @@ func (g *Game) present(out *ebiten.Image) {
 // flag). Such games go on no high score table and clear no mode.
 func (g *Game) StartAt(n int) { g.ctx.StartLevel = n }
 
+// StormsOf makes every storm kind k, for testing (-storm in debug builds).
+// Such games go on no high score table and clear no mode.
+func (g *Game) StormsOf(k config.StormKind) { g.ctx.Storms = k }
+
 // UseModes sets the modes the menus offer, e.g. with a mode in progress
 // added (-mode in debug builds).
 func (g *Game) UseModes(modes []config.Mode) { g.ctx.Modes = modes }

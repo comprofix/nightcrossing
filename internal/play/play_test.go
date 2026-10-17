@@ -464,6 +464,28 @@ func TestStartLevel(t *testing.T) {
 	}
 }
 
+// TestOneKindOfStorm starts a test game with every storm one kind (-storm
+// in debug builds, D52): each level it plays has that kind, and it clears
+// no mode.
+func TestOneKindOfStorm(t *testing.T) {
+	h := scenetest.New(t, 42)
+	h.Ctx.Storms = config.DryStorm
+	p := New(h.Ctx, config.Storm).(*Play)
+	if got := p.World().Level.Storms; got != config.DryStorm {
+		t.Fatalf("level storms %d, want every one dry", got)
+	}
+	if s := p.World().Spell(config.StormFront); s.Wet {
+		t.Error("level 1's first storm is wet")
+	}
+	if q := newLevel(h.Ctx, config.Storm.Levels, 2); q.World().Level.Storms != config.DryStorm {
+		t.Error("the next level forgot the testing kind")
+	}
+	p.markCleared(h.Ctx)
+	if h.Ctx.Scores.IsCleared(config.Storm.ID) {
+		t.Error("a test game cleared the mode")
+	}
+}
+
 // TestTrainPiecesMakeTheTrain checks the train's pieces add up to the
 // length the world collides with (D37).
 func TestTrainPiecesMakeTheTrain(t *testing.T) {
