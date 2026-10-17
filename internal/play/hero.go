@@ -12,6 +12,13 @@ type Hero struct {
 	Sprite string        // facing up, with the frames below
 	Splash string        // falling in the water, played through over the death
 	Hop    *audio.Effect // played as each hop starts
+
+	// Its young, the toadlets of School Run (D56): their sprite, with the
+	// hero's frames, the peep of one left behind or getting home, and the
+	// cry of one dying.
+	Young string
+	Peep  *audio.Effect
+	Cry   *audio.Effect
 }
 
 // A hero sprite's frames.
@@ -33,4 +40,5 @@ var hopFrames = [config.HopTicks]int{
 }
 
 // Toad is the hero for 1.0 (DESIGN §2).
-var Toad = Hero{Name: "Toad", Sprite: "toad", Splash: "splash", Hop: ToadHop}
+var Toad = Hero{Name: "Toad", Sprite: "toad", Splash: "splash", Hop: ToadHop,
+	Young: "toadlet", Peep: ToadletPeep, Cry: ToadletCry}

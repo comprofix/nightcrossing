@@ -58,7 +58,7 @@ func TestEveryEventHasASound(t *testing.T) {
 		world.WaveStart: true, world.WaveEnd: true, world.FogStart: true, world.FogEnd: true,
 		world.RainStart: true, world.RainEnd: true, world.StormStart: true, world.StormEnd: true,
 		world.FloodEnd: true}
-	for e := world.Hopped; e <= world.FloodEnd; e++ {
+	for e := world.Hopped; e <= world.Refused; e++ {
 		got := p.soundsFor(e)
 		switch {
 		case quiet[e] && len(got) > 0:

@@ -231,6 +231,7 @@ func (w *World) move(d Dir, slide bool) bool {
 	// its back, once it is all in its cell (D53).
 	onto := w.Lanes[row].Kind == config.River && w.Lanes[p.Row].Kind != config.River
 	if onto && !w.gathered() {
+		w.emit(Refused)
 		return false
 	}
 	p.begin(row, x)
