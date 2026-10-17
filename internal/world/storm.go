@@ -142,10 +142,12 @@ func (s *Spell) pushesNow() bool {
 }
 
 // blow pushes the hero one cell dir, now if it is still or when it next
-// lands (D47). A hero dying or home in a nook is not pushed.
+// lands (D47). A hero dying or home in a nook is not pushed. The wind
+// doesn't blow on the toadlets: they take the hero's push as they follow
+// (D53).
 func (w *World) blow(dir int) {
-	if w.playing() {
-		w.push = dir
+	if w.out(Hero) {
+		w.Player.push = dir
 	}
 }
 

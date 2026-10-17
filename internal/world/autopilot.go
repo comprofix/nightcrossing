@@ -17,6 +17,7 @@ func (w *World) Clone(rng *rand.Rand) *World {
 		c.Lanes[r].Entities = slices.Clone(w.Lanes[r].Entities)
 	}
 	c.Spells = slices.Clone(w.Spells)
+	c.Line = cloneLine(w.Line)
 	c.rng = rng
 	c.events = nil
 	return &c
@@ -25,7 +26,8 @@ func (w *World) Clone(rng *rand.Rand) *World {
 // Autopilot plays the hero for the title's demo (DESIGN §7). Before each
 // hop it tries every move config.DemoLookahead moves ahead on copies of the
 // world, and takes the first move of the line that gets furthest toward an
-// empty nook without dying.
+// empty nook without dying. A toadlet's death counts as the hero's, so it
+// escorts a line of them (D53, D55).
 type Autopilot struct{}
 
 // moves are the autopilot's moves, best first: on a tie the earlier wins.

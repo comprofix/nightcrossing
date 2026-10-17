@@ -1,6 +1,7 @@
 package world
 
 import (
+	"fmt"
 	"math/rand/v2"
 	"testing"
 
@@ -61,4 +62,40 @@ func TestAutopilotCrossesTheTrains(t *testing.T) {
 			t.Errorf("level %d: cleared %v after %d s, struck %d times", n, w.Cleared, w.Tick/config.TPS, struck)
 		}
 	}
+}
+
+// TestAutopilotEscorts is School Run's bot check (D55): the autopilot,
+// escorting its line, plays each level through one round of the loops
+// with its lives topped up, and must clear it within config.EscortCheckMins
+// minutes.
+func TestAutopilotEscorts(t *testing.T) {
+	m := config.SchoolRun.Levels
+	for n := 1; n <= len(m.Levels)+config.LoopLevels; n++ {
+		t.Run(fmt.Sprintf("level %d", n), func(t *testing.T) {
+			t.Parallel()
+			w := New(session.New(config.SchoolRun, config.StartLives), m.Level(n), rand.New(rand.NewPCG(config.DemoSeed, uint64(n))))
+			var a Autopilot
+			deaths := 0
+			for range config.EscortCheckMins * 60 * config.TPS {
+				if w.Update(a.Next(w)); w.Cleared {
+					return
+				}
+				if w.Dying == config.DeathTicks {
+					deaths++
+				}
+				w.Session.Lives = config.StartLives
+			}
+			t.Errorf("not cleared in %d minutes: %d of 5 nooks, %d deaths", config.EscortCheckMins, filled(w), deaths)
+		})
+	}
+}
+
+func filled(w *World) int {
+	n := 0
+	for _, f := range w.Filled {
+		if f {
+			n++
+		}
+	}
+	return n
 }

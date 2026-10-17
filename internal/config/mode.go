@@ -69,8 +69,8 @@ func lastTrainLevels() ModeLevels {
 }
 
 // ModesInProgress are modes being built and not yet in Modes. The -mode
-// flag adds one to the menus, for testing (D37). None just now.
-var ModesInProgress []Mode
+// flag adds one to the menus, for testing (D37).
+var ModesInProgress = []Mode{SchoolRun}
 
 // RushHour is Last Train plus the road in bad weather (DESIGN §6.3): rush
 // hour waves from level 1, fog from level 2 and rain from level 3. It keeps the trains,

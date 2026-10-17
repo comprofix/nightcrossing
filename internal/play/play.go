@@ -186,6 +186,10 @@ func (p *Play) tally(ctx *scene.Context) scene.Scene {
 		{Label: "TIME BONUS", Points: st.TimeBonus},
 		{Label: "ALL FIVE HOME", Points: st.Clear},
 	}
+	if p.world.Level.Toadlets > 0 {
+		lines = append(lines, scene.TallyLine{Label: fmt.Sprintf("TOADLETS %d x %d", st.Toadlets, config.PointsToadlet),
+			Points: st.Toadlets * config.PointsToadlet}) // D53
+	}
 	if p.world.Level.Combo {
 		lines = append(lines, scene.TallyLine{Label: "COMBO BONUS", Points: st.Combo})
 	}
