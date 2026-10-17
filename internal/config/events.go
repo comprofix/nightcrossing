@@ -250,3 +250,7 @@ func WaveFits(gap, n, speed int) bool {
 // lift it again (D44): as long as its warning, so it is overcast by the
 // time it starts.
 const OvercastTicks = 2 * TPS
+
+// StormSkyTicks is how long a storm's sky takes to roll in once the storm
+// begins, and to roll away after it ends (D49, D51).
+const StormSkyTicks = 3 * TPS

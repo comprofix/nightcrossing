@@ -39,15 +39,20 @@ left, 1000 for the fifth nook. An extra life every 20,000.
     headlights.
   - **Rain,** from level 3. A hop that lands on the road slides one more
     cell the same way: plan for it.
-- **Storm:** Rush Hour, plus the river in a storm, under an overcast sky
-  with lightning:
+- **Storm:** Rush Hour, plus storms that roll in, darken the sky with
+  lightning and thunder, and roll away again, with clear spells between:
   - **Currents.** Arrows on the water show a current. Standing on a log or
     a boat in that row, you slide along it: hop back before you slide off.
-  - **Gusts,** from level 2. "GUSTS FROM THE WEST" (or east): through the
-    spell, the wind pushes you one cell that way every few seconds, with
-    streaks building just before each push. Stand where a push is safe.
-  - **Floods,** from level 3. Stretches of the verge show puddles, then go
-    under for a while, and the river runs faster until the water drains.
+  - **Wet storms.** "STORM ROLLING IN: HEAVY RAIN": it rains all through,
+    so a hop onto the road slides one more cell. From level 3, stretches of
+    the verge show puddles, then go under, and the river runs faster until
+    the storm rolls away.
+  - **Dry storms,** from level 2. "STORM ROLLING IN: HIGH WINDS FROM THE
+    WEST" (or east): the wind pushes you one cell that way every few
+    seconds, with streaks building just before each push. Stand where a
+    push is safe.
+  - Neither kind is harder; which comes next is the luck of the weather.
+    Rain and fog can come in the clear spells too.
 
 ![The intro shown before a mode starts](docs/screenshots/intro.png)
 
@@ -107,6 +112,8 @@ go build -o bin/nightcrossing ./cmd/nightcrossing
 go run -tags debug ./cmd/nightcrossing             # debug overlay
 go run ./cmd/nightcrossing -level 38               # start games on level 38 (no scores kept)
 go run -tags debug ./cmd/nightcrossing -noshaders  # draw as if shaders were unavailable
+go run -tags debug ./cmd/nightcrossing -storm dry  # every storm wet or dry (no scores kept)
+go test ./internal/world -run TestStormBalance -balance -v  # deaths per storm, wet and dry
 go generate ./assets                               # rebuild the sprite sheets
 ```
 

@@ -27,9 +27,6 @@ func TestStormBringsItsMechanicsIn(t *testing.T) {
 		if got := s.Size > 0; got != (n >= 3) {
 			t.Errorf("level %d: flood size %d, want floods from level 3", n, s.Size)
 		}
-		if !lv.Stormy {
-			t.Errorf("level %d: no storm sky", n)
-		}
 	}
 	for n := 1; n <= 3; n++ {
 		if Storm.Levels.Level(n).Hint == "" {
@@ -39,7 +36,7 @@ func TestStormBringsItsMechanicsIn(t *testing.T) {
 	for _, m := range []Mode{Stroll, LastTrain, RushHour} {
 		for _, n := range []int{1, 8, 30} {
 			lv := m.Levels.Level(n)
-			if lv.Events[StormFront].On() || lv.Stormy || currentRows(lv) > 0 {
+			if lv.Events[StormFront].On() || currentRows(lv) > 0 {
 				t.Errorf("%s level %d has Storm's mechanics", m.Name, n)
 			}
 		}

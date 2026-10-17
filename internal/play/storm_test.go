@@ -90,40 +90,82 @@ func TestStormWeatherLooks(t *testing.T) {
 	}
 }
 
-// TestStormSky: Storm is overcast from its first tick, lamps and all, and
-// stays so; the modes before it aren't (D49).
+// stormTick runs p one tick as a game would, with the hero kept going on
+// the start row, and is what the world gave out.
+func stormTick(p *Play) []world.Event {
+	w := p.world
+	w.TicksLeft, w.Session.Lives = w.Level.TimerTicks, config.StartLives
+	p.updateEffects()
+	p.ticks++
+	return w.Update(world.None)
+}
+
+// TestStormSky: a Storm level starts clear, as the day has it; a storm's
+// sky rolls in over its first three seconds, lamps and all, holds while
+// it is on, and rolls away after it ends (D49, D51).
 func TestStormSky(t *testing.T) {
 	h := scenetest.New(t, 3)
 	p := New(h.Ctx, config.Storm).(*Play)
-	for range 30 * config.TPS {
-		if p.overcastK() != 1 || p.lampK() != 1 {
-			t.Fatalf("tick %d: overcast %v lamps %v, want both full", p.ticks, p.overcastK(), p.lampK())
+	if p.overcastK() != 0 {
+		t.Fatalf("level 1 starts overcast %v", p.overcastK())
+	}
+	until := func(e world.Event) {
+		t.Helper()
+		for range 3 * 60 * config.TPS {
+			if p.stormSky != 0 && !p.stormOn() && e == world.StormStart {
+				t.Fatalf("tick %d: the storm sky in before the storm", p.ticks)
+			}
+			if slices.Contains(stormTick(p), e) {
+				return
+			}
 		}
-		p.world.TicksLeft = p.world.Level.TimerTicks
-		p.updateEffects()
-		p.world.Update(world.None)
-		p.ticks++
+		t.Fatalf("no %v", e)
+	}
+	until(world.StormStart)
+	if p.overcastK() >= 1 {
+		t.Errorf("overcast %v as the storm begins, want it rolling in", p.overcastK())
+	}
+	for range config.StormSkyTicks {
+		stormTick(p)
+	}
+	if p.overcastK() != 1 || p.lampK() != 1 {
+		t.Errorf("three seconds into the storm: overcast %v lamps %v, want both full", p.overcastK(), p.lampK())
+	}
+	until(world.StormEnd)
+	for range config.StormSkyTicks {
+		stormTick(p)
+	}
+	if p.stormSky != 0 {
+		t.Errorf("three seconds after the storm: its sky %d ticks in, want gone", p.stormSky)
 	}
 	if q := New(scenetest.New(t, 3).Ctx, config.RushHour).(*Play); q.overcastK() != 0 {
 		t.Errorf("Rush Hour starts overcast %v", q.overcastK())
 	}
 }
 
-// TestLightning: under the storm sky lightning flashes every 15–30 s,
-// lifting the light toward daylight and fading, with thunder a beat later;
-// never while an event is announced; softer with reduced motion (D49).
-// Its timing takes nothing from the game's random numbers, so the replay
-// in road_storm.golden plays the same with or without it.
+// TestLightning: lightning only flashes in a storm, the first within two
+// seconds of it beginning and then every 4–8 s, lifting the light toward
+// daylight and fading, with thunder a beat later; never while an event is
+// announced; softer with reduced motion (D49). Its timing takes nothing
+// from the game's random numbers, so the replay in road_storm.golden
+// plays the same with or without it.
 func TestLightning(t *testing.T) {
 	h := scenetest.New(t, 9)
 	h.Ctx.StartLevel = 3
 	p := New(h.Ctx, config.Storm).(*Play)
 	var flashes, thunders []int
-	for tick := range 3 * 60 * config.TPS {
-		p.world.TicksLeft = p.world.Level.TimerTicks
-		p.updateEffects()
+	began, inStorm, storms := -1, 0, 0
+	for tick := range 4 * 60 * config.TPS {
+		ev := stormTick(p)
 		if p.flash == 0 {
 			flashes = append(flashes, tick)
+			inStorm++
+			if !p.stormOn() {
+				t.Errorf("tick %d: a flash with no storm on", tick)
+			}
+			if inStorm == 1 && tick-began > lightningFirst {
+				t.Errorf("tick %d: a storm's first flash %d ticks after it began", tick, tick-began)
+			}
 			for _, s := range p.world.Spells {
 				if s.Phase == world.SpellWarning {
 					t.Errorf("tick %d: a flash during an event's warning", tick)
@@ -137,17 +179,25 @@ func TestLightning(t *testing.T) {
 		if p.thunderNow() {
 			thunders = append(thunders, tick)
 		}
-		p.world.Update(world.None)
+		switch {
+		case slices.Contains(ev, world.StormStart):
+			began, inStorm = tick, 0
+		case slices.Contains(ev, world.StormEnd):
+			storms++
+			if inStorm < 2 {
+				t.Errorf("tick %d: a storm with %d flashes", tick, inStorm)
+			}
+		}
 	}
-	if len(flashes) < 3*60/30 || len(flashes) > 3*60/15+1 {
-		t.Errorf("%d flashes in three minutes: %v", len(flashes), flashes)
+	if storms < 3 {
+		t.Fatalf("%d storms in four minutes", storms)
 	}
 	for i := 1; i < len(flashes); i++ {
 		if gap := flashes[i] - flashes[i-1]; gap < lightningMin {
 			t.Errorf("flashes %d ticks apart", gap)
 		}
 	}
-	if len(thunders) != len(flashes) || len(thunders) > 0 && thunders[0] != flashes[0]+thunderDelay {
+	if len(thunders) != len(flashes) || thunders[0] != flashes[0]+thunderDelay {
 		t.Errorf("thunder at %v for flashes at %v", thunders, flashes)
 	}
 	p.flash = flashHold + flashFade
