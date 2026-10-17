@@ -58,9 +58,8 @@ func TestEveryEventHasASound(t *testing.T) {
 		world.WaveStart: true, world.WaveEnd: true, world.FogStart: true, world.FogEnd: true,
 		world.RainStart: true, world.RainEnd: true, world.StormStart: true, world.StormEnd: true,
 		world.FloodEnd: true,
-		// The pickups have their own sounds from M20; until then a firefly's
-		// life sounds as ExtraLife and fruit with the nook's Goal (D58, D59).
-		world.FireflyCaught: true, world.FireflyGone: true, world.FruitTaken: true}
+		// A firefly flying away just goes (D58).
+		world.FireflyGone: true}
 	for e := world.Hopped; e <= world.FruitTaken; e++ {
 		got := p.soundsFor(e)
 		switch {
@@ -74,6 +73,25 @@ func TestEveryEventHasASound(t *testing.T) {
 		if j.Loop {
 			t.Errorf("jingle %q loops", j.Name)
 		}
+	}
+}
+
+// TestCatchSounds: a firefly caught sounds as the hero's night catch, and
+// one caught by day as its day catch, the dragonfly (D58).
+func TestCatchSounds(t *testing.T) {
+	for _, day := range []bool{false, true} {
+		p := &Play{hero: Toad, world: &world.World{}}
+		p.world.Flyer.Day = day
+		want := Toad.Catch
+		if day {
+			want = Toad.DayCatch
+		}
+		if got := p.soundsFor(world.FireflyCaught); len(got) != 1 || got[0] != want {
+			t.Errorf("day %v: a catch plays %v, want %q", day, got, want.Name)
+		}
+	}
+	if Toad.Catch == Toad.DayCatch {
+		t.Error("the firefly and dragonfly sound the same")
 	}
 }
 

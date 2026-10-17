@@ -36,6 +36,11 @@ type Menu struct {
 	// activated, for sounds.
 	OnMove    func()
 	OnConfirm func()
+	// Rows, if set, is how many items show at once: a longer menu scrolls
+	// to keep the cursor in view.
+	Rows int
+
+	top int // the first item shown, while it scrolls
 }
 
 // Update handles one tick of input.
@@ -43,6 +48,7 @@ func (m *Menu) Update(in *input.Input) {
 	if len(m.Items) == 0 {
 		return
 	}
+	defer func() { m.top = m.First() }()
 	m.skipDisabled(1)
 	switch {
 	case in.Repeat(input.Up):
@@ -106,6 +112,28 @@ func (m *Menu) skipDisabled(dir int) {
 	if m.Items[m.Cursor].IsDisabled() {
 		m.step(dir)
 	}
+}
+
+// Scrolls reports whether the menu has more items than it shows at once.
+func (m *Menu) Scrolls() bool { return m.Rows > 0 && len(m.Items) > m.Rows }
+
+// Shown is how many items show at once.
+func (m *Menu) Shown() int {
+	if !m.Scrolls() {
+		return len(m.Items)
+	}
+	return m.Rows
+}
+
+// First is the first item shown: the top one, unless the menu scrolls;
+// then the one that keeps the cursor in view, moving as little as it can
+// from where it was.
+func (m *Menu) First() int {
+	if !m.Scrolls() {
+		return 0
+	}
+	top := min(max(m.top, m.Cursor-m.Rows+1), m.Cursor)
+	return min(max(top, 0), len(m.Items)-m.Rows)
 }
 
 // Text returns item i's text: the label, then its value if any. A slider's

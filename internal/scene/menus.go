@@ -30,6 +30,20 @@ func drawMenuScreen(ctx *Context, dst *ebiten.Image, heading string, m *ui.Menu,
 	}
 }
 
+// menuRows is how many lines of a menu fit on a menu screen: from the
+// panel's top under the heading down to the panel's bottom, a line gap
+// above the help line. It is 0, no limit, without fonts to measure, as in
+// headless tests that never draw.
+func menuRows(ctx *Context) int {
+	f := ctx.Fonts
+	if f.Small == nil || f.Large == nil {
+		return 0
+	}
+	top := 2*f.Large.Size + ui.LineGap + menuPad
+	bottom := config.Project.ScreenHeight - 2*f.Small.Size - ui.LineGap - menuPad
+	return (bottom - top + ui.LineGap) / (f.Small.Size + ui.LineGap)
+}
+
 // drawMenuPanel draws m in a panel centred across the screen, its top at y.
 func drawMenuPanel(ctx *Context, dst *ebiten.Image, m *ui.Menu, y int) {
 	sc, f := ctx.Scheme, ctx.Fonts

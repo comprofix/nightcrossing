@@ -33,6 +33,7 @@ func (s *SoundTest) Update(ctx *Context) error {
 		// Only the move sound: a confirm sound would cut off the effect
 		// being tested.
 		s.menu.OnMove = func() { ctx.Audio.PlayEffect(MenuMove) }
+		s.menu.Rows = menuRows(ctx) // the list is long: it scrolls
 	}
 	if ctx.Input.JustPressed(input.Back) {
 		s.leave(ctx)

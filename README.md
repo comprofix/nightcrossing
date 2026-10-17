@@ -16,20 +16,34 @@ a busy road, a railway and a river, to five nooks on the far bank.
   hop off. Never land on a heron.
 - Fill all five nooks before the clock runs out to clear the level. After
   level 8 the last levels loop, faster each time round.
+- **Fruit** shows in an empty nook now and then, from level 2: fill that
+  nook while it's there for a bonus, a different fruit and more points each
+  level.
+- **Fireflies** fly in over the river from level 4, land on the logs (later
+  the lily pads and boats too), flit about and fly off again. Land in a
+  firefly's cell while it sits there to catch it for an extra life; you
+  can't catch one in the air. By day, in the later modes, a dragonfly comes
+  instead.
 
 Points: 10 for each new row reached, 100 for a nook plus 10 for each second
-left, 1000 for the fifth nook. An extra life every 20,000.
+left, 1000 for the fifth nook, and the fruit's points. An extra life every
+20,000. You can hold up to 8 lives; at 8, a firefly is worth 500 points
+instead.
 
 ## Modes
 
 - **Stroll:** the game above.
+
+Each later mode has everything before it from level 1, fruit and fireflies
+included, and adds its own:
+
 - **Last Train:** Stroll, plus:
   - **Trains.** When the crossing lights flash and the bell rings, a train
     is coming: stay off the track until it has passed. Each level the
     trains get faster and come more often.
   - **A hop combo,** from level 2. Keep hopping forward for x2, x3 and x4
-    points, on the hops and the nook. Waiting too long, hopping back or
-    dying ends it; riding a log or a boat keeps it.
+    points, on the hops, the nook and its fruit. Waiting too long, hopping
+    back or dying ends it; riding a log or a boat keeps it.
   - **Day and night,** from level 3. Each level runs from dawn to night as
     you fill the nooks.
 - **Rush Hour:** Last Train, plus the road in bad weather:

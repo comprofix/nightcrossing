@@ -1,6 +1,9 @@
 package config
 
-import "testing"
+import (
+	"slices"
+	"testing"
+)
 
 // TestStrollPickups: Stroll brings fruit in on level 2 and fireflies one
 // kind of platform at a time from level 4, each with a hint (D60).
@@ -68,6 +71,16 @@ func TestEveryHostIsAPlatform(t *testing.T) {
 	for e, want := range map[Entity]Host{LogShort: HostLogs, LogLong: HostLogs, Pads2: HostPads, Pads3: HostPads, Barge: HostShips, Ferry: HostShips} {
 		if got := HostOf(e); got != want {
 			t.Errorf("%s rides as host %d, want %d", e.ID, got, want)
+		}
+	}
+}
+
+// TestLaterModesListThePickups: each later mode's intro lists the pickups
+// under ALSO, and Stroll's, which brings them in with hints, doesn't (D60).
+func TestLaterModesListThePickups(t *testing.T) {
+	for i, m := range Modes {
+		if got, want := slices.Contains(m.Also, PickupsAlso), i > 0; got != want {
+			t.Errorf("%s: pickups under ALSO %v, want %v", m.ID, got, want)
 		}
 	}
 }
