@@ -121,6 +121,7 @@ type Level struct {
 	Train      TrainTiming                // how the trains run, when they do (D17)
 	Combo      bool                       // the hop combo is on (D38)
 	DayCycle   bool                       // the day and night cycle runs (D39)
+	Stormy     bool                       // the storm sky: always overcast, with lightning (D49)
 	Events     [NumEventKinds]EventTiming // the random events and how they run (DESIGN §6.1)
 	TimerTicks int                        // the time for each attempt
 	Hint       string
@@ -159,6 +160,7 @@ type ModeLevels struct {
 	Trains     bool               // trains from level 1 (DESIGN §6.2)
 	ComboFrom  int                // the first level with the hop combo; 0 for none (D38)
 	CycleFrom  int                // the first level with the day and night cycle; 0 for none (D39)
+	StormFrom  int                // the first level with the storm sky; 0 for none (D49)
 	EventsFrom [NumEventKinds]int // the first level with each random event; 0 for none (D41)
 }
 
@@ -171,6 +173,7 @@ func (m ModeLevels) Level(n int) Level {
 	}
 	lv.Combo = m.ComboFrom > 0 && n >= m.ComboFrom
 	lv.DayCycle = m.CycleFrom > 0 && n >= m.CycleFrom
+	lv.Stormy = m.StormFrom > 0 && n >= m.StormFrom
 	for k := range lv.Events {
 		lv.Events[k] = EventsOn(EventKind(k), m.EventsFrom[k], n)
 	}

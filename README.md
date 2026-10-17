@@ -39,6 +39,15 @@ left, 1000 for the fifth nook. An extra life every 20,000.
     headlights.
   - **Rain,** from level 3. A hop that lands on the road slides one more
     cell the same way: plan for it.
+- **Storm:** Rush Hour, plus the river in a storm, under an overcast sky
+  with lightning:
+  - **Currents.** Arrows on the water show a current. Standing on a log or
+    a boat in that row, you slide along it: hop back before you slide off.
+  - **Gusts,** from level 2. "GUSTS FROM THE WEST" (or east): through the
+    spell, the wind pushes you one cell that way every few seconds, with
+    streaks building just before each push. Stand where a push is safe.
+  - **Floods,** from level 3. Stretches of the verge show puddles, then go
+    under for a while, and the river runs faster until the water drains.
 
 ![The intro shown before a mode starts](docs/screenshots/intro.png)
 

@@ -58,3 +58,69 @@ func TestGustCues(t *testing.T) {
 		t.Errorf("wind %v after the spell, want none", k)
 	}
 }
+
+// TestStormSky: Storm is overcast from its first tick, lamps and all, and
+// stays so; the modes before it aren't (D49).
+func TestStormSky(t *testing.T) {
+	h := scenetest.New(t, 3)
+	p := New(h.Ctx, config.Storm).(*Play)
+	for range 30 * config.TPS {
+		if p.overcastK() != 1 || p.lampK() != 1 {
+			t.Fatalf("tick %d: overcast %v lamps %v, want both full", p.ticks, p.overcastK(), p.lampK())
+		}
+		p.world.TicksLeft = p.world.Level.TimerTicks
+		p.updateEffects()
+		p.world.Update(world.None)
+		p.ticks++
+	}
+	if q := New(scenetest.New(t, 3).Ctx, config.RushHour).(*Play); q.overcastK() != 0 {
+		t.Errorf("Rush Hour starts overcast %v", q.overcastK())
+	}
+}
+
+// TestLightning: under the storm sky lightning flashes every 15–30 s,
+// lifting the light toward daylight and fading, with thunder a beat later;
+// never while an event is announced; softer with reduced motion (D49).
+// Its timing takes nothing from the game's random numbers, so the replay
+// in road_storm.golden plays the same with or without it.
+func TestLightning(t *testing.T) {
+	h := scenetest.New(t, 9)
+	h.Ctx.StartLevel = 3
+	p := New(h.Ctx, config.Storm).(*Play)
+	var flashes, thunders []int
+	for tick := range 3 * 60 * config.TPS {
+		p.world.TicksLeft = p.world.Level.TimerTicks
+		p.updateEffects()
+		if p.flash == 0 {
+			flashes = append(flashes, tick)
+			for _, s := range p.world.Spells {
+				if s.Phase == world.SpellWarning {
+					t.Errorf("tick %d: a flash during an event's warning", tick)
+				}
+			}
+			before := p.look()
+			if hard, soft := p.lightning(before, false), p.lightning(before, true); hard.Level <= before.Level || soft.Level > hard.Level {
+				t.Errorf("tick %d: light %v, flash %v, soft %v", tick, before.Level, hard.Level, soft.Level)
+			}
+		}
+		if p.thunderNow() {
+			thunders = append(thunders, tick)
+		}
+		p.world.Update(world.None)
+	}
+	if len(flashes) < 3*60/30 || len(flashes) > 3*60/15+1 {
+		t.Errorf("%d flashes in three minutes: %v", len(flashes), flashes)
+	}
+	for i := 1; i < len(flashes); i++ {
+		if gap := flashes[i] - flashes[i-1]; gap < lightningMin {
+			t.Errorf("flashes %d ticks apart", gap)
+		}
+	}
+	if len(thunders) != len(flashes) || len(thunders) > 0 && thunders[0] != flashes[0]+thunderDelay {
+		t.Errorf("thunder at %v for flashes at %v", thunders, flashes)
+	}
+	p.flash = flashHold + flashFade
+	if look := p.look(); p.lightning(look, false) != look {
+		t.Error("the light is lifted after the flash has faded")
+	}
+}

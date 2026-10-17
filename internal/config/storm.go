@@ -1,8 +1,9 @@
 package config
 
 // Storm is Rush Hour plus the river in a storm (DESIGN §6.4): currents from
-// level 1 and wind gusts from level 2. It keeps everything from the modes
-// before it from its level 1 (D27, D45).
+// level 1, wind gusts from level 2 and floods from level 3, under a storm
+// sky. It keeps everything from the modes before it from its level 1 (D27,
+// D45).
 var Storm = Mode{
 	ID:   "storm",
 	Name: "Storm",
@@ -10,6 +11,7 @@ var Storm = Mode{
 	New: []Mechanic{
 		{"Currents", "ripples pull you along a platform"},
 		{"Gusts", "the wind pushes you one cell"},
+		{"Floods", "the verge goes under for a while"},
 	},
 	Also:   []string{"Everything in Stroll, Last Train and Rush Hour"},
 	Levels: stormLevels(),
@@ -30,8 +32,9 @@ var stormCurrents = [][]Current{
 	{{Row: 1, Push: -6}, {Row: 3, Push: 6}, {Row: 5, Push: -6}},
 }
 
-// stormLevels are Rush Hour's levels with all its events from level 1, and
-// Storm's own coming in one a level (D50).
+// stormLevels are Rush Hour's levels with all its events from level 1, the
+// storm sky throughout, and Storm's own mechanics coming in one a level
+// (D49, D50).
 func stormLevels() ModeLevels {
 	m := rushHourLevels()
 	m.Levels = append([]LevelDef(nil), m.Levels...)
@@ -40,8 +43,9 @@ func stormLevels() ModeLevels {
 	}
 	m.Levels[0].Hint = "RIPPLES SHOW A CURRENT: IT PULLS YOU ALONG THE LOG"
 	m.Levels[1].Hint = "GUSTS FROM THE WEST OR EAST PUSH YOU ONE CELL"
-	m.Levels[2].Hint = "" // not Rush Hour's rain hint: it rains from level 1 here; floods come in M14
+	m.Levels[2].Hint = "FLOODS: THE VERGE GOES UNDER, THE RIVER RUNS FASTER"
 	m.EventsFrom[Wave], m.EventsFrom[Fog], m.EventsFrom[Rain] = 1, 1, 1
-	m.EventsFrom[Gust] = 2
+	m.EventsFrom[Gust], m.EventsFrom[Flood] = 2, 3
+	m.StormFrom = 1
 	return m
 }

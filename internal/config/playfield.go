@@ -21,6 +21,7 @@ const (
 // Rows with a fixed job on every level (DESIGN §3.2).
 const (
 	GoalRow  = 0        // the far bank with the goal nooks
+	VergeRow = 6        // the verge between the river and the track (D32), which floods in Storm (D48)
 	StartRow = Rows - 1 // where each attempt starts
 )
 

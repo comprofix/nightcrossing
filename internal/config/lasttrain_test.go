@@ -43,7 +43,7 @@ func TestTheBuiltModesAreInTheMenu(t *testing.T) {
 	for _, m := range Modes {
 		ids = append(ids, m.ID)
 	}
-	if want := []string{Stroll.ID, LastTrain.ID, RushHour.ID}; !slices.Equal(ids, want) {
+	if want := []string{Stroll.ID, LastTrain.ID, RushHour.ID, Storm.ID}; !slices.Equal(ids, want) {
 		t.Errorf("modes %v, want %v", ids, want)
 	}
 }

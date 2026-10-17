@@ -9,21 +9,24 @@ type EventKind int
 
 // The kinds.
 const (
-	Wave EventKind = iota // a rush hour wave on one road lane (D43)
-	Fog                   // fog over the road (D29, D44)
-	Rain                  // rain: the road is slippery (D31, D44)
-	Gust                  // a gust spell: the wind pushes the hero one cell at a time (D47)
+	Wave  EventKind = iota // a rush hour wave on one road lane (D43)
+	Fog                    // fog over the road (D29, D44)
+	Rain                   // rain: the road is slippery (D31, D44)
+	Gust                   // a gust spell: the wind pushes the hero one cell at a time (D47)
+	Flood                  // a flood: verge cells go under and the river runs faster (D48)
 	NumEventKinds
 )
 
 // EventTiming is how one kind of event runs on a level: the quiet between
 // them, a random length from QuietMin to QuietMax ticks, how long each
-// lasts, and for a gust spell the ticks between its pushes (D47). A zero
-// QuietMax means the event is off.
+// lasts, for a gust spell the ticks between its pushes (D47), and for a
+// flood how many verge cells go under (D48). A zero QuietMax means the
+// event is off.
 type EventTiming struct {
 	QuietMin, QuietMax int
 	Last               int
 	Beat               int
+	Size               int
 }
 
 // On reports whether the event runs at all.
@@ -70,7 +73,31 @@ var Events = [NumEventKinds]EventDef{
 		First:     EventTiming{QuietMin: 20 * TPS, QuietMax: 28 * TPS, Last: 8 * TPS, Beat: 3 * TPS},
 		Top:       EventTiming{QuietMin: 12 * TPS, QuietMax: 18 * TPS, Last: 12 * TPS, Beat: 2 * TPS},
 	},
+	Flood: {
+		WarnTicks: 2 * TPS,
+		Message:   "FLOOD: THE RIVER IS RISING",
+		Big:       true,
+		First:     EventTiming{QuietMin: 24 * TPS, QuietMax: 32 * TPS, Last: 10 * TPS, Size: 4},
+		Top:       EventTiming{QuietMin: 14 * TPS, QuietMax: 20 * TPS, Last: 14 * TPS, Size: 12},
+	},
 }
+
+// A flood's verge and river (D48). Its Last runs from the first puddles
+// to the last: the cells show puddles for FloodPuddleTicks, are water,
+// then show puddles again as they drain. The river rows and their currents
+// run FloodSurgePct faster, easing in and out over FloodSurgeTicks.
+// Flooded cells come in stretches of FloodStretchMin to FloodStretchMax,
+// with at least FloodDryMin dry cells between them and at the field's
+// edges, and never more than half the verge goes under.
+const (
+	FloodPuddleTicks = TPS
+	FloodSurgePct    = 20
+	FloodSurgeTicks  = TPS
+	FloodStretchMin  = 2
+	FloodStretchMax  = 4
+	FloodDryMin      = 3
+	FloodMostCells   = Cols / 2
+)
 
 // GustMessages are a gust spell's warnings, by the way it blows: a wind
 // from the east pushes the hero west (left), one from the west east (D47).
@@ -108,6 +135,7 @@ func EventsOn(k EventKind, from, n int) EventTiming {
 		QuietMax: at(d.First.QuietMax, d.Top.QuietMax),
 		Last:     at(d.First.Last, d.Top.Last),
 		Beat:     at(d.First.Beat, d.Top.Beat),
+		Size:     at(d.First.Size, d.Top.Size),
 	}
 }
 

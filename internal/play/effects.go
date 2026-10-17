@@ -95,6 +95,7 @@ func (p *Play) updateEffects() {
 	p.updateSky()
 	p.updateWeather()
 	p.updateWind()
+	p.updateLightning()
 	for i := range p.nookGlow {
 		p.nookGlow[i] = max(p.nookGlow[i]-1, 0)
 	}

@@ -85,6 +85,7 @@ func (p *Play) drawField(ctx *scene.Context, dst *ebiten.Image) {
 	if !ctx.Settings.Glow {
 		look.Glow = 0
 	}
+	look = p.lightning(look, ctx.Settings.ReducedMotion) // the storm sky (D49)
 	if ctx.Settings.HighContrast {
 		look.Level = max(look.Level, highContrastLevel)
 	}
@@ -103,8 +104,10 @@ func (p *Play) drawField(ctx *scene.Context, dst *ebiten.Image) {
 			p.drawRoad(field, r)
 		case config.River:
 			p.drawWater(field, r)
+			p.drawChop(field, r)
 		}
 	}
+	p.drawFlood(field)
 	p.drawRoadSheen(field)
 	lamp := sheet.Sprite("lamp")
 	for _, lp := range lamps {

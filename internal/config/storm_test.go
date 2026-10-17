@@ -19,8 +19,14 @@ func TestStormBringsItsMechanicsIn(t *testing.T) {
 		if got := lv.Events[Gust].On(); got != (n >= 2) {
 			t.Errorf("level %d: gusts %v, want them from level 2", n, got)
 		}
+		if got := lv.Events[Flood].On(); got != (n >= 3) {
+			t.Errorf("level %d: floods %v, want them from level 3", n, got)
+		}
+		if !lv.Stormy {
+			t.Errorf("level %d: no storm sky", n)
+		}
 	}
-	for n := 1; n <= 2; n++ {
+	for n := 1; n <= 3; n++ {
 		if Storm.Levels.Level(n).Hint == "" {
 			t.Errorf("level %d has no hint for what it brings in", n)
 		}
@@ -28,7 +34,7 @@ func TestStormBringsItsMechanicsIn(t *testing.T) {
 	for _, m := range []Mode{Stroll, LastTrain, RushHour} {
 		for _, n := range []int{1, 8, 30} {
 			lv := m.Levels.Level(n)
-			if lv.Events[Gust].On() || currentRows(lv) > 0 {
+			if lv.Events[Gust].On() || lv.Events[Flood].On() || lv.Stormy || currentRows(lv) > 0 {
 				t.Errorf("%s level %d has Storm's mechanics", m.Name, n)
 			}
 		}
@@ -116,5 +122,24 @@ func TestGustsRamp(t *testing.T) {
 	}
 	if GustMessage(-1) == GustMessage(1) {
 		t.Error("a gust's warning doesn't say which way it blows")
+	}
+}
+
+// TestFloodsRamp: floods come more often, last longer and take more of the
+// verge each level, to the top: about 4 cells rising to 12, never more
+// than half (D48).
+func TestFloodsRamp(t *testing.T) {
+	first := EventsOn(Flood, 3, 3)
+	top := EventsOn(Flood, 3, EventTopLevel)
+	if first.Size != 4 || top.Size != 12 || top.Size > FloodMostCells {
+		t.Errorf("flood sizes %d to %d, want 4 to 12, at most %d", first.Size, top.Size, FloodMostCells)
+	}
+	if mid := EventsOn(Flood, 3, 5); mid.Size <= first.Size || mid.Size >= top.Size {
+		t.Errorf("level 5 floods %d cells, want between %d and %d", mid.Size, first.Size, top.Size)
+	}
+	for _, f := range []EventTiming{first, top} {
+		if f.Last <= 2*FloodPuddleTicks || f.Last <= 2*FloodSurgeTicks {
+			t.Errorf("%+v: too short for its puddles and surge", f)
+		}
 	}
 }

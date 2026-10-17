@@ -23,10 +23,14 @@ type Spell struct {
 	Kind   config.EventKind
 	Timing config.EventTiming
 	Phase  SpellPhase
-	Left   int // ticks left of this phase
-	Lane   int // the wave's road row, from its warning to its end
-	Dir    int // the way a gust spell pushes, from its warning to its end: -1 left, +1 right (D47)
+	Left   int               // ticks left of this phase
+	Lane   int               // the wave's road row, from its warning to its end
+	Dir    int               // the way a gust spell pushes, from its warning to its end: -1 left, +1 right (D47)
+	Cells  [config.Cols]bool // the verge cells a flood takes, from its warning to its end (D48)
 }
+
+// since is how many ticks a spell that is on has been on.
+func (s *Spell) since() int { return s.Timing.Last - s.Left }
 
 // NextPush is how many ticks until a gust spell's next push, or -1 if it
 // pushes no more: it pushes every Beat ticks while it is on (D47).
@@ -41,7 +45,7 @@ func (s *Spell) NextPush() int {
 			return s.Left + beat
 		}
 	case SpellOn:
-		if n := beat - (s.Timing.Last-s.Left)%beat; n < s.Left {
+		if n := beat - s.since()%beat; n < s.Left {
 			return n
 		}
 	}
@@ -50,7 +54,7 @@ func (s *Spell) NextPush() int {
 
 // pushesNow reports whether a gust spell pushes this tick.
 func (s *Spell) pushesNow() bool {
-	return s.Phase == SpellOn && s.Kind == config.Gust && s.Timing.Beat > 0 && (s.Timing.Last-s.Left)%s.Timing.Beat == 0
+	return s.Phase == SpellOn && s.Kind == config.Gust && s.Timing.Beat > 0 && s.since()%s.Timing.Beat == 0
 }
 
 // newSpells are the level's random events, each starting with a quiet.
@@ -151,6 +155,13 @@ func (w *World) warn(s *Spell) {
 			s.Dir = -1
 		}
 		w.emit(GustWarning)
+	case config.Flood:
+		if w.Lanes[config.VergeRow].Kind != config.Safe {
+			s.Left = config.EventRetryTicks
+			return
+		}
+		s.Cells = floodCells(s.Timing.Size, w.rng)
+		w.emit(FloodWarning)
 	}
 	s.Phase, s.Left = SpellWarning, config.Events[s.Kind].WarnTicks
 }
@@ -167,6 +178,8 @@ func (w *World) start(s *Spell) {
 		w.emit(RainStart)
 	case config.Gust:
 		w.emit(GustStart)
+	case config.Flood:
+		w.emit(FloodStart)
 	}
 }
 
@@ -182,7 +195,101 @@ func (w *World) end(s *Spell) {
 		w.emit(RainEnd)
 	case config.Gust:
 		w.emit(GustEnd)
+	case config.Flood:
+		s.Cells = [config.Cols]bool{}
+		w.emit(FloodEnd)
 	}
+}
+
+// floodCells picks the verge cells a flood of about n cells takes, in
+// stretches of config.FloodStretchMin to FloodStretchMax with at least
+// config.FloodDryMin dry cells between them and at the field's edges, and
+// never more than config.FloodMostCells (D48). It tries seeded layouts
+// until one fits, and floods fewer cells if none does.
+func floodCells(n int, rng *rand.Rand) [config.Cols]bool {
+	const lo, hi, dry = config.FloodStretchMin, config.FloodStretchMax, config.FloodDryMin
+	n = min(n, config.FloodMostCells)
+	for ; n >= lo; n-- {
+		for range 50 {
+			var cells [config.Cols]bool
+			if placeStretches(&cells, n, lo, hi, dry, rng) {
+				return cells
+			}
+		}
+	}
+	return [config.Cols]bool{}
+}
+
+// placeStretches floods n cells of cells in stretches of lo to hi, each
+// with dry cells either side of it, and reports whether they all fit.
+func placeStretches(cells *[config.Cols]bool, n, lo, hi, dry int, rng *rand.Rand) bool {
+	for n > 0 {
+		l := n
+		if n > hi {
+			l = lo + rng.IntN(hi-lo+1)
+			l = min(l, n-lo) // never leave a stretch too short to make
+		}
+		placed := false
+		for range 20 {
+			start := rng.IntN(config.Cols - l + 1)
+			if stretchFits(cells, start, l, dry) {
+				for c := start; c < start+l; c++ {
+					cells[c] = true
+				}
+				placed = true
+				break
+			}
+		}
+		if !placed {
+			return false
+		}
+		n -= l
+	}
+	return true
+}
+
+// stretchFits reports whether l cells from start can flood, keeping dry
+// cells either side of them, out to the field's edges.
+func stretchFits(cells *[config.Cols]bool, start, l, dry int) bool {
+	end := start + l
+	if start > 0 && start < dry || end < config.Cols && end > config.Cols-dry {
+		return false // too narrow a strip left dry at the edge
+	}
+	for c := max(start-dry, 0); c < min(end+dry, config.Cols); c++ {
+		if cells[c] {
+			return false
+		}
+	}
+	return true
+}
+
+// Flooded reports whether verge column col is under water: a flood is on,
+// past its first puddles and not yet draining (D48).
+func (w *World) Flooded(col int) bool {
+	s := w.Spell(config.Flood)
+	if s == nil || s.Phase != SpellOn || !s.Cells[col] {
+		return false
+	}
+	t := s.since()
+	return t >= config.FloodPuddleTicks && s.Left > config.FloodPuddleTicks
+}
+
+// Puddled reports whether verge column col shows puddles: a flood is on
+// and it is about to go under, or draining (D48). It is still dry ground.
+func (w *World) Puddled(col int) bool {
+	s := w.Spell(config.Flood)
+	return s != nil && s.Phase == SpellOn && s.Cells[col] && !w.Flooded(col)
+}
+
+// surge is how much faster a flood makes the river run now, in percent:
+// easing in as it comes and out as it drains (D48).
+func (w *World) surge() int {
+	s := w.Spell(config.Flood)
+	if s == nil || s.Phase != SpellOn {
+		return 0
+	}
+	t := min(s.since(), s.Left, config.FloodSurgeTicks)
+	return config.FloodSurgePct * t / config.FloodSurgeTicks
 }
 
 // gust pushes the hero one cell dir, now if it is still or when it next
