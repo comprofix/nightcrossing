@@ -8,7 +8,7 @@ import "testing"
 // on levels 1, 2 and 5 (D53, D54).
 func TestSchoolRunLevels(t *testing.T) {
 	m := SchoolRun.Levels
-	hints := map[int]bool{1: true, 2: true, 5: true}
+	hints := map[int]bool{1: true, 2: true, MixedFrom: true, 5: true} // and mixed traffic's (D65)
 	for n := 1; n <= len(m.Levels)+2*LoopLevels; n++ {
 		lv := m.Level(n)
 		want := 1

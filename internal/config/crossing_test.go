@@ -16,6 +16,9 @@ import (
 //     each log loses a cell to a heron (D34).
 //   - A hero on a sinking ship can reach a platform in the row above or
 //     below before the ship's stern goes under (D33).
+//   - Mixed traffic (D65): each gap behind a truck is at least
+//     TruckGapMin, and no vehicle covers the hero's cell for longer than
+//     CoverMaxTicks.
 //   - Rail: the quiet between trains is long enough to hop on and off
 //     (D17, D37).
 //   - Currents (D46): each is weaker than its row's platforms; a hero
@@ -63,6 +66,12 @@ func crossingProblems(lv Level) []error {
 			for _, s := range l.Pattern {
 				if open := GapOpenTicks(s.Gap, l.Speed); open < CrossOpenTicks {
 					errs = append(errs, fmt.Errorf("row %d: a gap of %dpx behind a %s is open for %d ticks, want %d", r, s.Gap, s.Entity.ID, open, CrossOpenTicks))
+				}
+				if s.Entity == Truck && s.Gap < TruckGapMin {
+					errs = append(errs, fmt.Errorf("row %d: a gap of %dpx behind a truck, want %d", r, s.Gap, TruckGapMin))
+				}
+				if c := CoverTicks(s.Entity.Length, l.Speed); c > CoverMaxTicks {
+					errs = append(errs, fmt.Errorf("row %d: a %s covers the hero's cell for %d ticks, want at most %d", r, s.Entity.ID, c, CoverMaxTicks))
 				}
 			}
 		case Rail:

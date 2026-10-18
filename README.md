@@ -35,7 +35,11 @@ instead.
 - **Stroll:** the game above.
 
 Each later mode has everything before it from level 1, fruit and fireflies
-included, and adds its own:
+included, and adds its own. In every later mode the road gets **mixed
+traffic** from level 4: cars, bikes and vans join the trucks in the top
+lane, the bottom lane mixes too from level 6, and all four lanes are mixed
+from level 8. Big trucks stay in the top lane. Each lane keeps its speed and
+its pattern, so it can still be learned.
 
 - **Last Train:** Stroll, plus:
   - **Trains.** When the crossing lights flash and the bell rings, a train
