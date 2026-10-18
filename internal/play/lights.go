@@ -154,6 +154,7 @@ func (p *Play) addLights(ctx *scene.Context, l *fx.Lighting) {
 		x, y := cellX(config.Nooks[n])+float64(config.NookWidth*config.Cell)/2, cellY(config.GoalRow)+cell/2
 		l.Add(fx.Light{X: x, Y: y, Radius: fruitR, Colour: gfx.RGBA(resurrect64.Gold), Strength: fruitLight * fade})
 	}
+	p.addFoxLight(l)
 	p.addPickLights(ctx, l)
 	p.addSweeperLights(l)
 	for i, fl := range p.flyers() {
@@ -218,8 +219,11 @@ func (p *Play) addRiverLights(ctx *scene.Context, l *fx.Lighting, r int) {
 			}
 		}
 		if e.Heron {
-			l.Add(fx.Light{X: x + float64(e.HeronCell)*cell + cell/2, Y: y, Radius: heronR,
-				Colour: gfx.RGBA(resurrect64.Seafoam), Strength: heronLight})
+			hx := x + float64(e.HeronX())/config.SubPx + cell/2
+			l.Add(fx.Light{X: hx, Y: y, Radius: heronR, Colour: gfx.RGBA(resurrect64.Seafoam), Strength: heronLight})
+			if heronFlashing(e) { // its warning, like a sinking ship's (D67)
+				l.Add(fx.Light{X: hx, Y: y, Radius: warnR, Colour: gfx.RGBA(resurrect64.Coral), Strength: warnLight})
+			}
 		}
 	}
 }

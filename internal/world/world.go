@@ -63,6 +63,10 @@ const (
 	AllCaught                        // the whole set of the bonus level is collected, ending it early (D61)
 	FruitSwept                       // a street sweeper swept up a fruit (DESIGN §6.7)
 	Joined                           // a straggler joined the toad's line on the school gates (DESIGN §6.7)
+	HeronCocks                       // a stalking heron cocks its head: it is about to strike (D67)
+	EyesGlint                        // a fox's eyes glint in a nook: it is coming (D68)
+	FoxIn                            // the fox is in its nook: hopping in is a death
+	Snatched                         // the hero hopped into a nook with the fox in it (D68)
 )
 
 // Stats are the points earned on this level, for the level-clear tally.
@@ -104,6 +108,7 @@ type World struct {
 	Combo      Combo       // the hop combo, on levels with it (D38)
 	Gained     int         // points to pop up this tick: what the combo multiplied, and a firefly's at the cap
 	FruitNook  int         // the nook fruit shows in, or -1 (D59)
+	Fox        Fox         // the fox that works the nooks, on levels with it (D68)
 	Flyer      Flyer       // the firefly, or by day the dragonfly (D58)
 	Swarm      []Flyer     // a bonus level's fireflies (D61)
 	Yard       []Rake      // a bonus level's trains standing on the track rows (DESIGN §6.7)
@@ -140,6 +145,7 @@ func New(s *session.Session, level config.Level, rng *rand.Rand) *World {
 	}
 	for r, l := range level.Lanes {
 		w.Lanes[r] = newLane(l, level.HeronPct, level.Events[config.Wave].On(), rng)
+		w.Lanes[r].Stalk, w.Lanes[r].Strike = level.Stalk, level.Strike
 	}
 	w.Rail = newRail(level, rng)
 	w.Spells = newSpells(level, rng)
@@ -147,6 +153,7 @@ func New(s *session.Session, level config.Level, rng *rand.Rand) *World {
 		w.nextStorm(s)
 	}
 	w.newFruit()
+	w.newFox()
 	w.TicksLeft = level.TimerTicks
 	w.newAttempt()
 	w.rollFirefly()
@@ -189,6 +196,11 @@ func (w *World) Update(press Dir) []Event {
 		if len(w.Lanes[r].Entities) > 0 {
 			w.Lanes[r].update(w.rng)
 		}
+		for _, e := range w.Lanes[r].Entities {
+			if e.Heron && e.Cock == config.HeronCockTicks {
+				w.emit(HeronCocks) // it has just begun to: the warning (D67)
+			}
+		}
 	}
 	for i := range w.Yard {
 		w.Yard[i].update()
@@ -197,6 +209,7 @@ func (w *World) Update(press Dir) []Event {
 	w.updateSwarm()
 	w.updateSweepers()
 	w.updateFruit()
+	w.updateFox()
 	w.Rail.update(w)
 	w.updateSpells()
 	switch {
@@ -387,6 +400,13 @@ func (w *World) reachBank() {
 	if w.Bonus() {
 		w.bonusNook()
 		return
+	}
+	switch { // a nook with the fox in it is a death; one with only its eyes fills, and the fox slinks off (D68)
+	case w.foxIn(n):
+		w.die(Snatched)
+		return
+	case w.foxShowing(n):
+		w.foxAway()
 	}
 	w.Filled[n] = true
 	secs := w.TicksLeft / config.TPS

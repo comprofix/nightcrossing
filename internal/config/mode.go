@@ -70,6 +70,8 @@ func lastTrainLevels() ModeLevels {
 	m.Levels[2].Hint = "DAWN TO NIGHT: THE DARK FALLS AS YOU FILL THE NOOKS"
 	m.Levels[3].Hint = MixedHint // not Stroll's firefly hint: here fireflies and fruit are on from level 1 (D60)
 	withMixedTraffic(m.Levels)   // mixed traffic from level 4, in every mode but Stroll (D65)
+	m.Levels[5].Hint = ""        // not Stroll's standing heron: here herons stalk from level 3 (D66)
+	m.Predators = true
 	m.Trains = true
 	m.ComboFrom, m.CycleFrom = 2, 3
 	m.FruitFrom, m.FireflyFrom = 1, [NumHosts]int{1, 1, 1}

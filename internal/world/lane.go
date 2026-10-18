@@ -21,6 +21,8 @@ type Lane struct {
 	Loop     int // SubPx units
 	Entities []Entity
 	HeronPct int  // the chance a log coming on has a heron (DESIGN §5.2, D34)
+	Stalk    bool // herons stalk along their logs (D67)
+	Strike   bool // and strike the cell they face (D67)
 	Waving   bool // a rush hour wave is on: its vehicles come on as they come round (D43)
 	Current  int  // the current's slide along a platform, SubPx units per tick: + with the flow, - against (D46)
 	Surge    int  // how much faster a flood makes the river run, in percent (D48)
@@ -40,6 +42,12 @@ type Entity struct {
 
 	Heron     bool // a heron stands on this log (D34)
 	HeronCell int  // which cell of the log it stands on, from the left end
+	HeronDir  int  // the way it faces: +1 right, -1 left; a stalking heron walks this way (D67)
+	Cock      int  // ticks left of a stalking heron cocking its head, the warning before it strikes; 0 when not (D67)
+	Jab       int  // ticks left of its jab into the cell it faces; 0 when not
+	Stride    int  // ticks left of a stalking heron's walk into the next cell; 0 while it stands
+	heronStep int  // ticks until a stalking heron's next step
+	strikeIn  int  // ticks until it next strikes
 
 	Wave bool // an extra vehicle that only runs in a rush hour wave (D43)
 	Out  bool // not on the lane: a wave vehicle between waves
@@ -129,6 +137,9 @@ func (l *Lane) update(rng *rand.Rand) {
 				l.placeHeron(e, rng)
 			case !wasOff && off:
 				e.Heron = false
+			}
+			if e.Heron && l.Stalk {
+				l.stalk(e, rng)
 			}
 		}
 		if e.Dives {
@@ -312,28 +323,104 @@ func (e Entity) off() bool {
 // where. It is decided while the log is still wholly off the field, so a
 // heron never appears under the hero or pops into view: it rides in with
 // its log. The log after a heron's log never has one, so a log without a
-// heron is never more than one log away (DESIGN §5.2, D34).
+// heron is never more than one log away (DESIGN §5.2, D34). A standing
+// heron faces the way its log moves; a stalking one faces either way and
+// sets off along the log (D67).
 func (l *Lane) placeHeron(e *Entity, rng *rand.Rand) {
 	e.Heron = false
 	if l.HeronPct <= 0 {
 		return
 	}
 	if !l.lastHeron && rng.IntN(100) < l.HeronPct {
-		e.Heron, e.HeronCell = true, rng.IntN(e.Kind.Length/config.Cell)
+		e.Heron, e.HeronCell, e.HeronDir = true, rng.IntN(e.cells()), l.Dir
+		e.Cock, e.Jab, e.Stride = 0, 0, 0
+		if l.Stalk {
+			if rng.IntN(2) == 0 {
+				e.HeronDir = -e.HeronDir
+			}
+			e.heronStep, e.strikeIn = config.HeronStepTicks, strikeWait(rng)
+			e.turn()
+		}
 	}
 	l.lastHeron = e.Heron
 }
 
-// heronIn reports whether a heron overlaps left–right, in SubPx units.
-// Its box is its cell, trimmed by config.HitMargin at each side.
+// HeronX is how far e's heron is from the log's left end, in SubPx units:
+// its cell, and part of the way to the next while it walks (D67).
+func (e Entity) HeronX() int {
+	x := e.HeronCell * cellUnits
+	if e.Stride > 0 {
+		x += e.HeronDir * cellUnits * (config.HeronStrideTicks - e.Stride) / config.HeronStrideTicks
+	}
+	return x
+}
+
+// cells is how many cells long e is.
+func (e Entity) cells() int { return e.Kind.Length / config.Cell }
+
+// turn turns e's heron round if the cell it faces is off the end of its
+// log, so it always faces a cell of the log.
+func (e *Entity) turn() {
+	if c := e.HeronCell + e.HeronDir; c < 0 || c >= e.cells() {
+		e.HeronDir = -e.HeronDir
+	}
+}
+
+// strikeWait is how long a stalking heron walks before it next strikes.
+func strikeWait(rng *rand.Rand) int {
+	return config.HeronStrikeMinTicks + rng.IntN(config.HeronStrikeMaxTicks-config.HeronStrikeMinTicks+1)
+}
+
+// stalk moves e's heron one tick on (D67): a step along its log every
+// config.HeronStepTicks, standing and then walking smoothly into the next
+// cell, turning at the ends; and on a lane where herons strike, now and
+// then, standing, it cocks its head, the warning, then jabs the cell it
+// faces, and walks on.
+func (l *Lane) stalk(e *Entity, rng *rand.Rand) {
+	switch {
+	case e.Jab > 0:
+		if e.Jab--; e.Jab == 0 {
+			e.strikeIn = strikeWait(rng)
+		}
+		return
+	case e.Cock > 0:
+		if e.Cock--; e.Cock == 0 {
+			e.Jab = config.HeronJabTicks
+		}
+		return
+	case e.Stride > 0:
+		if e.Stride--; e.Stride == 0 {
+			e.HeronCell += e.HeronDir
+			e.turn()
+			e.heronStep = config.HeronStepTicks - config.HeronStrideTicks
+		}
+		return
+	}
+	if l.Strike {
+		if e.strikeIn--; e.strikeIn <= 0 {
+			e.Cock = config.HeronCockTicks
+			return
+		}
+	}
+	if e.heronStep--; e.heronStep <= 0 {
+		e.Stride = config.HeronStrideTicks
+	}
+}
+
+// heronIn reports whether a heron overlaps left–right, in SubPx units:
+// where it is, mid-walk too, and while it jabs, the cell it faces (D67).
+// Each box is a cell trimmed by config.HitMargin at each side.
 func (l *Lane) heronIn(left, right int) bool {
 	m := config.HitMargin * config.SubPx
+	in := func(e Entity, at int) bool {
+		hl := e.X() + at + m
+		return hl < right && left < hl+cellUnits-2*m
+	}
 	for _, e := range l.Entities {
 		if !e.Heron {
 			continue
 		}
-		hl := e.X() + e.HeronCell*cellUnits + m
-		if hl < right && left < hl+cellUnits-2*m {
+		if in(e, e.HeronX()) || e.Jab > 0 && in(e, (e.HeronCell+e.HeronDir)*cellUnits) {
 			return true
 		}
 	}
