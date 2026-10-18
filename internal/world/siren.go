@@ -256,10 +256,10 @@ func (l *Lane) driveOff(bodies [][2]int) {
 		case e.off():
 			e.Away = true
 		default:
-			front, back := l.ends(*e)
+			front, _ := l.ends(*e)
 			m := l.pace
 			for _, b := range bodies {
-				if b[1] > back {
+				if b[1] > front {
 					m = min(m, l.Speed+l.Speed*l.Surge/100)
 				}
 			}
@@ -302,7 +302,7 @@ func (l *Lane) bunch(bodies [][2]int, extras bool) {
 			m = min(m, exit-front)
 		}
 		for _, b := range bodies {
-			if b[1] > back {
+			if b[1] > front { // some of it beyond the car's front: one it has half passed it drives clear of
 				m = min(m, b[0]-gap-front)
 			}
 		}

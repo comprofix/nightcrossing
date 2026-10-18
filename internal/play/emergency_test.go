@@ -21,11 +21,24 @@ import (
 // A change to its rules or timings shows up here; if it is intended, run
 // the test with -update.
 func TestEmergencyReplay(t *testing.T) {
-	h := scenetest.New(t, 7)
+	emergencyReplay(t, config.RushHour, 8, 7, "emergency")
+}
+
+// TestEmergencyEscortReplay is TestEmergencyReplay in School Run, on a
+// level with mixed traffic, so the toadlet goes through the queues and gets
+// out of the emergency lane with the hero (D53, D72).
+func TestEmergencyEscortReplay(t *testing.T) {
+	emergencyReplay(t, config.SchoolRun, 6, 7, "emergency_escort")
+}
+
+// emergencyReplay plays mode's level n from seed with the autopilot, and
+// compares its log of emergency vehicles with testdata/name.golden.
+func emergencyReplay(t *testing.T, mode config.Mode, n int, seed uint64, name string) {
+	h := scenetest.New(t, seed)
 	h.Ctx.NewPlay = New
-	h.Ctx.Session = session.New(config.RushHour, config.StartLives)
-	m := config.RushHour.Levels
-	p := newPlay(h.Ctx, m, m.Level(8))
+	h.Ctx.Session = session.New(mode, config.StartLives)
+	m := mode.Levels
+	p := newPlay(h.Ctx, m, m.Level(n))
 	h.Start(p)
 	h.Ticks(scene.FadeTicks)
 
@@ -41,7 +54,7 @@ func TestEmergencyReplay(t *testing.T) {
 		} else {
 			h.Ticks(1)
 		}
-		if w = p.World(); w.Over || w.Level.Number != 8 {
+		if w = p.World(); w.Over || w.Level.Number != n {
 			break
 		}
 		if s := w.Siren; s.Phase != phase {
@@ -69,5 +82,5 @@ func TestEmergencyReplay(t *testing.T) {
 	if s := log.String(); !strings.Contains(s, "comes through") {
 		t.Errorf("no emergency vehicle came:\n%s", s)
 	}
-	scenetest.Golden(t, "emergency", log.String()+summary(p, h.Ctx))
+	scenetest.Golden(t, name, log.String()+summary(p, h.Ctx))
 }

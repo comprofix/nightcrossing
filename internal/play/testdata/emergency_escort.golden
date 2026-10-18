@@ -1,0 +1,15 @@
+tick 226: nook filled, 1 of 5
+tick 577: died (59) in row 6
+tick 1023: nook filled, 2 of 5
+tick 1566: the fire_truck coming down row 9
+tick 1603: nook filled, 3 of 5
+tick 1763: it comes through
+tick 1853: it has gone
+tick 1943: the queues move off
+tick 2365: nook filled, 4 of 5
+tick 3202: nook filled, 5 of 5
+grid 26x13  mode schoolrun  level 6
+tick 3202  ticks left 1354
+score 7720  lives 2
+hero cell 22,0  at 8448,0  facing up  hopping false
+toadlet 0 cell 22,0  at 8431,48  riding true

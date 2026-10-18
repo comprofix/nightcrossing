@@ -2,19 +2,16 @@ package config
 
 import "testing"
 
-// TestSchoolRunLevels: one toadlet on levels 1–4 and two from level 5,
-// through the loops; a second a toadlet on the timer; Storm's mechanics,
-// storms and all, from level 1 with no taught first storm; and the hints
-// on levels 1, 2 and 5 (D53, D54).
+// TestSchoolRunLevels: one toadlet on every level, through the loops; a
+// second a toadlet on the timer; Storm's mechanics, storms and all, from
+// level 1 with no taught first storm; and the hints on levels 1 and 2
+// (D53, D54).
 func TestSchoolRunLevels(t *testing.T) {
 	m := SchoolRun.Levels
-	hints := map[int]bool{1: true, 2: true, MixedFrom: true, 5: true} // and mixed traffic's (D65)
+	hints := map[int]bool{1: true, 2: true, MixedFrom: true} // and mixed traffic's (D65)
 	for n := 1; n <= len(m.Levels)+2*LoopLevels; n++ {
 		lv := m.Level(n)
 		want := 1
-		if n >= 5 {
-			want = 2
-		}
 		if lv.Toadlets != want {
 			t.Errorf("level %d: %d toadlets, want %d", n, lv.Toadlets, want)
 		}

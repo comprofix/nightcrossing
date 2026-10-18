@@ -98,7 +98,7 @@ snake.
 - **School Run:** Storm from level 1, plus toadlets to walk across:
   - **The escort.** A toadlet follows your trail, one move behind: your
     hops, your slides in the rain and the wind's pushes. If anything gets
-    it, you lose a life. From level 5 there are two.
+    it, you lose a life.
   - **Stop to gather them.** Stand still on the grass for a moment and the
     line catches up into your cell, and is pushed with you.
   - **The river.** Gather the line on the verge and the toadlets ride on
@@ -106,6 +106,9 @@ snake.
     it peeps: you can't go yet.
   - **Home together.** Reach a nook and they all get home with you: +50
     for each toadlet, with your combo.
+  - **Emergency vehicles.** The queues give way to your toadlet as they
+    do to you, but the vehicle runs it down too. It follows one move
+    behind, so hop on until it is out of the lane as well.
 
 ## Mastering a mode
 

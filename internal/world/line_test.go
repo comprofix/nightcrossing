@@ -46,13 +46,13 @@ func toadletAt(t *testing.T, w *World, i, col, row int) {
 func TestLineStartsInTheHerosCell(t *testing.T) {
 	lv := config.SchoolRun.Levels.Level(5)
 	w := New(session.New(config.SchoolRun, config.StartLives), lv, rand.New(rand.NewPCG(1, 1)))
-	if len(w.Line) != 2 {
-		t.Fatalf("%d toadlets on level 5, want 2", len(w.Line))
+	if len(w.Line) != 1 {
+		t.Fatalf("%d toadlets on level 5, want 1", len(w.Line))
 	}
 	for i := range w.Line {
 		toadletAt(t, w, i, config.StartCol, config.StartRow)
 	}
-	if want := config.TimerTicks(5) + 2*config.TPS; w.TicksLeft != want {
+	if want := config.TimerTicks(5) + config.ToadletSecs*config.TPS; w.TicksLeft != want {
 		t.Errorf("%d ticks on the clock, want %d", w.TicksLeft, want)
 	}
 	if w := newWorld(1); w.Line != nil {
