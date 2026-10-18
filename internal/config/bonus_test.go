@@ -164,3 +164,24 @@ func TestAfterTheStorm(t *testing.T) {
 		t.Errorf("%d currents with the flow and %d against, want one of each", with, against)
 	}
 }
+
+// TestSchoolGates: School Run's bonus level is the school gates: the late
+// afternoon, ten stragglers to walk home four at a time, a slow
+// school-zone road, and the game's ending after it (DESIGN §6.7, D62).
+func TestSchoolGates(t *testing.T) {
+	b := SchoolGates
+	if SchoolRun.Bonus != b || !b.Dusk || !b.Gates || !b.Ending || b.Stragglers != 10 || b.LineMax != 4 ||
+		b.TripMin > b.LineMax || b.Size() != b.Stragglers || b.Fireflies != 0 || len(b.Fruit) != 0 {
+		t.Fatalf("School Run's bonus level %+v", b)
+	}
+	for r, l := range b.Layout.Lanes {
+		if l.Kind == Road && (len(l.Pattern) == 0 || l.Speed > 10) {
+			t.Errorf("road row %d: %d vehicles at speed %d, want slow traffic", r, len(l.Pattern), l.Speed)
+		}
+	}
+	for _, m := range Modes {
+		if m.Bonus != nil && m.Bonus.Ending != (m.ID == SchoolRun.ID) {
+			t.Errorf("%s's bonus level ending the game: %v", m.Name, m.Bonus.Ending)
+		}
+	}
+}

@@ -79,6 +79,30 @@ included, and adds its own:
   - **Home together.** Reach a nook and they all get home with you: +50
     for each toadlet, with your combo.
 
+## Mastering a mode
+
+Only Stroll is open at first. Clear a mode's level 8 and you play its
+**bonus level**: no lives to lose (a slip just costs time and sends you back
+to the start), one clock, and as much to collect as you can before it runs
+out. Collect the whole set early for a bonus and 50 points a second left.
+
+- **Firefly night** (Stroll): catch 10 fireflies among parked cars and on
+  the logs.
+- **The last train home** (Last Train): ride the carriages of a goods yard
+  at dawn for 12 fruit, before the last train pulls out.
+- **Empty roads at dawn** (Rush Hour): beat two street sweepers to 12 fruit
+  on the road.
+- **After the storm** (Storm): stay out on the logs under a rainbow; each
+  dragonfly caught without touching land is worth more than the last.
+- **The school gates** (School Run): gather the toadlets waiting at the
+  kerbs, up to four in your line, and walk them home; three or more in one
+  trip pays double. Then the game's ending.
+
+Then the **MASTERED** screen: the mode is mastered and the next one opens.
+**Finish** for 1,000 points for each life left, or **carry on** into the
+looping levels for score. The high score tables mark mastered runs, and how
+far a run carried on.
+
 ![The intro shown before a mode starts](docs/screenshots/intro.png)
 
 ## Controls
@@ -138,12 +162,14 @@ go run -tags debug ./cmd/nightcrossing             # debug overlay
 go run ./cmd/nightcrossing -level 38               # start games on level 38 (no scores kept)
 go run -tags debug ./cmd/nightcrossing -noshaders  # draw as if shaders were unavailable
 go run -tags debug ./cmd/nightcrossing -storm dry  # every storm wet or dry (no scores kept)
+go run -tags debug ./cmd/nightcrossing -bonus      # start on the chosen mode's bonus level (no scores kept)
 go test ./internal/world -run TestStormBalance -balance -v  # deaths per storm, wet and dry
 go generate ./assets                               # rebuild the sprite sheets
 ```
 
 ## Credits
 
+- A game by Matthew McKinnon.
 - Colours: the [Resurrect 64](https://lospec.com/palette-list/resurrect-64)
   palette by Kerrie Lake.
 - Built with [Ebitengine](https://ebitengine.org), from the

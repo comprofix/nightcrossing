@@ -62,6 +62,7 @@ const (
 	BonusOver                        // the bonus level's clock ran out (D61)
 	AllCaught                        // the whole set of the bonus level is collected, ending it early (D61)
 	FruitSwept                       // a street sweeper swept up a fruit (DESIGN §6.7)
+	Joined                           // a straggler joined the toad's line on the school gates (DESIGN §6.7)
 )
 
 // Stats are the points earned on this level, for the level-clear tally.
@@ -79,6 +80,7 @@ type Stats struct {
 	Picked    int // on a bonus level, the fruit collected (DESIGN §6.7)
 	Run       int // on a bonus level with runs, what the runs' multipliers added (DESIGN §6.7)
 	BestRun   int // and the longest run
+	Trip      int // on the school gates, what trips of config's TripMin or more added (DESIGN §6.7)
 }
 
 // World is one level of a game.
@@ -99,15 +101,16 @@ type World struct {
 	Cleared    bool                    // every nook is filled
 	Over       bool                    // the game has ended
 	Stats      Stats
-	Combo      Combo      // the hop combo, on levels with it (D38)
-	Gained     int        // points to pop up this tick: what the combo multiplied, and a firefly's at the cap
-	FruitNook  int        // the nook fruit shows in, or -1 (D59)
-	Flyer      Flyer      // the firefly, or by day the dragonfly (D58)
-	Swarm      []Flyer    // a bonus level's fireflies (D61)
-	Yard       []Rake     // a bonus level's trains standing on the track rows (DESIGN §6.7)
-	Picks      []Pick     // a bonus level's fruit (DESIGN §6.7)
-	Sweepers   [2]Sweeper // a bonus level's street sweepers (DESIGN §6.7)
-	Run        int        // a bonus level's run: fireflies caught since the toad last stood on land (DESIGN §6.7)
+	Combo      Combo       // the hop combo, on levels with it (D38)
+	Gained     int         // points to pop up this tick: what the combo multiplied, and a firefly's at the cap
+	FruitNook  int         // the nook fruit shows in, or -1 (D59)
+	Flyer      Flyer       // the firefly, or by day the dragonfly (D58)
+	Swarm      []Flyer     // a bonus level's fireflies (D61)
+	Yard       []Rake      // a bonus level's trains standing on the track rows (DESIGN §6.7)
+	Picks      []Pick      // a bonus level's fruit (DESIGN §6.7)
+	Sweepers   [2]Sweeper  // a bonus level's street sweepers (DESIGN §6.7)
+	Stragglers []Straggler // the school gates' toadlets waiting to be walked home (DESIGN §6.7)
+	Run        int         // a bonus level's run: fireflies caught since the toad last stood on land (DESIGN §6.7)
 
 	sent       int                            // a bonus level's fireflies sent for so far: on the field, caught, or due
 	cameRoad   int                            // of them, how many have come in to the road
@@ -159,6 +162,7 @@ func (w *World) newAttempt() {
 	w.Player = newPlayer(config.StartCol, config.StartRow)
 	w.roof = -1
 	w.Line = newLine(w.Level.Toadlets)
+	w.strayBack() // the school gates' line goes back to its kerbs (DESIGN §6.7)
 	if !w.Bonus() {
 		w.TicksLeft = w.Level.TimerTicks
 	}

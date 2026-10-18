@@ -120,7 +120,7 @@ func build(s *session.Session, levels config.ModeLevels, level config.Level, rng
 		levels: levels,
 		light:  fx.NewLighting(pr.ScreenWidth, pr.ScreenHeight, shaders),
 		parts:  fx.NewParticles(rand.New(rand.NewPCG(rng.Uint64(), rng.Uint64()))),
-		sky:    skyBefore,
+		sky:    skyStart(level),
 		flash:  noFlash,
 	}
 	return p
@@ -204,7 +204,11 @@ func (p *Play) tally(ctx *scene.Context) scene.Scene {
 	w := p.world
 	n := w.Level.Number
 	if b := w.Level.Bonus; b != nil {
-		return scene.NewTally(b.Name, p.bonusLines(), func() scene.Scene { return newMastered(ctx, p.levels) })
+		mastered := func() scene.Scene { return newMastered(ctx, p.levels) }
+		if b.Ending { // the school gates: the game's ending and credits first (D62)
+			return scene.NewTally(b.Name, p.bonusLines(), func() scene.Scene { return newEnding(w.Stats.All > 0, mastered) })
+		}
+		return scene.NewTally(b.Name, p.bonusLines(), mastered)
 	}
 	next := func() scene.Scene { return newLevel(ctx, p.levels, n+1) }
 	if n == len(p.levels.Levels) && !ctx.Testing() {
@@ -234,6 +238,11 @@ func (p *Play) bonusLines() []scene.TallyLine {
 	}
 	if b.RunMax > 0 {
 		lines = append(lines, scene.TallyLine{Label: fmt.Sprintf("BEST RUN %d", st.BestRun), Points: st.Run})
+	}
+	if b.Stragglers > 0 {
+		lines = append(lines,
+			scene.TallyLine{Label: fmt.Sprintf("TOADLETS HOME %d x %d", st.Toadlets, b.Straggler), Points: st.Toadlets * b.Straggler},
+			scene.TallyLine{Label: "BIG TRIPS", Points: st.Trip})
 	}
 	if len(b.Fruit) > 0 {
 		lines = append(lines, scene.TallyLine{Label: fmt.Sprintf("FRUIT %d/%d", st.Picked, len(b.Fruit)), Points: st.Fruit})
@@ -377,6 +386,8 @@ func (p *Play) drawCaught(ctx *scene.Context, dst *ebiten.Image, ty int) {
 	sc, f := ctx.Scheme, ctx.Fonts
 	sp, frame := ctx.Sheet(Sheet).Sprite(p.hero.Pickup), 0
 	switch {
+	case b.Stragglers > 0:
+		sp = ctx.Sheet(Sheet).Sprite(p.young())
 	case b.Fireflies == 0:
 		sp = ctx.Sheet(Sheet).Sprite("fruit")
 		frame = sp.Frames() - 1 // the watermelon, the best of them
@@ -394,9 +405,12 @@ func (p *Play) drawCaught(ctx *scene.Context, dst *ebiten.Image, ty int) {
 }
 
 // allLabel is what collecting a bonus level's whole set is called: ALL
-// CAUGHT for fireflies, ALL COLLECTED for fruit.
+// CAUGHT for fireflies, ALL COLLECTED for fruit, ALL HOME for toadlets.
 func (p *Play) allLabel() string {
-	if b := p.world.Level.Bonus; b != nil && b.Fireflies == 0 {
+	switch b := p.world.Level.Bonus; {
+	case b != nil && b.Stragglers > 0:
+		return "ALL HOME"
+	case b != nil && b.Fireflies == 0:
 		return "ALL COLLECTED"
 	}
 	return "ALL CAUGHT"

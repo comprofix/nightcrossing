@@ -73,10 +73,17 @@ func TestLevel8LeadsToTheBonus(t *testing.T) {
 	}
 }
 
+// unbuilt is mode m as if its bonus level weren't built yet: every mode's
+// is now, but a mode without one still goes straight to MASTERED.
+func unbuilt(m config.Mode) config.Mode {
+	m.Bonus = nil
+	return m
+}
+
 // TestNoBonusYetGoesToMastered: a mode with no bonus level built yet goes
 // from level 8's tally straight to the MASTERED screen (D61).
 func TestNoBonusYetGoesToMastered(t *testing.T) {
-	h := bonusHarness(t, config.SchoolRun)
+	h := bonusHarness(t, unbuilt(config.SchoolRun))
 	scenetest.Current[*Mastered](h)
 	if !h.Ctx.Scores.IsMastered(config.SchoolRun.ID) {
 		t.Error("Storm isn't mastered")
@@ -87,7 +94,7 @@ func TestNoBonusYetGoesToMastered(t *testing.T) {
 // score entry with the run marked MASTERED, then the MODE menu, School Run
 // being the last mode (D62, D63).
 func TestFinish(t *testing.T) {
-	h := bonusHarness(t, config.SchoolRun)
+	h := bonusHarness(t, unbuilt(config.SchoolRun))
 	before := h.Ctx.Session.Score
 	h.Press(ebiten.KeyEnter) // Finish
 	scenetest.Current[*scene.Tally](h)
@@ -111,7 +118,7 @@ func TestFinish(t *testing.T) {
 // TestCarryOn: Carry on goes to level 9 with no life bonus, and each
 // level reached is the run's CONTINUED mark (D62, D63).
 func TestCarryOn(t *testing.T) {
-	h := bonusHarness(t, config.SchoolRun)
+	h := bonusHarness(t, unbuilt(config.SchoolRun))
 	before := h.Ctx.Session.Score
 	h.Press(ebiten.KeyArrowDown)
 	h.Press(ebiten.KeyEnter) // Carry on
@@ -330,4 +337,67 @@ func TestAfterTheStormReplay(t *testing.T) {
 	}
 	fmt.Fprintf(&log, "tick %d: ended %v, %d s left, best run %d\n", w.Tick, p.ending, w.TicksLeft/config.TPS, w.Stats.BestRun)
 	scenetest.Golden(t, "afterthestorm", log.String()+summary(p, h.Ctx))
+}
+
+// TestSchoolGatesEnding: School Run's level 8 goes on to the school
+// gates, then its tally, then the game's ending and credits, which roll
+// to the end by themselves, then the MASTERED screen; with not every
+// toadlet home, it doesn't say they all are (D62, DESIGN §6.7).
+func TestSchoolGatesEnding(t *testing.T) {
+	h := bonusHarness(t, config.SchoolRun)
+	if b := scenetest.Current[*Play](h).World().Level.Bonus; b != config.SchoolGates {
+		t.Fatalf("after level 8: bonus %v, want the school gates", b)
+	}
+	endBonus(t, h)
+	h.Ticks(scene.FadeTicks)
+	if scenetest.Current[*Ending](h).all {
+		t.Error("the ending says every one home, with the clock run out and none home")
+	}
+	for range 60 * config.TPS {
+		if _, ok := h.Mgr.Current().(*Ending); !ok {
+			break
+		}
+		h.Ticks(1)
+	}
+	h.Ticks(scene.FadeTicks)
+	scenetest.Current[*Mastered](h)
+	if !h.Ctx.Scores.IsMastered(config.SchoolRun.ID) {
+		t.Error("School Run isn't mastered")
+	}
+}
+
+// TestSchoolGatesReplay: the autopilot plays School Run's bonus level from
+// a seed, gathering stragglers and walking them home; a golden record of
+// each one gathered and each trip home (DESIGN §6.7).
+func TestSchoolGatesReplay(t *testing.T) {
+	h := scenetest.New(t, 13)
+	h.Ctx.NewPlay, h.Ctx.Bonus = New, true
+	p := New(h.Ctx, config.SchoolRun).(*Play)
+	h.Start(p)
+	h.Ticks(scene.FadeTicks)
+
+	keys := map[world.Dir]ebiten.Key{world.Up: ebiten.KeyArrowUp, world.Down: ebiten.KeyArrowDown,
+		world.Left: ebiten.KeyArrowLeft, world.Right: ebiten.KeyArrowRight}
+	var log strings.Builder
+	var a world.Autopilot
+	w := p.World()
+	line, home, dying := 0, 0, 0
+	for !w.Cleared {
+		if key, ok := keys[a.Next(w)]; ok {
+			h.Run(scenetest.Hold(1, key))
+		} else {
+			h.Ticks(1)
+		}
+		switch {
+		case w.Stats.Toadlets != home:
+			fmt.Fprintf(&log, "tick %d: %d home, %d in all\n", w.Tick, w.Stats.Toadlets-home, w.Stats.Toadlets)
+		case len(w.Line) > line:
+			fmt.Fprintf(&log, "tick %d: gathered at %d,%d, a line of %d\n", w.Tick, w.Player.Col, w.Player.Row, len(w.Line))
+		case w.Dying > 0 && dying == 0:
+			fmt.Fprintf(&log, "tick %d: a slip\n", w.Tick)
+		}
+		line, home, dying = len(w.Line), w.Stats.Toadlets, w.Dying
+	}
+	fmt.Fprintf(&log, "tick %d: ended %v, %d s left, trips bonus %d\n", w.Tick, p.ending, w.TicksLeft/config.TPS, w.Stats.Trip)
+	scenetest.Golden(t, "schoolgates", log.String()+summary(p, h.Ctx))
 }

@@ -29,6 +29,18 @@ type Bonus struct {
 	// by, each caught without setting foot on land worth one more times
 	// than the last; 0 for no runs (DESIGN §6.7).
 	RunMax int
+	// Stragglers are toadlets waiting at the kerbs (the start row, the
+	// verge and the track) to be walked home: landing on one adds it to
+	// the toad's line, which holds LineMax at most, and a nook brings the
+	// line home for Straggler points each, doubled for a trip of TripMin
+	// or more (DESIGN §6.7).
+	Stragglers, LineMax, Straggler, TripMin int
+	// Dusk lights the level in the late afternoon's golden light, and
+	// Gates puts a school sign by each nook: only the look.
+	Dusk, Gates bool
+	// Ending follows the bonus tally with the game's ending and credits
+	// (D62).
+	Ending bool
 	// Sweeper sends two street sweepers along the road lanes, one down
 	// from the top and one up from the bottom, sweeping up fruit in their
 	// path (DESIGN §6.7).
@@ -101,7 +113,7 @@ const (
 var BonusFruitPoints = [len(Fruits)]int{100, 150, 200, 250, 300, 350, 400, 500}
 
 // Size is how many pickups b's set has: its fireflies and its fruit.
-func (b *Bonus) Size() int { return b.Fireflies + len(b.Fruit) }
+func (b *Bonus) Size() int { return b.Fireflies + len(b.Fruit) + b.Stragglers }
 
 // ParkedCars are the letters of Bonus.Parked and the vehicles they are.
 var ParkedCars = map[byte]Entity{
@@ -309,6 +321,54 @@ var AfterTheStorm = &Bonus{
 	RunMax:    5,
 }
 
+// schoolZone is the school gates' road: a quiet school-zone road, its
+// traffic slow and far apart, so the line behind the toad is what has to
+// be kept safe (DESIGN §6.7). Starting values, tuned by play.
+var schoolZone = [Rows]Lane{
+	8: {Kind: Road, Dir: -1, Speed: 8, Pattern: []Spawn{
+		{Entity: CarRed, Gap: 200}, {Entity: CarBlue, Gap: 260},
+	}},
+	9: {Kind: Road, Dir: 1, Speed: 9, Pattern: []Spawn{
+		{Entity: Van, Gap: 230}, {Entity: CarYellow, Gap: 280},
+	}},
+	10: {Kind: Road, Dir: -1, Speed: 8, Pattern: []Spawn{
+		{Entity: CarBlue, Gap: 250}, {Entity: Bike, Gap: 210},
+	}},
+	11: {Kind: Road, Dir: 1, Speed: 7, Pattern: []Spawn{
+		{Entity: CarYellow, Gap: 210}, {Entity: CarRed, Gap: 270},
+	}},
+}
+
+// schoolGatesLayout is the far bank, firefly night's slow river, the
+// verge, the track as scenery and the school-zone road.
+var schoolGatesLayout = func() *Layout {
+	l := strollLayout("The school gates", [5]Lane{nightLogsRight, nightLogsLeft, nightLogsRight, nightLogsLeft, nightLogsRight})
+	for r, lane := range schoolZone {
+		if lane.Kind == Road {
+			l.Lanes[r] = lane
+		}
+	}
+	return l
+}()
+
+// SchoolGates is School Run's bonus level (DESIGN §6.7): the late
+// afternoon, toadlets waiting at the kerbs, and the toad walking them home
+// a line at a time across a quiet road, then the game's ending.
+var SchoolGates = &Bonus{
+	Name:       "THE SCHOOL GATES",
+	Hint:       "WALK THE TOADLETS HOME: HOP ONTO ONE AND IT FOLLOWS",
+	Layout:     schoolGatesLayout,
+	Secs:       40,
+	All:        1000,
+	Stragglers: 10,
+	LineMax:    4,
+	Straggler:  200,
+	TripMin:    3,
+	Dusk:       true,
+	Gates:      true,
+	Ending:     true,
+}
+
 // BonusLevel is m's bonus level as it is played, numbered as the level it
 // follows; ok is false if m has none yet, so clearing its level 8 goes
 // straight to the MASTERED screen (D61).
@@ -318,7 +378,7 @@ func BonusLevel(m Mode) (lv Level, ok bool) {
 		return Level{}, false
 	}
 	lv = Level{Number: len(m.Levels.Levels), Lanes: b.Layout.Lanes, Bonus: b, Hint: b.Hint,
-		TimerTicks: b.Secs * TPS, DayCycle: b.Dawn} // its nooks never fill, so it stays dawn
+		TimerTicks: b.Secs * TPS, DayCycle: b.Dawn || b.Dusk} // its nooks never fill, so it stays dawn, or dusk
 	lv.FireflyOn[HostLogs] = true // never on lily pads, which dive
 	return lv, true
 }

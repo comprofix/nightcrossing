@@ -1,371 +1,378 @@
 {
   "bank": {
     "x": 0,
-    "y": 532,
+    "y": 548,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "barge_back": {
     "x": 0,
-    "y": 316,
+    "y": 332,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "barge_back_deep": {
     "x": 0,
-    "y": 985,
+    "y": 1019,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "barge_back_flash": {
     "x": 0,
-    "y": 937,
+    "y": 971,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "barge_back_low": {
     "x": 0,
-    "y": 961,
+    "y": 995,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "barge_front": {
     "x": 0,
-    "y": 364,
+    "y": 380,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "barge_front_deep": {
     "x": 0,
-    "y": 1129,
+    "y": 1163,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "barge_front_flash": {
     "x": 0,
-    "y": 1081,
+    "y": 1115,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "barge_front_low": {
     "x": 0,
-    "y": 1105,
+    "y": 1139,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "barge_mid": {
     "x": 0,
-    "y": 340,
+    "y": 356,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "barge_mid_deep": {
     "x": 0,
-    "y": 1057,
+    "y": 1091,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "barge_mid_flash": {
     "x": 0,
-    "y": 1009,
+    "y": 1043,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "barge_mid_low": {
     "x": 0,
-    "y": 1033,
+    "y": 1067,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "bike": {
     "x": 0,
-    "y": 124,
+    "y": 140,
     "w": 24,
     "h": 24,
     "frames": 2
   },
   "car_back": {
     "x": 0,
-    "y": 676,
+    "y": 692,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "car_blue": {
     "x": 0,
-    "y": 889,
+    "y": 923,
     "w": 32,
     "h": 24,
     "frames": 2
   },
   "car_front": {
     "x": 0,
-    "y": 724,
+    "y": 740,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "car_mid": {
     "x": 0,
-    "y": 700,
+    "y": 716,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "car_red": {
     "x": 0,
-    "y": 76,
+    "y": 92,
     "w": 32,
     "h": 24,
     "frames": 2
   },
   "car_yellow": {
     "x": 0,
-    "y": 913,
+    "y": 947,
     "w": 32,
     "h": 24,
     "frames": 2
   },
   "dragonfly": {
     "x": 0,
-    "y": 620,
+    "y": 636,
     "w": 16,
     "h": 16,
     "frames": 3
   },
   "engine_back": {
     "x": 0,
-    "y": 748,
+    "y": 764,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "engine_mid": {
     "x": 0,
-    "y": 772,
+    "y": 788,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "engine_nose": {
     "x": 0,
-    "y": 796,
+    "y": 812,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "ferry_back": {
     "x": 0,
-    "y": 388,
+    "y": 404,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "ferry_back_deep": {
     "x": 0,
-    "y": 1201,
+    "y": 1235,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "ferry_back_flash": {
     "x": 0,
-    "y": 1153,
+    "y": 1187,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "ferry_back_low": {
     "x": 0,
-    "y": 1177,
+    "y": 1211,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "ferry_cabin": {
     "x": 0,
-    "y": 436,
+    "y": 452,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "ferry_cabin_deep": {
     "x": 0,
-    "y": 1345,
+    "y": 1379,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "ferry_cabin_flash": {
     "x": 0,
-    "y": 1297,
+    "y": 1331,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "ferry_cabin_low": {
     "x": 0,
-    "y": 1321,
+    "y": 1355,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "ferry_deck": {
     "x": 0,
-    "y": 412,
+    "y": 428,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "ferry_deck_deep": {
     "x": 0,
-    "y": 1273,
+    "y": 1307,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "ferry_deck_flash": {
     "x": 0,
-    "y": 1225,
+    "y": 1259,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "ferry_deck_low": {
     "x": 0,
-    "y": 1249,
+    "y": 1283,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "ferry_front": {
     "x": 0,
-    "y": 460,
+    "y": 476,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "ferry_front_deep": {
     "x": 0,
-    "y": 1417,
+    "y": 1451,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "ferry_front_flash": {
     "x": 0,
-    "y": 1369,
+    "y": 1403,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "ferry_front_low": {
     "x": 0,
-    "y": 1393,
+    "y": 1427,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "firefly": {
     "x": 0,
-    "y": 604,
+    "y": 620,
     "w": 16,
     "h": 16,
     "frames": 3
   },
   "fruit": {
     "x": 0,
-    "y": 636,
+    "y": 652,
     "w": 16,
     "h": 16,
     "frames": 8
   },
   "heron": {
     "x": 0,
-    "y": 580,
+    "y": 596,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "lamp": {
     "x": 0,
-    "y": 652,
+    "y": 668,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "life": {
     "x": 0,
-    "y": 64,
+    "y": 80,
     "w": 12,
     "h": 12,
     "frames": 1
   },
   "log_back": {
     "x": 0,
-    "y": 244,
+    "y": 260,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "log_front": {
     "x": 0,
-    "y": 292,
+    "y": 308,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "log_mid": {
     "x": 0,
-    "y": 268,
+    "y": 284,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "nook": {
     "x": 0,
-    "y": 556,
+    "y": 572,
     "w": 48,
     "h": 24,
     "frames": 1
   },
   "pad": {
     "x": 0,
-    "y": 484,
+    "y": 500,
     "w": 24,
     "h": 24,
     "frames": 4
   },
+  "schoolsign": {
+    "x": 0,
+    "y": 905,
+    "w": 12,
+    "h": 18,
+    "frames": 1
+  },
   "signal": {
     "x": 0,
-    "y": 820,
+    "y": 836,
     "w": 24,
     "h": 24,
     "frames": 3
   },
   "splash": {
     "x": 0,
-    "y": 508,
+    "y": 524,
     "w": 24,
     "h": 24,
     "frames": 4
   },
   "sweeper": {
     "x": 0,
-    "y": 865,
+    "y": 881,
     "w": 48,
     "h": 24,
     "frames": 2
@@ -384,51 +391,58 @@
     "h": 16,
     "frames": 7
   },
+  "toadlet_cap": {
+    "x": 0,
+    "y": 40,
+    "w": 16,
+    "h": 16,
+    "frames": 7
+  },
   "track": {
     "x": 0,
-    "y": 220,
+    "y": 236,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "traffic_light": {
     "x": 0,
-    "y": 844,
+    "y": 860,
     "w": 8,
     "h": 21,
     "frames": 3
   },
   "truck_back": {
     "x": 0,
-    "y": 148,
+    "y": 164,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "truck_front": {
     "x": 0,
-    "y": 196,
+    "y": 212,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "truck_mid": {
     "x": 0,
-    "y": 172,
+    "y": 188,
     "w": 24,
     "h": 24,
     "frames": 1
   },
   "van": {
     "x": 0,
-    "y": 100,
+    "y": 116,
     "w": 40,
     "h": 24,
     "frames": 2
   },
   "verge": {
     "x": 0,
-    "y": 40,
+    "y": 56,
     "w": 24,
     "h": 24,
     "frames": 1
