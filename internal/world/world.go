@@ -74,7 +74,8 @@ type Stats struct {
 	Fruit     int // points for fruit taken, before the combo (D59)
 	Fireflies int // fireflies caught (D58)
 	AtCap     int // points for fireflies caught with lives at the cap (D57)
-	All       int // on a bonus level, the points for catching every firefly (D61)
+	All       int // on a bonus level, the points for collecting the whole set (D61)
+	Picked    int // on a bonus level, the fruit collected (DESIGN §6.7)
 }
 
 // World is one level of a game.
@@ -100,11 +101,14 @@ type World struct {
 	FruitNook  int     // the nook fruit shows in, or -1 (D59)
 	Flyer      Flyer   // the firefly, or by day the dragonfly (D58)
 	Swarm      []Flyer // a bonus level's fireflies (D61)
+	Yard       []Rake  // a bonus level's trains standing on the track rows (DESIGN §6.7)
+	Picks      []Pick  // a bonus level's fruit (DESIGN §6.7)
 
 	sent       int                            // a bonus level's fireflies sent for so far: on the field, caught, or due
 	cameRoad   int                            // of them, how many have come in to the road
 	cameRiver  int                            // and to the river
 	reach      [config.Rows][config.Cols]bool // the land cells the toad can get to past a bonus level's parked cars
+	roof       int                            // the rake in Yard whose carriage roof the hero landed on, or -1 (DESIGN §6.7)
 	fruitTicks int                            // ticks until the fruit goes, or until it next shows
 	furthest   int                            // the furthest row reached this attempt
 	fallen     int                            // whose death is under way: Hero, or a toadlet (D53)
@@ -148,6 +152,7 @@ func New(s *session.Session, level config.Level, rng *rand.Rand) *World {
 // with a full clock; on a bonus level, the clock runs on (D61).
 func (w *World) newAttempt() {
 	w.Player = newPlayer(config.StartCol, config.StartRow)
+	w.roof = -1
 	w.Line = newLine(w.Level.Toadlets)
 	if !w.Bonus() {
 		w.TicksLeft = w.Level.TimerTicks
@@ -175,6 +180,9 @@ func (w *World) Update(press Dir) []Event {
 		if len(w.Lanes[r].Entities) > 0 {
 			w.Lanes[r].update(w.rng)
 		}
+	}
+	for i := range w.Yard {
+		w.Yard[i].update()
 	}
 	w.updateFirefly()
 	w.updateSwarm()
@@ -288,7 +296,8 @@ func (w *World) updateTimer() {
 //     and herons only count once it is down, so a hop over a gap onto a
 //     platform is safe.
 //   - Rail: a passing train overlaps it, trimmed like a vehicle (DESIGN
-//     §6.2).
+//     §6.2). In a bonus level's goods yard, a rake ran it over on the
+//     rails, or carried its middle off the field on a roof (DESIGN §6.7).
 //   - Bank: on landing, the hero fills an empty nook or bumps into the bank
 //     (DESIGN §5.3); a toadlet goes into the hero's nook.
 //   - Verge: in a flood, a cell under water is a splash once it is down,
@@ -304,7 +313,7 @@ func (w *World) checkHazards(i int) {
 		case lane.hits(left, right, config.HitMargin):
 			w.dieAs(i, Squashed)
 		case w.Bonus() && i == Hero && !p.Hopping():
-			w.catchSwarm(p.LaneRow(), left, right) // a firefly in a road gap (D61)
+			w.collect(p.LaneRow(), left, right) // a firefly in a road gap (D61)
 		}
 	case config.River:
 		switch mid := p.Middle(); {
@@ -316,13 +325,16 @@ func (w *World) checkHazards(i int) {
 		case lane.heronIn(left, right):
 			w.dieAs(i, Caught)
 		case i == Hero && w.Bonus():
-			w.catchSwarm(p.LaneRow(), left, right)
+			w.collect(p.LaneRow(), left, right)
 		case i == Hero:
 			w.catchFirefly(p.LaneRow(), left, right)
 		}
 	case config.Rail:
-		if w.Rail.Hits(left, right) {
+		switch {
+		case w.Rail.Hits(left, right):
 			w.dieAs(i, Struck)
+		case w.Bonus() && i == Hero:
+			w.inYard(left, right) // a goods yard (DESIGN §6.7)
 		}
 	case config.Bank:
 		if !p.Hopping() && i == Hero { // toadlets reach it on the hero's back (D53)

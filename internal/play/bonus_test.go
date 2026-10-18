@@ -76,10 +76,10 @@ func TestLevel8LeadsToTheBonus(t *testing.T) {
 // TestNoBonusYetGoesToMastered: a mode with no bonus level built yet goes
 // from level 8's tally straight to the MASTERED screen (D61).
 func TestNoBonusYetGoesToMastered(t *testing.T) {
-	h := bonusHarness(t, config.LastTrain)
+	h := bonusHarness(t, config.RushHour)
 	scenetest.Current[*Mastered](h)
-	if !h.Ctx.Scores.IsMastered(config.LastTrain.ID) {
-		t.Error("Last Train isn't mastered")
+	if !h.Ctx.Scores.IsMastered(config.RushHour.ID) {
+		t.Error("Rush Hour isn't mastered")
 	}
 }
 
@@ -87,7 +87,7 @@ func TestNoBonusYetGoesToMastered(t *testing.T) {
 // score entry with the run marked MASTERED, then the next mode's intro
 // (D62, D63).
 func TestFinish(t *testing.T) {
-	h := bonusHarness(t, config.LastTrain)
+	h := bonusHarness(t, config.RushHour)
 	before := h.Ctx.Session.Score
 	h.Press(ebiten.KeyEnter) // Finish
 	scenetest.Current[*scene.Tally](h)
@@ -101,17 +101,17 @@ func TestFinish(t *testing.T) {
 		h.Press(ebiten.KeyEnter)
 	}
 	scenetest.Current[*scene.HighScoreTable](h)
-	if es := h.Ctx.Scores.Table(config.LastTrain.ID); len(es) != 1 || !es[0].Mastered || es[0].Continued != 0 {
+	if es := h.Ctx.Scores.Table(config.RushHour.ID); len(es) != 1 || !es[0].Mastered || es[0].Continued != 0 {
 		t.Errorf("table %+v: want the run marked mastered, not continued", es)
 	}
 	h.Press(ebiten.KeyEnter)
-	scenetest.Current[*scene.Intro](h) // Rush Hour's
+	scenetest.Current[*scene.Intro](h) // Storm's
 }
 
 // TestCarryOn: Carry on goes to level 9 with no life bonus, and each
 // level reached is the run's CONTINUED mark (D62, D63).
 func TestCarryOn(t *testing.T) {
-	h := bonusHarness(t, config.LastTrain)
+	h := bonusHarness(t, config.RushHour)
 	before := h.Ctx.Session.Score
 	h.Press(ebiten.KeyArrowDown)
 	h.Press(ebiten.KeyEnter) // Carry on
@@ -122,7 +122,7 @@ func TestCarryOn(t *testing.T) {
 	if s := h.Ctx.Session; !s.Mastered || s.Continued != 9 {
 		t.Errorf("session marks %v, %d: want mastered, continued to 9", s.Mastered, s.Continued)
 	}
-	newLevel(h.Ctx, config.LastTrain.Levels, 10)
+	newLevel(h.Ctx, config.RushHour.Levels, 10)
 	if e := entry(h.Ctx.Session); e.Continued != 10 {
 		t.Errorf("entry %+v: want continued to 10", e)
 	}
@@ -189,4 +189,65 @@ func TestFireflyNightReplay(t *testing.T) {
 	}
 	fmt.Fprintf(&log, "tick %d: ended %v, %d s left\n", w.Tick, p.ending, w.TicksLeft/config.TPS)
 	scenetest.Golden(t, "fireflynight", log.String()+summary(p, h.Ctx))
+}
+
+// TestLastTrainHomeReplay: the autopilot plays Last Train's bonus level
+// from a seed, collecting the fruit in the goods yard and on the river; a
+// golden record of what it collects and where (DESIGN §6.7).
+func TestLastTrainHomeReplay(t *testing.T) {
+	h := scenetest.New(t, 11)
+	h.Ctx.NewPlay, h.Ctx.Bonus = New, true
+	p := New(h.Ctx, config.LastTrain).(*Play)
+	h.Start(p)
+	h.Ticks(scene.FadeTicks)
+
+	keys := map[world.Dir]ebiten.Key{world.Up: ebiten.KeyArrowUp, world.Down: ebiten.KeyArrowDown,
+		world.Left: ebiten.KeyArrowLeft, world.Right: ebiten.KeyArrowRight}
+	var log strings.Builder
+	var a world.Autopilot
+	w := p.World()
+	picked, dying, goals := 0, 0, 0
+	for !w.Cleared {
+		if key, ok := keys[a.Next(w)]; ok {
+			h.Run(scenetest.Hold(1, key))
+		} else {
+			h.Ticks(1)
+		}
+		switch {
+		case w.Stats.Picked != picked:
+			fmt.Fprintf(&log, "tick %d: fruit %d picked at %d,%d\n", w.Tick, w.Stats.Picked, w.Player.Col, w.Player.Row)
+		case w.Dying > 0 && dying == 0:
+			fmt.Fprintf(&log, "tick %d: a slip\n", w.Tick)
+		case w.Stats.Goals != goals:
+			fmt.Fprintf(&log, "tick %d: a nook\n", w.Tick)
+		}
+		picked, dying, goals = w.Stats.Picked, w.Dying, w.Stats.Goals
+	}
+	fmt.Fprintf(&log, "tick %d: ended %v, %d s left\n", w.Tick, p.ending, w.TicksLeft/config.TPS)
+	scenetest.Golden(t, "lasttrainhome", log.String()+summary(p, h.Ctx))
+}
+
+// TestTheLastTrainPullsOut: when the clock runs out on the last train
+// home, TIME UP holds while the last train pulls out, then the tally
+// (DESIGN §6.7).
+func TestTheLastTrainPullsOut(t *testing.T) {
+	h := scenetest.New(t, 11)
+	h.Ctx.NewPlay, h.Ctx.Bonus = New, true
+	p := New(h.Ctx, config.LastTrain).(*Play)
+	h.Start(p)
+	h.Ticks(scene.FadeTicks)
+	p.World().TicksLeft = 1
+	h.Ticks(1)
+	if !p.departing() {
+		t.Fatalf("ending %v: want the last train pulling out", p.ending)
+	}
+	k := p.World().LastTrain()
+	x := p.rakeX(k)
+	h.Ticks(clearTicks + 1)
+	scenetest.Current[*Play](h) // still going
+	if p.rakeX(k) <= x {
+		t.Errorf("the last train is at %v, from %v: it should be pulling out", p.rakeX(k), x)
+	}
+	h.Ticks(departTicks - clearTicks + scene.FadeTicks)
+	scenetest.Current[*scene.Tally](h)
 }

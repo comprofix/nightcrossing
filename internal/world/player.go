@@ -227,8 +227,8 @@ func (w *World) move(d Dir, slide bool) bool {
 	if m := x + cellUnits/2; m < 0 || m >= fieldWidth {
 		return false
 	}
-	if w.Lanes[row].Kind != config.River && w.Parked(columnOf(x), row) {
-		w.emit(Blocked) // a parked car: the toad stays put (D61)
+	if w.Lanes[row].Kind != config.River && (w.Parked(columnOf(x), row) || w.engineAt(row, x+cellUnits/2)) {
+		w.emit(Blocked) // a parked car, or an engine: the toad stays put (D61, DESIGN §6.7)
 		return false
 	}
 	// The verge is a checkpoint: the hero takes its line onto the river on
@@ -305,6 +305,10 @@ func (w *World) pushHero() bool {
 func (w *World) ride() {
 	p := &w.Player
 	lane := &w.Lanes[p.LaneRow()]
+	if lane.Kind == config.Rail && w.Bonus() {
+		w.rideRake() // a goods yard's carriages carry it too (DESIGN §6.7)
+		return
+	}
 	if lane.Kind != config.River {
 		return
 	}

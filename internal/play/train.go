@@ -87,10 +87,25 @@ const (
 // signalCols are the columns of the two signals: left, then right.
 var signalCols = [2]int{0, config.Cols - 1}
 
+// signalRow is the row the crossing signals guard: the track with trains,
+// or the main line of a bonus level's yard, with its last train (DESIGN
+// §6.7); ok is false with neither.
+func (p *Play) signalRow() (row int, ok bool) {
+	if rl := &p.world.Rail; rl.On {
+		return rl.Row, true
+	}
+	if k := p.world.LastTrain(); k != nil {
+		return k.Row, true
+	}
+	return 0, false
+}
+
 // signalFrame is the frame of the signal on side (0 left, 1 right) now.
+// Both flash as the last train is about to leave, and as it goes.
 func (p *Play) signalFrame(side int) int {
 	rl := &p.world.Rail
-	if rl.Phase == world.RailQuiet || (side == 0) != (rl.Dir > 0) {
+	leaving := p.world.Departing() || p.departing()
+	if !leaving && (rl.Phase == world.RailQuiet || (side == 0) != (rl.Dir > 0)) {
 		return signalOff
 	}
 	if (p.world.Tick/signalFlashTicks)%2 == 0 {
@@ -101,13 +116,13 @@ func (p *Play) signalFrame(side int) int {
 
 // drawSignals draws the two crossing signals.
 func (p *Play) drawSignals(ctx *scene.Context, dst *ebiten.Image) {
-	rl := &p.world.Rail
-	if !rl.On {
+	row, ok := p.signalRow()
+	if !ok {
 		return
 	}
 	sp := ctx.Sheet(Sheet).Sprite("signal")
 	for side, c := range signalCols {
-		sp.Draw(dst, p.signalFrame(side), cellX(c), cellY(rl.Row-1), false)
+		sp.Draw(dst, p.signalFrame(side), cellX(c), cellY(row-1), false)
 	}
 }
 
@@ -147,7 +162,8 @@ func (p *Play) drawTrain(ctx *scene.Context, dst *ebiten.Image) {
 // headlight, windows and tail lamp.
 func (p *Play) addRailLights(l *fx.Lighting) {
 	rl := &p.world.Rail
-	if !rl.On {
+	row, ok := p.signalRow()
+	if !ok {
 		return
 	}
 	red := gfx.RGBA(resurrect64.Red)
@@ -161,11 +177,11 @@ func (p *Play) addRailLights(l *fx.Lighting) {
 		default:
 			continue
 		}
-		l.Add(fx.Light{X: x, Y: cellY(rl.Row-1) + signalLampY, Radius: signalLampR, Colour: red, Strength: signalLampLight})
-		l.Add(fx.Light{X: cellX(c) + float64(config.Cell)/2, Y: cellY(rl.Row) + float64(config.Cell)/2,
+		l.Add(fx.Light{X: x, Y: cellY(row-1) + signalLampY, Radius: signalLampR, Colour: red, Strength: signalLampLight})
+		l.Add(fx.Light{X: cellX(c) + float64(config.Cell)/2, Y: cellY(row) + float64(config.Cell)/2,
 			Radius: signalWashR, Colour: red, Strength: signalWash})
 	}
-	if rl.Phase != world.RailPassing {
+	if !rl.On || rl.Phase != world.RailPassing {
 		return
 	}
 	cell := float64(config.Cell)
@@ -192,11 +208,14 @@ func (p *Play) addRailLights(l *fx.Lighting) {
 }
 
 // railEffect is the track's sound this tick, or nil: the bell rings
-// through a warning, and the rumble keeps going while a train passes. The
-// horn and the crash come with their events (soundsFor).
+// through a warning, and as the last train is about to leave (DESIGN
+// §6.7), and the rumble keeps going while a train passes. The horn and
+// the crash come with their events (soundsFor).
 func (p *Play) railEffect() *audio.Effect {
 	rl := &p.world.Rail
 	switch {
+	case p.world.Departing() && p.world.TicksLeft%bellTicks == 0:
+		return Bell
 	case rl.Phase == world.RailWarning && (config.TrainWarnTicks-rl.Left)%bellTicks == 0:
 		return Bell
 	case rl.Phase == world.RailPassing && p.world.Tick%rumbleTicks == 0:

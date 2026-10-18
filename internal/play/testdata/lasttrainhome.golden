@@ -1,0 +1,17 @@
+tick 64: fruit 1 picked at 7,10
+tick 120: fruit 2 picked at 1,9
+tick 160: fruit 3 picked at 1,4
+tick 272: fruit 4 picked at 6,2
+tick 320: fruit 5 picked at 11,3
+tick 352: fruit 6 picked at 13,1
+tick 376: fruit 7 picked at 13,4
+tick 488: fruit 8 picked at 17,8
+tick 504: fruit 9 picked at 19,8
+tick 544: fruit 10 picked at 23,9
+tick 576: fruit 11 picked at 25,7
+tick 624: fruit 12 picked at 25,1
+tick 624: ended 44, 29 s left
+grid 26x13  mode lasttrain  level 8
+tick 624  ticks left 1777
+score 5400  lives 3
+hero cell 25,1  at 9608,384  facing up  hopping false

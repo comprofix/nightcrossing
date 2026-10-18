@@ -16,8 +16,69 @@ type Bonus struct {
 	OnRoad    int // of them, how many come to the road; the rest come to the river
 	AtOnce    int // on the field at the start
 	Firefly   int // points for each
-	All       int // points for catching every one
+	All       int // points for collecting the whole set: every firefly and fruit
+	// Dawn lights the level as Last Train's dawn, rather than the night.
+	Dawn bool
+	// Yard is the trains standing on the track rows, a goods yard, and
+	// Fruit the fruit laid out at the start, in random places each run
+	// (DESIGN §6.7).
+	Yard  []Rake
+	Fruit []BonusFruit
 }
+
+// Rake is a train standing in a bonus level's goods yard: carriages, with
+// an engine or not, which the toad can stand on and ride (DESIGN §6.7).
+type Rake struct {
+	Row, Col int  // its track row, and the column its left end starts at
+	Cars     int  // its carriages
+	Engine   bool // an engine, at the end it faces; only a rake with one can shunt
+	Facing   int  // the way its engine faces, and so the end it is at: +1 right, -1 left
+	Shunt    int  // how far it shunts, in cells, and the way: + right, - left; 0 for one that stands
+	Last     bool // the last train, which pulls out the way it faces when the clock runs out
+}
+
+// Cells is how many cells r takes.
+func (r Rake) Cells() int {
+	n := r.Cars * CarCells
+	if r.Engine {
+		n += EngineCells
+	}
+	return n
+}
+
+// A train's carriage and engine, in cells (DESIGN §6.2, D37).
+const (
+	CarCells    = 3
+	EngineCells = 3
+)
+
+// BonusFruit is one fruit of a bonus level's set: which of Fruits it is,
+// and whether it lies on the river, riding a log, or in the yard, on the
+// rails or a carriage's roof. Where exactly is chosen at random each run,
+// so no run's route is the last's (DESIGN §6.7).
+type BonusFruit struct {
+	Fruit int
+	River bool
+}
+
+// BonusFruitApart is how many cells apart a bonus level's fruit are at
+// the least, across and up, so none lies next to another, even corner to
+// corner; none lies within BonusClearCells of the toad's start either.
+const BonusFruitApart = 2
+
+// The goods yard (DESIGN §6.7): how fast a rake shunts, in SubPx units a
+// tick, and how long it waits at each end. Starting values.
+const (
+	ShuntSpeed      = 8
+	ShuntPauseTicks = TPS
+)
+
+// BonusFruitPoints are what each of Fruits is worth on a bonus level, more
+// for the more exotic (DESIGN §6.7).
+var BonusFruitPoints = [len(Fruits)]int{100, 150, 200, 250, 300, 350, 400, 500}
+
+// Size is how many pickups b's set has: its fireflies and its fruit.
+func (b *Bonus) Size() int { return b.Fireflies + len(b.Fruit) }
 
 // ParkedCars are the letters of Bonus.Parked and the vehicles they are.
 var ParkedCars = map[byte]Entity{
@@ -103,6 +164,47 @@ var FireflyNight = &Bonus{
 	All:       1000,
 }
 
+// lastTrainHomeLayout is the far bank, firefly night's slow river, the
+// verge, and the main line with the road rows turned to sidings: a goods
+// yard.
+var lastTrainHomeLayout = func() *Layout {
+	l := strollLayout("The last train home", [5]Lane{nightLogsRight, nightLogsLeft, nightLogsRight, nightLogsLeft, nightLogsRight})
+	for r, lane := range l.Lanes {
+		if lane.Kind == Road {
+			l.Lanes[r] = Lane{Kind: Rail}
+		}
+	}
+	return l
+}()
+
+// LastTrainHome is Last Train's bonus level (DESIGN §6.7): dawn over a
+// goods yard of carriages to ride, some standing, some shunting, and a set
+// of fruit to collect before the last train leaves.
+var LastTrainHome = &Bonus{
+	Name:   "THE LAST TRAIN HOME",
+	Hint:   "COLLECT THE FRUIT BEFORE THE LAST TRAIN LEAVES",
+	Layout: lastTrainHomeLayout,
+	Secs:   40,
+	All:    1000,
+	Dawn:   true,
+	Yard: []Rake{
+		{Row: 7, Col: 5, Cars: 4, Engine: true, Facing: 1, Last: true},
+		{Row: 8, Col: 0, Cars: 2, Engine: true, Facing: 1, Shunt: 8},
+		{Row: 8, Col: 18, Cars: 2},
+		{Row: 9, Col: 3, Cars: 3},
+		{Row: 10, Col: 14, Cars: 3, Engine: true, Facing: -1, Shunt: 6}, // it pushes its carriages off the field
+		{Row: 11, Col: 4, Cars: 1},
+		{Row: 11, Col: 20, Cars: 2},
+	},
+	// Half in the yard, half on the river, the bigger fruit on the river,
+	// which is harder to reach (DESIGN §6.7).
+	Fruit: []BonusFruit{
+		{Fruit: 0}, {Fruit: 0}, {Fruit: 1}, {Fruit: 1}, {Fruit: 2}, {Fruit: 4}, // strawberries, apples, a pear and grapes in the yard
+		{Fruit: 2, River: true}, {Fruit: 3, River: true}, {Fruit: 3, River: true}, // a pear, bananas,
+		{Fruit: 5, River: true}, {Fruit: 6, River: true}, {Fruit: 7, River: true}, // an orange, a pineapple and a watermelon on the river
+	},
+}
+
 // BonusLevel is m's bonus level as it is played, numbered as the level it
 // follows; ok is false if m has none yet, so clearing its level 8 goes
 // straight to the MASTERED screen (D61).
@@ -112,7 +214,7 @@ func BonusLevel(m Mode) (lv Level, ok bool) {
 		return Level{}, false
 	}
 	lv = Level{Number: len(m.Levels.Levels), Lanes: b.Layout.Lanes, Bonus: b, Hint: b.Hint,
-		TimerTicks: b.Secs * TPS}
+		TimerTicks: b.Secs * TPS, DayCycle: b.Dawn} // its nooks never fill, so it stays dawn
 	lv.FireflyOn[HostLogs] = true // never on lily pads, which dive
 	return lv, true
 }

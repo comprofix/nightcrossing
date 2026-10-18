@@ -15,8 +15,10 @@ func TestBonusLayouts(t *testing.T) {
 		if b == nil {
 			continue
 		}
-		if b.Fireflies < b.AtOnce || b.AtOnce <= 0 || b.Secs <= 0 || b.OnRoad < 0 || b.OnRoad > b.Fireflies {
-			t.Errorf("%s: %d fireflies, %d on the road, %d at once, %d s", m.ID, b.Fireflies, b.OnRoad, b.AtOnce, b.Secs)
+		if b.Fireflies < b.AtOnce || (b.AtOnce > 0) != (b.Fireflies > 0) || b.Size() == 0 || b.Secs <= 0 ||
+			b.OnRoad < 0 || b.OnRoad > b.Fireflies {
+			t.Errorf("%s: %d fireflies, %d on the road, %d at once, %d fruit, %d s", m.ID, b.Fireflies, b.OnRoad,
+				b.AtOnce, len(b.Fruit), b.Secs)
 		}
 		for r, s := range b.Parked {
 			if s == "" {
@@ -58,5 +60,58 @@ func TestBonusLayouts(t *testing.T) {
 	}
 	if Stroll.Bonus != FireflyNight {
 		t.Error("Stroll's bonus level isn't firefly night")
+	}
+}
+
+// TestBonusYards checks each bonus level's goods yard and fruit: rakes
+// only on track rows, never running into each other as they shunt, at
+// most one last train; fruit on a row it can lie on, inside the field,
+// each one a real fruit (DESIGN §6.7).
+func TestBonusYards(t *testing.T) {
+	for _, m := range Modes {
+		b := m.Bonus
+		if b == nil {
+			continue
+		}
+		last := 0
+		for i, r := range b.Yard {
+			if b.Layout.Lanes[r.Row].Kind != Rail || r.Cars <= 0 {
+				t.Errorf("%s: rake %d on row %d, with %d carriages", m.ID, i, r.Row, r.Cars)
+			}
+			if r.Last {
+				last++
+			}
+			if r.Engine && r.Facing != 1 && r.Facing != -1 || r.Shunt != 0 && !r.Engine {
+				t.Errorf("%s: rake %d: engine %v facing %d, shunting %d: only a rake with an engine shunts",
+					m.ID, i, r.Engine, r.Facing, r.Shunt)
+			}
+			for j, o := range b.Yard[:i] {
+				lo, hi := min(r.Col, r.Col+r.Shunt), max(r.Col, r.Col+r.Shunt)+r.Cells()
+				olo, ohi := min(o.Col, o.Col+o.Shunt), max(o.Col, o.Col+o.Shunt)+o.Cells()
+				if o.Row == r.Row && lo < ohi && olo < hi {
+					t.Errorf("%s: rakes %d and %d on row %d can run into each other", m.ID, j, i, r.Row)
+				}
+			}
+		}
+		if last > 1 {
+			t.Errorf("%s: %d last trains", m.ID, last)
+		}
+		for i, f := range b.Fruit {
+			if f.Fruit < 0 || f.Fruit >= len(Fruits) || !f.River && len(b.Yard) == 0 {
+				t.Errorf("%s: fruit %d is %d, on the river %v, with %d rakes", m.ID, i, f.Fruit, f.River, len(b.Yard))
+			}
+		}
+	}
+	if LastTrain.Bonus != LastTrainHome || LastTrainHome.Size() != 12 {
+		t.Error("Last Train's bonus level isn't the last train home, with 12 fruit")
+	}
+	river := 0
+	for _, f := range LastTrainHome.Fruit {
+		if f.River {
+			river++
+		}
+	}
+	if river*2 != len(LastTrainHome.Fruit) {
+		t.Errorf("the last train home has %d of its %d fruit on the river, want half", river, len(LastTrainHome.Fruit))
 	}
 }

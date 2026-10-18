@@ -16,6 +16,8 @@ import (
 //     staying where they come until caught; each one caught
 //     brings the next a little later, until all have come. Catching every
 //     one ends the level early, and the seconds left pay a time bonus.
+//   - Or a set of fruit lies about from the start, on the ground, logs or
+//     the carriages of a goods yard (yard.go), with the same ending.
 //   - Its points never give a life.
 
 // Bonus reports whether w is a bonus level.
@@ -25,6 +27,10 @@ func (w *World) Bonus() bool { return w.Level.Bonus != nil }
 // parked cars, and the first fireflies, landed where they will be caught.
 func (w *World) newBonus() {
 	w.reach = w.reachable()
+	for _, r := range w.Level.Bonus.Yard {
+		w.Yard = append(w.Yard, newRake(r))
+	}
+	w.layFruit()
 	w.Swarm = make([]Flyer, w.Level.Bonus.AtOnce)
 	for i := range w.Swarm {
 		f := &w.Swarm[i]
@@ -245,10 +251,29 @@ func (w *World) catchSwarm(r, left, right int) {
 			f.due = between(w, config.BonusComeMinTicks, config.BonusComeMaxTicks)
 			w.sent++
 		}
-		if w.Stats.Fireflies == b.Fireflies {
-			w.endBonus(true)
-		}
+		w.checkSet()
 		return
+	}
+}
+
+// collect collects whatever of the set is on row r over left–right, in
+// SubPx units, where the toad is down: a firefly landed there, and fruit.
+func (w *World) collect(r, left, right int) {
+	w.catchSwarm(r, left, right)
+	if !w.Cleared {
+		w.pickFruit(r, left, right)
+	}
+}
+
+// Collected is how much of the bonus level's set has been collected:
+// fireflies caught and fruit picked.
+func (w *World) Collected() int { return w.Stats.Fireflies + w.Stats.Picked }
+
+// checkSet ends the bonus level early once the whole set is collected
+// (D61).
+func (w *World) checkSet() {
+	if !w.Cleared && w.Collected() == w.Level.Bonus.Size() {
+		w.endBonus(true)
 	}
 }
 

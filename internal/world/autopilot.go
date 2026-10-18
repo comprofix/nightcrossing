@@ -18,6 +18,8 @@ func (w *World) Clone(rng *rand.Rand) *World {
 	}
 	c.Spells = slices.Clone(w.Spells)
 	c.Swarm = slices.Clone(w.Swarm)
+	c.Yard = slices.Clone(w.Yard)
+	c.Picks = slices.Clone(w.Picks)
 	c.Line = cloneLine(w.Line)
 	c.rng = rng
 	c.events = nil
@@ -47,7 +49,7 @@ func (Autopilot) Next(w *World) Dir {
 	best, bestV := None, dead-1
 	for _, d := range moves {
 		c := w.Clone(rand.New(rand.NewPCG(uint64(w.Tick), 0)))
-		if v := value(c, d, config.DemoLookahead, w.Stats.Fireflies); v > bestV {
+		if v := value(c, d, config.DemoLookahead, w.Collected()); v > bestV {
 			best, bestV = d, v
 		}
 	}
@@ -55,10 +57,10 @@ func (Autopilot) Next(w *World) Dir {
 }
 
 // value plays move d on w, then the best of depth-1 more moves, and is how
-// good the best line is. caught is how many fireflies were caught before
-// the line began. w is changed.
+// good the best line is. caught is how many fireflies, and on a bonus
+// level fruit, were collected before the line began. w is changed.
 func value(w *World, d Dir, depth, caught int) int {
-	before := w.Stats.Fireflies
+	before := w.Collected()
 	if t, ok := step(w, d); !ok {
 		return dead + t
 	}
@@ -67,9 +69,9 @@ func value(w *World, d Dir, depth, caught int) int {
 		// On a bonus level the fireflies are the point, and one caught
 		// sooner is worth a little more, so it never puts a catch off
 		// (D61).
-		worth, soon = config.DemoSwarmFirefly, (w.Stats.Fireflies-before)*depth
+		worth, soon = config.DemoSwarmFirefly, (w.Collected()-before)*depth
 	}
-	bonus := (w.Stats.Fireflies - caught) * worth * config.Cols * 2
+	bonus := (w.Collected() - caught) * worth * config.Cols * 2
 	if w.Cleared || w.Home > 0 && !w.Bonus() {
 		return 1000*config.Rows + bonus + soon // a nook filled: as good as it gets
 	}
@@ -142,9 +144,9 @@ func abs(n int) int {
 	return n
 }
 
-// hunt is how many hops the hero is from the nearest firefly on a bonus
-// level, round the parked cars, or 0 with none about (D61). The river
-// counts as open, since its logs come round.
+// hunt is how many hops the hero is from the nearest firefly or fruit on
+// a bonus level, round the parked cars, or 0 with none about (D61). The
+// river and the yard count as open, since logs and carriages come round.
 func hunt(w *World) int {
 	type cell struct{ col, row int }
 	var dist [config.Rows][config.Cols]int
@@ -177,6 +179,15 @@ func hunt(w *World) int {
 			continue
 		}
 		if d := dist[f.row][columnOf(w.spotX(f))]; d >= 0 && (best < 0 || d < best) {
+			best = d
+		}
+	}
+	for i := range w.Picks {
+		if !w.Showing(i) {
+			continue
+		}
+		col := min(max(columnOf(w.PickX(i)+cellUnits/2), 0), w.Cols-1)
+		if d := dist[w.Picks[i].Row][col]; d >= 0 && (best < 0 || d < best) {
 			best = d
 		}
 	}
