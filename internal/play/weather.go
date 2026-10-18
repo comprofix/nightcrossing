@@ -168,10 +168,11 @@ func fogTexture() *ebiten.Image {
 	return ebiten.NewImageFromImage(img)
 }
 
-// drawRoadSheen gives the road rows a wet sheen in the rain, under the
+// drawRoadSheen gives the road rows a wet sheen in the rain, or on a
+// bonus level left wet by the night's rain (DESIGN §6.7), under the
 // light, so headlights gleam on it (D31).
 func (p *Play) drawRoadSheen(dst *ebiten.Image) {
-	k := p.rainK()
+	k := max(p.rainK(), p.wetK())
 	if k <= 0 {
 		return
 	}

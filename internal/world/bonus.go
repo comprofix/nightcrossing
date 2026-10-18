@@ -30,6 +30,7 @@ func (w *World) newBonus() {
 	for _, r := range w.Level.Bonus.Yard {
 		w.Yard = append(w.Yard, newRake(r))
 	}
+	w.newSweepers() // first, so no fruit is laid where they would beat the toad to it
 	w.layFruit()
 	w.Swarm = make([]Flyer, w.Level.Bonus.AtOnce)
 	for i := range w.Swarm {

@@ -17,8 +17,13 @@ type Bonus struct {
 	AtOnce    int // on the field at the start
 	Firefly   int // points for each
 	All       int // points for collecting the whole set: every firefly and fruit
-	// Dawn lights the level as Last Train's dawn, rather than the night.
-	Dawn bool
+	// Dawn lights the level as Last Train's dawn, rather than the night;
+	// Wet leaves the road shining from the night's rain, only as a look.
+	Dawn, Wet bool
+	// Sweeper sends two street sweepers along the road lanes, one down
+	// from the top and one up from the bottom, sweeping up fruit in their
+	// path (DESIGN §6.7).
+	Sweeper bool
 	// Yard is the trains standing on the track rows, a goods yard, and
 	// Fruit the fruit laid out at the start, in random places each run
 	// (DESIGN §6.7).
@@ -53,13 +58,22 @@ const (
 )
 
 // BonusFruit is one fruit of a bonus level's set: which of Fruits it is,
-// and whether it lies on the river, riding a log, or in the yard, on the
-// rails or a carriage's roof. Where exactly is chosen at random each run,
-// so no run's route is the last's (DESIGN §6.7).
+// and which side of the field it lies on. Where exactly is chosen at
+// random each run, so no run's route is the last's (DESIGN §6.7).
 type BonusFruit struct {
 	Fruit int
-	River bool
+	Side  FruitSide
 }
+
+// FruitSide is where on the field a bonus level's fruit can lie.
+type FruitSide int
+
+// The sides.
+const (
+	FruitYard  FruitSide = iota // a goods yard: the rails, or a carriage's roof
+	FruitRiver                  // riding a log
+	FruitRoad                   // the road lanes and the verge
+)
 
 // BonusFruitApart is how many cells apart a bonus level's fruit are at
 // the least, across and up, so none lies next to another, even corner to
@@ -200,8 +214,53 @@ var LastTrainHome = &Bonus{
 	// which is harder to reach (DESIGN §6.7).
 	Fruit: []BonusFruit{
 		{Fruit: 0}, {Fruit: 0}, {Fruit: 1}, {Fruit: 1}, {Fruit: 2}, {Fruit: 4}, // strawberries, apples, a pear and grapes in the yard
-		{Fruit: 2, River: true}, {Fruit: 3, River: true}, {Fruit: 3, River: true}, // a pear, bananas,
-		{Fruit: 5, River: true}, {Fruit: 6, River: true}, {Fruit: 7, River: true}, // an orange, a pineapple and a watermelon on the river
+		{Fruit: 2, Side: FruitRiver}, {Fruit: 3, Side: FruitRiver}, {Fruit: 3, Side: FruitRiver}, // a pear, bananas,
+		{Fruit: 5, Side: FruitRiver}, {Fruit: 6, Side: FruitRiver}, {Fruit: 7, Side: FruitRiver}, // an orange, a pineapple and a watermelon on the river
+	},
+}
+
+// The street sweepers (DESIGN §6.7): how long they are, how fast they go,
+// in SubPx units a tick (about 6 s a lane), and how long they wait off
+// the field before they set off. No fruit is laid
+// where a sweeper would get to it before a toad hopping straight there
+// from the start, given SweeperFairTicks to set off and SweeperFairHopTicks
+// a hop, so every fruit can be had. Starting values.
+const (
+	SweeperCells        = 2
+	SweeperSpeed        = 28
+	SweeperHoldTicks    = 3 * TPS
+	SweeperFairTicks    = TPS
+	SweeperFairHopTicks = 2 * HopTicks
+)
+
+// emptyRoadsLayout is the far bank, firefly night's slow river, the
+// verge, the track as scenery and the road, its traffic gone.
+var emptyRoadsLayout = func() *Layout {
+	l := strollLayout("Empty roads at dawn", [5]Lane{nightLogsRight, nightLogsLeft, nightLogsRight, nightLogsLeft, nightLogsRight})
+	for r, lane := range l.Lanes {
+		if lane.Kind == Road {
+			l.Lanes[r] = Lane{Kind: Road, Dir: lane.Dir}
+		}
+	}
+	return l
+}()
+
+// EmptyRoads is Rush Hour's bonus level (DESIGN §6.7): dawn, the road
+// empty but for two street sweepers, and a set of fruit to collect before
+// they sweep it up.
+var EmptyRoads = &Bonus{
+	Name:    "EMPTY ROADS AT DAWN",
+	Hint:    "BEAT THE SWEEPERS TO THE FRUIT",
+	Layout:  emptyRoadsLayout,
+	Secs:    40,
+	All:     1000,
+	Dawn:    true,
+	Wet:     true,
+	Sweeper: true,
+	Fruit: []BonusFruit{
+		{Fruit: 0, Side: FruitRoad}, {Fruit: 0, Side: FruitRoad}, {Fruit: 1, Side: FruitRoad}, {Fruit: 1, Side: FruitRoad},
+		{Fruit: 2, Side: FruitRoad}, {Fruit: 2, Side: FruitRoad}, {Fruit: 3, Side: FruitRoad}, {Fruit: 3, Side: FruitRoad},
+		{Fruit: 4, Side: FruitRoad}, {Fruit: 5, Side: FruitRoad}, {Fruit: 6, Side: FruitRoad}, {Fruit: 7, Side: FruitRoad},
 	},
 }
 

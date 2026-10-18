@@ -97,8 +97,8 @@ func TestBonusYards(t *testing.T) {
 			t.Errorf("%s: %d last trains", m.ID, last)
 		}
 		for i, f := range b.Fruit {
-			if f.Fruit < 0 || f.Fruit >= len(Fruits) || !f.River && len(b.Yard) == 0 {
-				t.Errorf("%s: fruit %d is %d, on the river %v, with %d rakes", m.ID, i, f.Fruit, f.River, len(b.Yard))
+			if f.Fruit < 0 || f.Fruit >= len(Fruits) || f.Side == FruitYard && len(b.Yard) == 0 || f.Side > FruitRoad {
+				t.Errorf("%s: fruit %d is %d, on side %d, with %d rakes", m.ID, i, f.Fruit, f.Side, len(b.Yard))
 			}
 		}
 	}
@@ -107,11 +107,31 @@ func TestBonusYards(t *testing.T) {
 	}
 	river := 0
 	for _, f := range LastTrainHome.Fruit {
-		if f.River {
+		if f.Side == FruitRiver {
 			river++
 		}
 	}
 	if river*2 != len(LastTrainHome.Fruit) {
 		t.Errorf("the last train home has %d of its %d fruit on the river, want half", river, len(LastTrainHome.Fruit))
+	}
+}
+
+// TestEmptyRoads: Rush Hour's bonus level is empty roads at dawn, its
+// road empty but for the sweeper, and its fruit all on the road and verge
+// (DESIGN §6.7).
+func TestEmptyRoads(t *testing.T) {
+	b := EmptyRoads
+	if RushHour.Bonus != b || !b.Sweeper || !b.Dawn || b.Size() != 12 || len(b.Yard) != 0 {
+		t.Fatalf("Rush Hour's bonus level %+v", b)
+	}
+	for r, l := range b.Layout.Lanes {
+		if l.Kind == Road && len(l.Pattern) > 0 {
+			t.Errorf("traffic on row %d", r)
+		}
+	}
+	for i, f := range b.Fruit {
+		if f.Side != FruitRoad {
+			t.Errorf("fruit %d isn't on the road", i)
+		}
 	}
 }

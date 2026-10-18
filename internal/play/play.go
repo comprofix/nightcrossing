@@ -387,6 +387,16 @@ func (p *Play) allLabel() string {
 	return "ALL CAUGHT"
 }
 
+// overLabel is what a bonus level ending short of the whole set is
+// called: TIME UP as the clock runs out, ALL GONE with time still on it,
+// when nothing is left to collect (DESIGN §6.7).
+func (p *Play) overLabel() string {
+	if p.world.TicksLeft > 0 {
+		return "ALL GONE"
+	}
+	return "TIME UP"
+}
+
 // drawHint draws the strip below the playfield: the controls, or for a
 // while at the start of a level that brings in something new, its hint
 // (DESIGN §7).
@@ -410,7 +420,7 @@ func (p *Play) drawBanner(ctx *scene.Context, dst *ebiten.Image) {
 	var text string
 	switch {
 	case p.clear > 0:
-		text = map[world.Event]string{world.AllCaught: p.allLabel(), world.BonusOver: "TIME UP"}[p.ending]
+		text = map[world.Event]string{world.AllCaught: p.allLabel(), world.BonusOver: p.overLabel()}[p.ending]
 		if text == "" {
 			text = "LEVEL CLEAR"
 		}

@@ -93,6 +93,7 @@ var RushHour = Mode{
 	},
 	Also:   []string{"Everything in Stroll and Last Train", PickupsAlso},
 	Levels: rushHourLevels(),
+	Bonus:  EmptyRoads,
 }
 
 // rushHourLevels are Last Train's levels with its mechanics from level 1,

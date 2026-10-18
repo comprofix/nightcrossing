@@ -168,6 +168,7 @@ type Pick struct {
 	Fruit int // which of config.Fruits it is
 	Row   int
 	Taken bool
+	Gone  bool // swept up by a street sweeper
 
 	rake   int // the rake it rides, in Yard, or -1
 	host   int // the log it rides, in its row's lane, or -1
@@ -176,24 +177,21 @@ type Pick struct {
 
 // layFruit lays the bonus level's fruit for this run, each in a random
 // spot on its side: on the river, a cell of a log well in from the
-// field's edges; in the yard, the rails or a carriage's roof, never an
-// engine, nor rails a rake shunts over. None lies next to another, even
-// corner to corner, nor near the toad's start (DESIGN §6.7).
+// field's edges; in a yard, the rails or a carriage's roof, never an
+// engine, nor rails a rake shunts over; on the road, a road cell or the
+// verge. None lies next to another, even corner to corner, nor near the
+// toad's start (DESIGN §6.7).
 func (w *World) layFruit() {
-	yard, river := w.fruitSpots()
+	spots := w.fruitSpots()
 	for _, f := range w.Level.Bonus.Fruit {
-		spots := yard
-		if f.River {
-			spots = river
-		}
 		var free []Pick
-		for _, s := range spots {
+		for _, s := range spots[f.Side] {
 			if w.apart(s) {
 				free = append(free, s)
 			}
 		}
 		if len(free) == 0 {
-			free = spots // too crowded to keep them apart: anywhere on its side
+			free = spots[f.Side] // too crowded to keep them apart: anywhere on its side
 		}
 		p := free[w.rng.IntN(len(free))]
 		p.Fruit = f.Fruit
@@ -201,38 +199,45 @@ func (w *World) layFruit() {
 	}
 }
 
-// fruitSpots are every spot fruit could lie at the start, in the yard and
-// on the river, as Picks still to be given their fruit.
-func (w *World) fruitSpots() (yard, river []Pick) {
+// fruitSpots are every spot fruit could lie at the start on each side, as
+// Picks still to be given their fruit.
+func (w *World) fruitSpots() (spots [config.FruitRoad + 1][]Pick) {
 	start := func(r, x int) bool {
 		return abs(r-config.StartRow) <= config.BonusClearCells && abs(columnOf(x)-config.StartCol) <= config.BonusClearCells
 	}
+	ground := func(r, x int) Pick { return Pick{Row: r, rake: -1, host: -1, offset: x} }
 	for r := range w.Lanes {
-		switch w.Lanes[r].Kind {
-		case config.Rail:
+		switch k := w.Lanes[r].Kind; {
+		case k == config.Rail && len(w.Yard) > 0:
 			for c := range w.Cols {
 				x := c * cellUnits
 				mid := x + cellUnits/2
 				switch k := w.carriageAt(r, mid); {
 				case start(r, x), w.engineAt(r, mid):
 				case k >= 0:
-					yard = append(yard, Pick{Row: r, rake: k, host: -1, offset: x - w.Yard[k].X})
+					spots[config.FruitYard] = append(spots[config.FruitYard], Pick{Row: r, rake: k, host: -1, offset: x - w.Yard[k].X})
 				case !w.shuntedOver(r, mid):
-					yard = append(yard, Pick{Row: r, rake: -1, host: -1, offset: x})
+					spots[config.FruitYard] = append(spots[config.FruitYard], ground(r, x))
 				}
 			}
-		case config.River:
+		case k == config.Road || r == config.VergeRow:
+			for c := range w.Cols {
+				if x := c * cellUnits; !start(r, x) && !w.Parked(c, r) && !w.beaten(r, x) {
+					spots[config.FruitRoad] = append(spots[config.FruitRoad], ground(r, x))
+				}
+			}
+		case k == config.River:
 			for h, e := range w.Lanes[r].Entities {
 				for c := range e.Kind.Length / config.Cell {
 					off := c * cellUnits
 					if w.perch(r, e, off, config.FireflyLandMargin) && !start(r, e.X()+off) {
-						river = append(river, Pick{Row: r, rake: -1, host: h, offset: off})
+						spots[config.FruitRiver] = append(spots[config.FruitRiver], Pick{Row: r, rake: -1, host: h, offset: off})
 					}
 				}
 			}
 		}
 	}
-	return yard, river
+	return spots
 }
 
 // shuntedOver reports whether a shunting rake on row r runs over the
@@ -287,7 +292,8 @@ func (w *World) pickX(p *Pick) int {
 // field.
 func (w *World) Showing(i int) bool {
 	x := w.PickX(i)
-	return !w.Picks[i].Taken && x+cellUnits > 0 && x < fieldWidth
+	p := &w.Picks[i]
+	return !p.Taken && !p.Gone && x+cellUnits > 0 && x < fieldWidth
 }
 
 // pickFruit collects any fruit on row r over left–right, in SubPx units,
@@ -311,6 +317,7 @@ func (w *World) pickFruit(r, left, right int) {
 		w.Gained += pts
 		w.emit(FruitTaken)
 		w.checkSet()
+		w.checkLeft()
 	}
 }
 
