@@ -37,6 +37,7 @@ func schoolRunLevels() ModeLevels {
 	}
 	m.Levels[0].Hint = "YOUR TOADLET COPIES YOUR HOPS: KEEP IT SAFE"
 	m.Levels[1].Hint = "STOP ON THE VERGE AND YOUR TOADLET CATCHES UP"
+	m.Levels[MixedFrom-1].Hint = MixedHint
 	m.Levels[4].Hint = "TWO TOADLETS NOW: THE SECOND COPIES THE FIRST"
 	m.EventsFrom[Rain] = 1
 	m.WindFrom, m.FloodFrom = 1, 1

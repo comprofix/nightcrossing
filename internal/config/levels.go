@@ -106,10 +106,11 @@ type LevelDef struct {
 	Layout   *Layout
 	SpeedPct int
 	GapPct   int
-	HeronPct int       // the chance, per log, that a heron stands on it (D34)
-	Hint     string    // shown when the level starts, for a new mechanic
-	Currents []Current // the river rows with a current (D46, D50)
-	Toadlets int       // the toadlets in the hero's line (D53, D54)
+	HeronPct int         // the chance, per log, that a heron stands on it (D34)
+	Hint     string      // shown when the level starts, for a new mechanic
+	Currents []Current   // the river rows with a current (D46, D50)
+	Toadlets int         // the toadlets in the hero's line (D53, D54)
+	Road     *[Rows]Lane // the road rows played in place of the layout's; nil for the layout's own (DESIGN §5.8, D65)
 }
 
 // Level is a level as it is played: its lanes at their real speeds and
@@ -157,6 +158,7 @@ func (m ModeLevels) Def(n int) (def LevelDef, speedPct int) {
 	d.GapPct = m.Levels[last-1].GapPct
 	d.Currents = m.Levels[last-1].Currents // the loops keep the last level's currents (D50)
 	d.Toadlets = m.Levels[last-1].Toadlets // and its line of toadlets (D54)
+	d.Road = m.Levels[last-1].Road         // and its road (D65)
 	d.Hint = ""                            // each hint shows once, on the level that brings it in
 	return d, min(d.SpeedPct+(k/LoopLevels+1)*LoopSpeedStepPct, m.CeilingPct)
 }
@@ -218,6 +220,9 @@ func (m ModeLevels) Level(n int) Level {
 		}
 	}
 	for r, l := range def.Layout.Lanes {
+		if def.Road != nil && l.Kind == Road {
+			l = def.Road[r]
+		}
 		if len(l.Pattern) > 0 {
 			l.Speed = max(1, l.Speed*speed/100)
 			pattern := make([]Spawn, len(l.Pattern))
