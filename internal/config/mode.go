@@ -56,6 +56,7 @@ var LastTrain = Mode{
 	},
 	Also:   []string{"Road, river, diving platforms, herons", PickupsAlso},
 	Levels: lastTrainLevels(),
+	Bonus:  LastTrainHome,
 }
 
 // lastTrainLevels are Stroll's levels with Last Train's mechanics: trains

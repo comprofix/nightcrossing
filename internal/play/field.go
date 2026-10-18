@@ -125,6 +125,8 @@ func (p *Play) drawField(ctx *scene.Context, dst *ebiten.Image) {
 		p.drawHerons(ctx, field, r)
 	}
 	p.drawParked(ctx, field)
+	p.drawYard(ctx, field)
+	p.drawPicks(ctx, field)
 	p.drawTrain(ctx, field)
 	p.drawFog(field)
 	p.drawHero(ctx, field)

@@ -149,7 +149,7 @@ func (p *Play) Update(ctx *scene.Context) error {
 		ctx.Audio.PlayEffect(DistantThunder) // a beat after the flash (D49)
 	}
 	if p.clear > 0 {
-		if p.clear++; p.clear > clearTicks {
+		if p.clear++; p.clear > p.clearFor() {
 			ctx.Switch(p.tally(ctx))
 		}
 		return nil
@@ -179,6 +179,9 @@ func (p *Play) Update(ctx *scene.Context) error {
 		case world.LevelClear, world.AllCaught, world.BonusOver:
 			p.clear, p.ending = 1, e
 			ctx.Audio.PlayTune(LevelClearJingle)
+			if p.departing() {
+				ctx.Audio.PlayEffect(Horn) // the last train pulls out (DESIGN §6.7)
+			}
 		case world.GameOver:
 			ctx.Audio.PlayTune(GameOverJingle)
 			ctx.Cut(newEnded(p))
@@ -215,15 +218,22 @@ func (p *Play) tally(ctx *scene.Context) scene.Scene {
 	return scene.NewTally(fmt.Sprintf("LEVEL %d CLEAR", n), p.tallyLines(), next)
 }
 
-// bonusLines are the bonus level's tally: the fireflies, catching them
-// all, the time bonus for doing it early, and any nooks reached (D61).
+// bonusLines are the bonus level's tally: the fireflies or the fruit,
+// collecting the whole set, the time bonus for doing it early, and any
+// nooks reached (D61, DESIGN §6.7).
 func (p *Play) bonusLines() []scene.TallyLine {
 	st, b := p.world.Stats, p.world.Level.Bonus
-	lines := []scene.TallyLine{
-		{Label: fmt.Sprintf("FIREFLIES %d x %d", st.Fireflies, b.Firefly), Points: st.Fireflies * b.Firefly},
-		{Label: "ALL CAUGHT", Points: st.All},
-		{Label: "TIME BONUS", Points: st.TimeBonus},
+	var lines []scene.TallyLine
+	if b.Fireflies > 0 {
+		lines = append(lines, scene.TallyLine{Label: fmt.Sprintf("FIREFLIES %d x %d", st.Fireflies, b.Firefly),
+			Points: st.Fireflies * b.Firefly})
 	}
+	if len(b.Fruit) > 0 {
+		lines = append(lines, scene.TallyLine{Label: fmt.Sprintf("FRUIT %d/%d", st.Picked, len(b.Fruit)), Points: st.Fruit})
+	}
+	lines = append(lines,
+		scene.TallyLine{Label: p.allLabel(), Points: st.All},
+		scene.TallyLine{Label: "TIME BONUS", Points: st.TimeBonus})
 	if st.Goals > 0 {
 		lines = append(lines, scene.TallyLine{Label: fmt.Sprintf("NOOKS %d x %d", st.Goals, config.PointsBonusNook),
 			Points: st.Goals * config.PointsBonusNook})
@@ -349,19 +359,32 @@ func (p *Play) drawHUD(ctx *scene.Context, dst *ebiten.Image) {
 	p.drawCaught(ctx, dst, ty)
 }
 
-// drawCaught draws, on a bonus level, how many of its fireflies the toad
-// has caught, in the combo's place: there are no hop points to combo
-// (D61).
+// drawCaught draws, on a bonus level, how much of its set the toad has
+// collected, with a firefly or a fruit, in the combo's place: there are
+// no hop points to combo (D61, DESIGN §6.7).
 func (p *Play) drawCaught(ctx *scene.Context, dst *ebiten.Image, ty int) {
 	b := p.world.Level.Bonus
 	if b == nil {
 		return
 	}
 	sc, f := ctx.Scheme, ctx.Fonts
-	sp := ctx.Sheet(Sheet).Sprite(p.hero.Pickup)
-	sp.Draw(dst, 0, hudComboX, float64((config.HUDHeight-sp.H)/2), false)
-	f.Small.DrawShadowed(dst, fmt.Sprintf("%d/%d", p.world.Stats.Fireflies, b.Fireflies),
+	sp, frame := ctx.Sheet(Sheet).Sprite(p.hero.Pickup), 0
+	if b.Fireflies == 0 {
+		sp = ctx.Sheet(Sheet).Sprite("fruit")
+		frame = sp.Frames() - 1 // the watermelon, the best of them
+	}
+	sp.Draw(dst, frame, hudComboX, float64((config.HUDHeight-sp.H)/2), false)
+	f.Small.DrawShadowed(dst, fmt.Sprintf("%d/%d", p.world.Collected(), b.Size()),
 		hudComboX+sp.W+hudLifeGap, ty, sc.Highlight, sc.Shadow)
+}
+
+// allLabel is what collecting a bonus level's whole set is called: ALL
+// CAUGHT for fireflies, ALL COLLECTED for fruit.
+func (p *Play) allLabel() string {
+	if b := p.world.Level.Bonus; b != nil && b.Fireflies == 0 {
+		return "ALL COLLECTED"
+	}
+	return "ALL CAUGHT"
 }
 
 // drawHint draws the strip below the playfield: the controls, or for a
@@ -387,7 +410,7 @@ func (p *Play) drawBanner(ctx *scene.Context, dst *ebiten.Image) {
 	var text string
 	switch {
 	case p.clear > 0:
-		text = map[world.Event]string{world.AllCaught: "ALL CAUGHT", world.BonusOver: "TIME UP"}[p.ending]
+		text = map[world.Event]string{world.AllCaught: p.allLabel(), world.BonusOver: "TIME UP"}[p.ending]
 		if text == "" {
 			text = "LEVEL CLEAR"
 		}
