@@ -110,7 +110,7 @@ func (p *Play) drawField(ctx *scene.Context, dst *ebiten.Image) {
 	p.drawFlood(field)
 	p.drawRoadSheen(field)
 	lamp := sheet.Sprite("lamp")
-	for _, lp := range lamps {
+	for _, lp := range p.streetLamps() {
 		lamp.Draw(field, 0, cellX(lp.col), cellY(lp.row), false)
 	}
 	p.drawSignals(ctx, field)
@@ -124,6 +124,7 @@ func (p *Play) drawField(ctx *scene.Context, dst *ebiten.Image) {
 		p.drawEntities(ctx, field, r)
 		p.drawHerons(ctx, field, r)
 	}
+	p.drawParked(ctx, field)
 	p.drawTrain(ctx, field)
 	p.drawFog(field)
 	p.drawHero(ctx, field)
@@ -292,8 +293,12 @@ func (p *Play) drawToad(ctx *scene.Context, dst *ebiten.Image, pl *world.Player,
 	switch pl.Death {
 	case world.Splashed, world.Swept:
 		splash := sheet.Sprite(p.hero.Splash)
-		done := config.DeathTicks - p.world.Dying
-		f := min(done*splash.Frames()/config.DeathTicks, splash.Frames()-1)
+		total := config.DeathTicks
+		if p.world.Bonus() {
+			total = config.SlipTicks // a slip plays the same splash (D61)
+		}
+		done := total - p.world.Dying
+		f := min(done*splash.Frames()/total, splash.Frames()-1)
 		splash.Draw(dst, f, float64(config.FieldX)+float64(pl.X)/config.SubPx, cellY(pl.LaneRow()), false)
 		return
 	}
@@ -386,7 +391,7 @@ func (p *Play) drawBank(ctx *scene.Context, dst *ebiten.Image, r int) {
 	nook, toad := sheet.Sprite("nook"), sheet.Sprite(p.hero.Sprite)
 	for i, c := range config.Nooks {
 		nook.Draw(dst, 0, cellX(c), cellY(r), false)
-		if p.world.Filled[i] {
+		if p.world.Filled[i] || p.world.Bonus() && p.world.HomeNook() == i { // a bonus level's nooks never fill (D61)
 			x := cellX(c) + float64(config.NookWidth*config.Cell-toad.W)/2
 			toad.Draw(dst, frameRest, x, cellY(r), false)
 		}
@@ -411,11 +416,20 @@ const (
 // half.
 var beat = [...]int{0, 1, 2, 1}
 
-// flyer is the sprite of the firefly or dragonfly visiting, its frame now,
-// where its top-left is drawn, and whether it is mirrored; nil if none is
+// flyers are the firefly or dragonfly visiting, and a bonus level's
+// fireflies (D58, D61).
+func (p *Play) flyers() []*world.Flyer {
+	out := []*world.Flyer{&p.world.Flyer}
+	for i := range p.world.Swarm {
+		out = append(out, &p.world.Swarm[i])
+	}
+	return out
+}
+
+// flyer is the sprite of firefly or dragonfly f, its frame now,
+// where its top-left is drawn, and whether it is mirrored; nil if it is not
 // visiting.
-func (p *Play) flyer(ctx *scene.Context) (sp *gfx.Sprite, frame int, x, y float64, flip bool) {
-	f := &p.world.Flyer
+func (p *Play) flyer(ctx *scene.Context, f *world.Flyer) (sp *gfx.Sprite, frame int, x, y float64, flip bool) {
 	if !f.Visiting {
 		return nil, 0, 0, 0, false
 	}
@@ -437,13 +451,16 @@ func (p *Play) flyer(ctx *scene.Context) (sp *gfx.Sprite, frame int, x, y float6
 	return sp, frame, x, y, f.Facing < 0
 }
 
-// drawFlyer draws the firefly or dragonfly, if one is visiting, above
+// drawFlyer draws the firefly or dragonfly, if one is visiting, and a
+// bonus level's fireflies (D61), above
 // everything on the river: it flies over the hero too (D58). It is drawn
 // after the lighting, in its own colours: a firefly makes its own light,
 // and the night's glow would blur it into a blob.
 func (p *Play) drawFlyer(ctx *scene.Context, dst *ebiten.Image) {
-	if sp, frame, x, y, flip := p.flyer(ctx); sp != nil {
-		sp.Draw(dst, frame, x, y, flip)
+	for _, fl := range p.flyers() {
+		if sp, frame, x, y, flip := p.flyer(ctx, fl); sp != nil {
+			sp.Draw(dst, frame, x, y, flip)
+		}
 	}
 }
 
@@ -492,4 +509,31 @@ const wheelStepPx = 3
 // wheelFrame is the frame of a vehicle's wheels, which turn as it moves.
 func wheelFrame(e world.Entity) int {
 	return e.U / (wheelStepPx * config.SubPx) % 2
+}
+
+// drawParked draws a bonus level's parked cars, each in the middle of the
+// cells it takes, facing the way its lane would run, its wheels still
+// (D61).
+func (p *Play) drawParked(ctx *scene.Context, dst *ebiten.Image) {
+	b := p.world.Level.Bonus
+	if b == nil {
+		return
+	}
+	sheet := ctx.Sheet(Sheet)
+	for r := range p.world.Lanes {
+		flip := p.world.Lanes[r].Dir < 0
+		for _, car := range b.Cars(r) {
+			names := entitySprites(car.Entity)
+			x := cellX(car.Col) + float64(config.ParkedCells(car.Entity)*config.Cell-car.Entity.Length)/2
+			for i := range names {
+				name := names[i]
+				if flip {
+					name = names[len(names)-1-i]
+				}
+				sp := sheet.Sprite(name)
+				sp.Draw(dst, 0, x, cellY(r), flip)
+				x += float64(sp.W)
+			}
+		}
+	}
 }

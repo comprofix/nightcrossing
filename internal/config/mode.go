@@ -17,6 +17,7 @@ type Mode struct {
 	New    []Mechanic // what this mode brings, for the intro
 	Also   []string   // what carries over from the modes before it, a line each
 	Levels ModeLevels // its levels and loops
+	Bonus  *Bonus     // its bonus level, after level 8; nil until it is built (D61)
 }
 
 // Stroll is the base game, the first mode (DESIGN §5.6).
@@ -34,6 +35,7 @@ var Stroll = Mode{
 		{"Fireflies", "catch one for an extra life"},
 	},
 	Levels: StrollLevels,
+	Bonus:  FireflyNight,
 }
 
 // Modes are the built modes, in order: only built modes are shown, and the

@@ -3,6 +3,7 @@ package scene
 import (
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/hajimehoshi/ebiten/v2"
 
@@ -128,13 +129,16 @@ func (t *Tally) Draw(ctx *Context, dst *ebiten.Image) {
 }
 
 // AfterGame is where a finished game goes once its score is final: initials
-// entry if the score makes the table, otherwise the table itself. A game
-// started for testing (Context.Testing) is not entered.
-func AfterGame(ctx *Context, mode config.Mode, points int) Scene {
-	if !ctx.Testing() && ctx.Scores.Qualifies(mode.ID, points) {
-		return NewHighScoreEntry(mode, points)
+// entry if the score makes the table, otherwise the table itself, then
+// then() (nil for the main menu). e is the run's score and marks (D63). A
+// game started for testing (Context.Testing) is not entered.
+func AfterGame(ctx *Context, mode config.Mode, e score.Entry, then func() Scene) Scene {
+	if !ctx.Testing() && ctx.Scores.Qualifies(mode.ID, e.Score) {
+		return NewHighScoreEntry(mode, e, then)
 	}
-	return NewHighScoreTable(mode, -1)
+	t := NewHighScoreTable(mode, -1)
+	t.then = then
+	return t
 }
 
 // HighScoreEntry takes the player's initials for a new high score: Up and
@@ -142,15 +146,17 @@ func AfterGame(ctx *Context, mode config.Mode, points int) Scene {
 // to the one before.
 type HighScoreEntry struct {
 	mode    config.Mode
-	points  int
+	entry   score.Entry
+	then    func() Scene
 	letters [config.InitialsLen]int // indexes into score.Letters
 	slot    int
 	ticks   int64
 }
 
-// NewHighScoreEntry asks for the initials for points scored in mode.
-func NewHighScoreEntry(mode config.Mode, points int) *HighScoreEntry {
-	return &HighScoreEntry{mode: mode, points: points}
+// NewHighScoreEntry asks for the initials for e, scored in mode; the table
+// it shows after goes on to then() (nil for the main menu).
+func NewHighScoreEntry(mode config.Mode, e score.Entry, then func() Scene) *HighScoreEntry {
+	return &HighScoreEntry{mode: mode, entry: e, then: then}
 }
 
 // Initials are the letters chosen so far.
@@ -186,9 +192,12 @@ func (e *HighScoreEntry) Update(ctx *Context) error {
 			e.slot++
 			return nil
 		}
-		place := ctx.Scores.Add(e.mode.ID, e.Initials(), e.points)
+		e.entry.Initials = e.Initials()
+		place := ctx.Scores.Add(e.mode.ID, e.entry)
 		ctx.ScoresChanged()
-		ctx.Switch(NewHighScoreTable(e.mode, place))
+		t := NewHighScoreTable(e.mode, place)
+		t.then = e.then
+		ctx.Switch(t)
 	}
 	return nil
 }
@@ -201,7 +210,7 @@ func (e *HighScoreEntry) Draw(ctx *Context, dst *ebiten.Image) {
 	y := f.Large.Size
 	ui.TextCentred(dst, f.Large, "NEW HIGH SCORE", y, sc.Title, sc.Shadow)
 	y += 2 * f.Large.Size
-	ui.TextCentred(dst, f.Small, fmt.Sprintf("%s  %d", e.mode.Name, e.points), y, sc.Text, sc.Shadow)
+	ui.TextCentred(dst, f.Small, fmt.Sprintf("%s  %d", e.mode.Name, e.entry.Score), y, sc.Text, sc.Shadow)
 	y += 3 * f.Small.Size
 	ui.TextCentred(dst, f.Small, "Enter your initials", y, sc.Text, sc.Shadow)
 	y += 2 * f.Small.Size
@@ -227,8 +236,9 @@ func (e *HighScoreEntry) Draw(ctx *Context, dst *ebiten.Image) {
 // HighScoreTable shows one mode's table. Left and Right show the other
 // modes; Confirm or Back returns to the main menu.
 type HighScoreTable struct {
-	mode  string // the mode shown, by ID
-	mark  int    // the place to highlight, or -1
+	then  func() Scene // where Confirm or Back goes; nil for the main menu
+	mode  string       // the mode shown, by ID
+	mark  int          // the place to highlight, or -1
 	ticks int64
 }
 
@@ -254,6 +264,10 @@ func (t *HighScoreTable) Update(ctx *Context) error {
 		ctx.Audio.PlayEffect(MenuMove)
 	case in.JustPressed(input.Confirm), in.JustPressed(input.Back):
 		ctx.Audio.PlayEffect(MenuConfirm)
+		if t.then != nil {
+			ctx.Switch(t.then())
+			return nil
+		}
 		ctx.Switch(NewMainMenu())
 	}
 	return nil
@@ -276,12 +290,26 @@ func (t *HighScoreTable) Draw(ctx *Context, dst *ebiten.Image) {
 	ui.TextCentred(dst, f.Small, name, y, sc.Highlight, sc.Shadow)
 	y += f.Small.Size + 2*ui.LineGap
 
+	// The marks of a run that mastered the mode, and how far it went on
+	// (D63), under their headings.
+	head := fmt.Sprintf("%3s  %-4s  %6s  %8s  %9s", "", "NAME", "SCORE", "MASTERED", "CONTINUED")
+	x := f.Small.CentreX(head)
+	f.Small.DrawShadowed(dst, head, x, y, sc.Dim, sc.Shadow)
+	y += f.Small.Size + 2*ui.LineGap
 	es := ctx.Scores.Table(mode.ID)
 	for i := range config.TableSize {
-		s := fmt.Sprintf("%2d.  ---  %6s", i+1, "-")
+		s := fmt.Sprintf("%2d.  %-4s  %6s", i+1, "---", "-")
 		c := sc.Dim
 		if i < len(es) {
-			s = fmt.Sprintf("%2d.  %s  %6d", i+1, es[i].Initials, es[i].Score)
+			e := es[i]
+			mastered, went := "", ""
+			if e.Mastered {
+				mastered = Tick
+			}
+			if e.Continued > 0 {
+				went = fmt.Sprintf("L%d", e.Continued)
+			}
+			s = fmt.Sprintf("%2d.  %-4s  %6d  %s  %s", i+1, e.Initials, e.Score, centred(mastered, 8), centred(went, 9))
 			c = sc.Text
 		}
 		if i == t.mark {
@@ -290,10 +318,27 @@ func (t *HighScoreTable) Draw(ctx *Context, dst *ebiten.Image) {
 				c = sc.Title
 			}
 		}
-		f.Small.DrawShadowed(dst, s, f.Small.CentreX(s), y, c, sc.Shadow)
+		f.Small.DrawShadowed(dst, s, x, y, c, sc.Shadow)
 		y += f.Small.Size + ui.LineGap
 	}
-	ui.TextCentred(dst, f.Small, "Left/Right: mode   Enter: menu", h-2*f.Small.Size, sc.Dim, sc.Shadow)
+	help := "Left/Right: mode   Enter: menu"
+	if t.then != nil {
+		help = "Left/Right: mode   Enter: next"
+	}
+	ui.TextCentred(dst, f.Small, help, h-2*f.Small.Size, sc.Dim, sc.Shadow)
+}
+
+// Tick and Lock are the font's marks for a mode mastered and a mode
+// locked (D63, D64).
+const (
+	Tick = "✓"
+	Lock = "🔒"
+)
+
+// centred is s centred in n characters.
+func centred(s string, n int) string {
+	pad := n - utf8.RuneCountInString(s)
+	return strings.Repeat(" ", pad/2) + s + strings.Repeat(" ", pad-pad/2)
 }
 
 // modeIndex is where the mode with ID id is in modes, or 0 if it is not

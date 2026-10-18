@@ -359,33 +359,6 @@ func TestLevelClear(t *testing.T) {
 	}
 }
 
-// TestClearingLevel8ClearsTheMode checks clearing a mode's last level marks
-// the mode cleared and asks for the scores to be saved, and an earlier
-// level does not.
-func TestClearingLevel8ClearsTheMode(t *testing.T) {
-	for _, n := range []int{7, 8} {
-		h := scenetest.New(t, 3)
-		h.Ctx.NewPlay = New
-		h.Ctx.Session = session.New(config.Modes[0], config.StartLives)
-		lv := config.Level{Number: n, TimerTicks: config.TimerTicks(n)}
-		lv.Lanes[config.GoalRow].Kind = config.Bank
-		p := newPlay(h.Ctx, config.Modes[0].Levels, lv)
-		nook := world.NookAt(config.StartCol)
-		for i := range p.World().Filled {
-			p.World().Filled[i] = i != nook
-		}
-		h.Start(p)
-		h.Ticks(scene.FadeTicks)
-		for range config.StartRow - config.GoalRow {
-			h.Run(scenetest.Hold(1, ebiten.KeyArrowUp), scenetest.Hold(config.HopTicks+1))
-		}
-		want := n == 8
-		if got := h.Ctx.Scores.IsCleared(config.Modes[0].ID); got != want || h.Ctx.TakeScoresChanged() != want {
-			t.Errorf("level %d cleared: mode cleared %v, want %v", n, got, want)
-		}
-	}
-}
-
 // TestTitleDemo runs the title over the demo: the demo must leave the
 // game's RNG and the game in progress alone, and play the same every time.
 func TestTitleDemo(t *testing.T) {
@@ -477,7 +450,8 @@ func TestGamepadOnly(t *testing.T) {
 }
 
 // TestStartLevel starts a test game part way (-level in debug builds): it
-// starts on that level and clears no mode.
+// starts on that level, and after level 8 goes straight on to level 9:
+// no bonus level, no MASTERED screen (D62).
 func TestStartLevel(t *testing.T) {
 	h := scenetest.New(t, 42)
 	h.Ctx.StartLevel = 38
@@ -485,15 +459,14 @@ func TestStartLevel(t *testing.T) {
 	if n := p.World().Level.Number; n != 38 {
 		t.Fatalf("started on level %d, want 38", n)
 	}
-	p.markCleared(h.Ctx)
-	if h.Ctx.Scores.IsCleared(config.Stroll.ID) {
-		t.Error("a test game cleared the mode")
+	q := newLevel(h.Ctx, config.Stroll.Levels, 8)
+	if next := afterTally(t, h, q); next.World().Level.Number != 9 || next.World().Bonus() {
+		t.Errorf("after level 8, a test game went to level %d (bonus %v), want 9", next.World().Level.Number, next.World().Bonus())
 	}
 }
 
 // TestOneKindOfStorm starts a test game with every storm one kind (-storm
-// in debug builds, D52): each level it plays has that kind, and it clears
-// no mode.
+// in debug builds, D52): each level it plays has that kind.
 func TestOneKindOfStorm(t *testing.T) {
 	h := scenetest.New(t, 42)
 	h.Ctx.Storms = config.DryStorm
@@ -506,10 +479,6 @@ func TestOneKindOfStorm(t *testing.T) {
 	}
 	if q := newLevel(h.Ctx, config.Storm.Levels, 2); q.World().Level.Storms != config.DryStorm {
 		t.Error("the next level forgot the testing kind")
-	}
-	p.markCleared(h.Ctx)
-	if h.Ctx.Scores.IsCleared(config.Storm.ID) {
-		t.Error("a test game cleared the mode")
 	}
 }
 

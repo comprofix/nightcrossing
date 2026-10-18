@@ -290,16 +290,21 @@ func (g *Game) present(out *ebiten.Image) {
 }
 
 // StartAt makes new games start on level n, for testing (the -level
-// flag). Such games go on no high score table and clear no mode.
+// flag). Such games go on no high score table and master no mode.
 func (g *Game) StartAt(n int) { g.ctx.StartLevel = n }
 
 // StormsOf makes every storm kind k, for testing (-storm in debug builds).
-// Such games go on no high score table and clear no mode.
+// Such games go on no high score table and master no mode.
 func (g *Game) StormsOf(k config.StormKind) { g.ctx.Storms = k }
 
 // UseModes sets the modes the menus offer, e.g. with a mode in progress
 // added (-mode in debug builds).
 func (g *Game) UseModes(modes []config.Mode) { g.ctx.Modes = modes }
+
+// BonusFirst starts new games straight on the mode's bonus level, for
+// tuning it (-bonus in debug builds, D61). Such games go on no high score
+// table and master no mode.
+func (g *Game) BonusFirst() { g.ctx.Bonus = true }
 
 // WithoutShaders draws without the shader effects, as on a machine that
 // can't run them (-noshaders in debug builds).

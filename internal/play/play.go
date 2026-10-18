@@ -59,6 +59,7 @@ type Play struct {
 	levels config.ModeLevels
 	ticks  int         // since the level started
 	clear  int         // ticks since the level was cleared; 0 until then
+	ending world.Event // how it ended: LevelClear, or on a bonus level AllCaught or BonusOver (D61)
 	later  []lateSound // sounds waiting to play
 
 	light     *fx.Lighting
@@ -81,14 +82,23 @@ type Play struct {
 }
 
 // New starts a game in a mode, on its first level, or on ctx.StartLevel
-// in a debug build started with -level.
+// in a debug build started with -level, or on its bonus level with
+// -bonus (D61).
 func New(ctx *scene.Context, mode config.Mode) scene.Scene {
 	ctx.Session = session.New(mode, config.StartLives)
+	if lv, ok := config.BonusLevel(mode); ctx.Bonus && ok {
+		return newPlay(ctx, mode.Levels, lv)
+	}
 	return newLevel(ctx, mode.Levels, max(ctx.StartLevel, 1))
 }
 
-// newLevel starts level n of levels for the game in progress.
+// newLevel starts level n of levels for the game in progress. Once the run
+// has mastered its mode, each level it reaches is its CONTINUED mark
+// (D63).
 func newLevel(ctx *scene.Context, levels config.ModeLevels, n int) *Play {
+	if s := ctx.Session; s.Mastered {
+		s.Continued = n
+	}
 	return newPlay(ctx, levels, levels.Level(n))
 }
 
@@ -144,8 +154,12 @@ func (p *Play) Update(ctx *scene.Context) error {
 		}
 		return nil
 	}
-	if ctx.Audio.Tune() != Stroll {
-		ctx.Audio.PlayTune(Stroll) // the gameplay loop (DESIGN §3.4)
+	tune := Stroll // the gameplay loop (DESIGN §3.4)
+	if p.world.Bonus() {
+		tune = BonusNight // D61
+	}
+	if ctx.Audio.Tune() != tune {
+		ctx.Audio.PlayTune(tune)
 	}
 	p.playLater(ctx)
 	for _, e := range p.world.Update(pressed(in)) {
@@ -154,7 +168,7 @@ func (p *Play) Update(ctx *scene.Context) error {
 		switch e {
 		case world.Squashed, world.Bumped:
 			ctx.Shake.Start(shakeTicks, shakePx)
-		case world.Splashed, world.Swept, world.Caught, world.TimeUp:
+		case world.Splashed, world.Swept, world.Caught, world.TimeUp, world.Slipped:
 			ctx.Shake.Start(shakeTicks, softShakePx)
 		case world.Struck:
 			ctx.Shake.Start(shakeTicks, struckShakePx)
@@ -162,10 +176,9 @@ func (p *Play) Update(ctx *scene.Context) error {
 			p.popUp("1UP", oneUpLiftPx) // from points or a firefly (D57)
 		case world.TrainComing:
 			ctx.Shake.Start(trainShakeTicks, trainShakePx) // DESIGN §3.3
-		case world.LevelClear:
-			p.clear = 1
+		case world.LevelClear, world.AllCaught, world.BonusOver:
+			p.clear, p.ending = 1, e
 			ctx.Audio.PlayTune(LevelClearJingle)
-			p.markCleared(ctx)
 		case world.GameOver:
 			ctx.Audio.PlayTune(GameOverJingle)
 			ctx.Cut(newEnded(p))
@@ -178,14 +191,44 @@ func (p *Play) Update(ctx *scene.Context) error {
 	return nil
 }
 
-// tally is the level-clear tally of what this level earned, then the next
-// level (DESIGN §7). The points are already in the score; the tally shows
-// where they came from.
+// tally is the level-clear tally of what this level earned, then what
+// comes next (DESIGN §7, §6.7): the next level; after level 8, the mode's
+// bonus level, or the MASTERED screen for a mode with none yet; and after
+// the bonus level, the MASTERED screen (D61, D62). A test game started
+// part way goes straight on to level 9. The points are already in the
+// score; the tally shows where they came from.
 func (p *Play) tally(ctx *scene.Context) scene.Scene {
-	n := p.world.Level.Number
-	return scene.NewTally(fmt.Sprintf("LEVEL %d CLEAR", n), p.tallyLines(), func() scene.Scene {
-		return newLevel(ctx, p.levels, n+1)
-	})
+	w := p.world
+	n := w.Level.Number
+	if b := w.Level.Bonus; b != nil {
+		return scene.NewTally(b.Name, p.bonusLines(), func() scene.Scene { return newMastered(ctx, p.levels) })
+	}
+	next := func() scene.Scene { return newLevel(ctx, p.levels, n+1) }
+	if n == len(p.levels.Levels) && !ctx.Testing() {
+		next = func() scene.Scene {
+			if lv, ok := config.BonusLevel(ctx.Session.Mode); ok {
+				return newPlay(ctx, p.levels, lv)
+			}
+			return newMastered(ctx, p.levels)
+		}
+	}
+	return scene.NewTally(fmt.Sprintf("LEVEL %d CLEAR", n), p.tallyLines(), next)
+}
+
+// bonusLines are the bonus level's tally: the fireflies, catching them
+// all, the time bonus for doing it early, and any nooks reached (D61).
+func (p *Play) bonusLines() []scene.TallyLine {
+	st, b := p.world.Stats, p.world.Level.Bonus
+	lines := []scene.TallyLine{
+		{Label: fmt.Sprintf("FIREFLIES %d x %d", st.Fireflies, b.Firefly), Points: st.Fireflies * b.Firefly},
+		{Label: "ALL CAUGHT", Points: st.All},
+		{Label: "TIME BONUS", Points: st.TimeBonus},
+	}
+	if st.Goals > 0 {
+		lines = append(lines, scene.TallyLine{Label: fmt.Sprintf("NOOKS %d x %d", st.Goals, config.PointsBonusNook),
+			Points: st.Goals * config.PointsBonusNook})
+	}
+	return lines
 }
 
 // tallyLines are the tally's lines: one for each kind of points the level
@@ -214,17 +257,6 @@ func (p *Play) tallyLines() []scene.TallyLine {
 	return lines
 }
 
-// markCleared records the mode as cleared once its last level, level 8,
-// is cleared, for the MODE menu (D24).
-func (p *Play) markCleared(ctx *scene.Context) {
-	if ctx.Testing() {
-		return // a test game, started part way or with one kind of storm
-	}
-	if p.world.Level.Number >= len(p.levels.Levels) && ctx.Scores.MarkCleared(ctx.Session.Mode.ID) {
-		ctx.ScoresChanged()
-	}
-}
-
 // Ended holds the last moment of the game on screen under a GAME OVER
 // message, then goes on to the high scores. Confirm moves on sooner.
 type Ended struct {
@@ -239,7 +271,7 @@ func (e *Ended) Update(ctx *scene.Context) error {
 	e.ticks++
 	if e.ticks >= gameOverTicks || (e.ticks > config.TPS/2 && ctx.Input.JustPressed(input.Confirm)) {
 		s := ctx.Session
-		ctx.Switch(scene.AfterGame(ctx, s.Mode, s.Score))
+		ctx.Switch(scene.AfterGame(ctx, s.Mode, entry(s), nil))
 	}
 	return nil
 }
@@ -288,7 +320,11 @@ func (p *Play) drawHUD(ctx *scene.Context, dst *ebiten.Image) {
 
 	f.Small.DrawShadowed(dst, fmt.Sprintf("SCORE %06d", s.Score), config.FieldMargin, ty, sc.Text, sc.Shadow)
 	f.Small.DrawShadowed(dst, fmt.Sprintf("HI %06d", max(best(ctx), s.Score)), hudHiX, ty, sc.Text, sc.Shadow)
-	f.Small.DrawShadowed(dst, fmt.Sprintf("LV %d", p.world.Level.Number), hudLevelX, ty, sc.Text, sc.Shadow)
+	level := fmt.Sprintf("LV %d", p.world.Level.Number)
+	if p.world.Bonus() {
+		level = "BONUS"
+	}
+	f.Small.DrawShadowed(dst, level, hudLevelX, ty, sc.Text, sc.Shadow)
 
 	life := ctx.Sheet(Sheet).Sprite("life")
 	ly := float64((config.HUDHeight - life.H) / 2)
@@ -310,6 +346,22 @@ func (p *Play) drawHUD(ctx *scene.Context, dst *ebiten.Image) {
 	vector.FillRect(dst, float32(barX), float32(barY), timeBarW, timeBarH, gfx.RGBA(sc.Panel), false)
 	vector.FillRect(dst, float32(barX), float32(barY), float32(filled), timeBarH, gfx.RGBA(bar), false)
 	p.drawCombo(ctx, dst, ty)
+	p.drawCaught(ctx, dst, ty)
+}
+
+// drawCaught draws, on a bonus level, how many of its fireflies the toad
+// has caught, in the combo's place: there are no hop points to combo
+// (D61).
+func (p *Play) drawCaught(ctx *scene.Context, dst *ebiten.Image, ty int) {
+	b := p.world.Level.Bonus
+	if b == nil {
+		return
+	}
+	sc, f := ctx.Scheme, ctx.Fonts
+	sp := ctx.Sheet(Sheet).Sprite(p.hero.Pickup)
+	sp.Draw(dst, 0, hudComboX, float64((config.HUDHeight-sp.H)/2), false)
+	f.Small.DrawShadowed(dst, fmt.Sprintf("%d/%d", p.world.Stats.Fireflies, b.Fireflies),
+		hudComboX+sp.W+hudLifeGap, ty, sc.Highlight, sc.Shadow)
 }
 
 // drawHint draws the strip below the playfield: the controls, or for a
@@ -335,9 +387,15 @@ func (p *Play) drawBanner(ctx *scene.Context, dst *ebiten.Image) {
 	var text string
 	switch {
 	case p.clear > 0:
-		text = "LEVEL CLEAR"
+		text = map[world.Event]string{world.AllCaught: "ALL CAUGHT", world.BonusOver: "TIME UP"}[p.ending]
+		if text == "" {
+			text = "LEVEL CLEAR"
+		}
 	case p.ticks < bannerTicks:
 		text = fmt.Sprintf("LEVEL %d", p.world.Level.Number)
+		if b := p.world.Level.Bonus; b != nil {
+			text = b.Name // the title card (D61)
+		}
 	default:
 		return
 	}

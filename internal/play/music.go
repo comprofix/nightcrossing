@@ -92,6 +92,32 @@ var (
 		{Voice: tuneDrums, Notes: beats(8, kick, hat, snare, hat, kick, kick, snare, hat)},
 	}}
 
+	// BonusNight loops on every bonus level (D61): a light, twinkling tune
+	// in F, F Am Bb C | F Dm Gm C.
+	BonusNight = &audio.Tune{Name: "bonus", Loop: true, Parts: []audio.Part{
+		{Voice: tuneLead, Notes: audio.Notes(
+			"F5:12 A5:12 C6:24 A5:12 C6:12 F6:24",
+			"E6:24 C6:12 A5:12 E5:24 A5:24",
+			"D6:12 F6:12 D6:12 Bb5:12 F5:24 Bb5:24",
+			"C6:24 G5:12 E5:12 G5:48",
+			"A5:12 C6:12 F6:24 E6:12 C6:12 A5:24",
+			"F6:24 D6:12 A5:12 F5:24 A5:24",
+			"Bb5:12 D6:12 G6:24 F6:12 D6:12 Bb5:24",
+			"G5:24 Bb5:12 E6:12 C6:24 -:24",
+		)},
+		{Voice: tunePad, Notes: audio.Notes(
+			"A4:48 C5:48", "C5:48 E5:48", "D5:48 F5:48", "E4:48 G4:48",
+			"A4:48 C5:48", "D5:48 F5:48", "Bb4:48 D5:48", "E5:48 G4:48",
+		)},
+		{Voice: tuneBass, Notes: audio.Notes(
+			"F2:24 C3:24 F2:24 C3:24", "A2:24 E3:24 A2:24 E3:24",
+			"Bb2:24 F3:24 Bb2:24 F3:24", "C3:24 G2:24 C3:24 G2:24",
+			"F2:24 C3:24 F2:24 A2:24", "D3:24 A2:24 D3:24 F3:24",
+			"G2:24 D3:24 G2:24 Bb2:24", "C3:24 G2:24 E3:24 C3:24",
+		)},
+		{Voice: tuneDrums, Notes: beats(8, kick, hat, 0, hat, snare, hat, 0, hat)},
+	}}
+
 	// LevelClearJingle plays once as the last nook fills: a bright run up
 	// to a held D major chord.
 	LevelClearJingle = &audio.Tune{Name: "level clear", Parts: []audio.Part{

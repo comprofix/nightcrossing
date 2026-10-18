@@ -2,6 +2,8 @@ package scene
 
 import (
 	"math"
+	"slices"
+	"strings"
 
 	"github.com/hajimehoshi/ebiten/v2"
 
@@ -85,9 +87,11 @@ func (s *MainMenu) Draw(ctx *Context, dst *ebiten.Image) {
 	drawMenuScreen(ctx, dst, config.Title, &s.menu, "Enter: choose   Esc: back")
 }
 
-// ModeSelect chooses the mode, then shows its intro. Cleared modes are
-// marked, and once any mode is cleared the first one not yet cleared is
-// suggested and the cursor starts on it.
+// ModeSelect chooses the mode, then shows its intro. Mastered modes are
+// marked; each later mode is locked, dimmed with what opens it, until the
+// one before it is mastered; and the newest one opened is suggested, the
+// cursor starting on it (D64). Test games (Context.Testing) can choose a
+// locked mode.
 type ModeSelect struct {
 	menu  ui.Menu
 	start int // the mode the cursor starts on; -1 for the suggested one
@@ -100,37 +104,41 @@ func NewModeSelect() *ModeSelect { return &ModeSelect{start: -1} }
 // coming back from that mode's intro.
 func NewModeSelectAt(i int) *ModeSelect { return &ModeSelect{start: i} }
 
-// SuggestedMode is the one of modes to play next: the first one not yet
-// cleared, once any has been. It is -1 if none is cleared, or all are.
+// SuggestedMode is the one of modes to play next: the newest one opened,
+// while it is not yet mastered. It is -1 before any is mastered, or once
+// all are (D64).
 func SuggestedMode(modes []config.Mode, t *score.Tables) int {
-	next, any := -1, false
-	for i, m := range modes {
-		switch {
-		case t.IsCleared(m.ID):
-			any = true
-		case next < 0:
-			next = i
+	newest := 0
+	for i := range modes {
+		if t.Open(modes, i) {
+			newest = i
 		}
 	}
-	if !any {
+	if newest == 0 || t.IsMastered(modes[newest].ID) {
 		return -1
 	}
-	return next
+	return newest
 }
 
 // Update implements Scene.
 func (s *ModeSelect) Update(ctx *Context) error {
 	if s.menu.Items == nil {
-		next := SuggestedMode(ctx.ModeList(), ctx.Scores)
-		for i, m := range ctx.ModeList() {
+		modes := ctx.ModeList()
+		next := SuggestedMode(modes, ctx.Scores)
+		for i, m := range modes {
 			label := m.Name
+			// A mode still being built, added with -mode, is open, for testing.
+			open := ctx.Scores.Open(modes, i) || !slices.ContainsFunc(config.Modes, func(c config.Mode) bool { return c.ID == m.ID })
 			switch {
-			case ctx.Scores.IsCleared(m.ID):
-				label += "  CLEARED"
+			case ctx.Scores.IsMastered(m.ID):
+				label += "  " + Tick + " MASTERED"
+			case !open:
+				label += "  " + Lock + " MASTER " + strings.ToUpper(modes[i-1].Name) + " TO OPEN"
 			case i == next:
 				label += "  NEXT"
 			}
-			s.menu.Items = append(s.menu.Items, ui.Item{Label: label, Confirm: func() { ctx.Switch(NewIntro(i)) }})
+			s.menu.Items = append(s.menu.Items, ui.Item{Label: label, Disabled: !open && !ctx.Testing(),
+				Confirm: func() { ctx.Switch(NewIntro(i)) }})
 		}
 		s.menu.Cursor = max(next, 0)
 		if s.start >= 0 {

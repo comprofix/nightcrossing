@@ -10,3 +10,8 @@ const (
 	DemoLevels    = 3    // the demo plays levels 1 to DemoLevels in turn
 	DemoFirefly   = 3    // a firefly caught is worth this many rows of progress to the autopilot (D58)
 )
+
+// DemoSwarmFirefly is what a firefly caught on a bonus level is worth to
+// the autopilot, in rows of progress: more than the furthest the next one
+// can be, so it never shies from a catch (D61).
+const DemoSwarmFirefly = 2 * Rows * Cols / 4

@@ -14,7 +14,7 @@ import (
 
 // Intro shows a mode before it is played: what it is, what it brings, what
 // carries over from the modes before it, its best score and whether it is
-// cleared. Confirm plays it; Back returns to the mode menu.
+// mastered (D64). Confirm plays it; Back returns to the mode menu.
 type Intro struct {
 	mode int // index into the context's ModeList
 }
@@ -87,8 +87,8 @@ func (s *Intro) Draw(ctx *Context, dst *ebiten.Image) {
 		best = t[0].Score
 	}
 	f.Small.DrawShadowed(dst, fmt.Sprintf("BEST  %06d", best), x, y, sc.Text, sc.Shadow)
-	if ctx.Scores.IsCleared(m.ID) {
-		c := "CLEARED"
+	if ctx.Scores.IsMastered(m.ID) {
+		c := Tick + " MASTERED" // D64
 		f.Small.DrawShadowed(dst, c, x+w-f.Small.Width(c), y, sc.Highlight, sc.Shadow)
 	}
 
