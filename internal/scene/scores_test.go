@@ -1,12 +1,16 @@
 package scene
 
 import (
+	"os"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/hajimehoshi/ebiten/v2"
 
+	"github.com/comprofix/nightcrossing/internal/bitfont"
 	"github.com/comprofix/nightcrossing/internal/config"
 	"github.com/comprofix/nightcrossing/internal/input"
+	"github.com/comprofix/nightcrossing/internal/score"
 )
 
 func TestTallyCountsUpThenContinues(t *testing.T) {
@@ -46,19 +50,19 @@ func TestTallyConfirmSkipsTheCount(t *testing.T) {
 func TestAfterGame(t *testing.T) {
 	h := newHarness(t, NewMainMenu())
 	sk := config.Modes[0]
-	if _, ok := AfterGame(h.ctx, sk, 0).(*HighScoreTable); !ok {
+	if _, ok := AfterGame(h.ctx, sk, score.Entry{}, nil).(*HighScoreTable); !ok {
 		t.Error("a score of 0 should go straight to the table")
 	}
-	if _, ok := AfterGame(h.ctx, sk, 10).(*HighScoreEntry); !ok {
+	if _, ok := AfterGame(h.ctx, sk, score.Entry{Score: 10}, nil).(*HighScoreEntry); !ok {
 		t.Error("a first score should ask for initials")
 	}
 }
 
 func TestEnterInitials(t *testing.T) {
 	sk := config.Modes[len(config.Modes)-1]
-	entry := NewHighScoreEntry(sk, 420)
+	entry := NewHighScoreEntry(sk, score.Entry{Score: 420}, nil)
 	h := newHarness(t, entry)
-	h.ctx.Scores.Add(sk.ID, "TOP", 999)
+	h.ctx.Scores.Add(sk.ID, score.Entry{Initials: "TOP", Score: 999})
 	h.press(ebiten.KeyArrowUp)
 	h.press(ebiten.KeyArrowUp) // C
 	h.press(ebiten.KeyEnter)
@@ -108,7 +112,7 @@ func TestHighScoreTableFromTheMenu(t *testing.T) {
 }
 
 func TestInitialsWithAGamepad(t *testing.T) {
-	entry := NewHighScoreEntry(config.Modes[0], 420)
+	entry := NewHighScoreEntry(config.Modes[0], score.Entry{Score: 420}, nil)
 	h := newHarness(t, entry)
 	h.pad(input.PadUp) // B
 	h.pad(input.PadA)
@@ -124,11 +128,30 @@ func TestInitialsWithAGamepad(t *testing.T) {
 func TestTestGamesMakeNoTable(t *testing.T) {
 	h := newHarness(t, NewMainMenu())
 	h.ctx.StartLevel = 20
-	if _, ok := AfterGame(h.ctx, config.Modes[0], 5000).(*HighScoreTable); !ok {
+	if _, ok := AfterGame(h.ctx, config.Modes[0], score.Entry{Score: 5000}, nil).(*HighScoreTable); !ok {
 		t.Error("a game started part way was offered the table")
 	}
 	h.ctx.StartLevel, h.ctx.Storms = 0, config.DryStorm
-	if _, ok := AfterGame(h.ctx, config.Modes[0], 5000).(*HighScoreTable); !ok {
+	if _, ok := AfterGame(h.ctx, config.Modes[0], score.Entry{Score: 5000}, nil).(*HighScoreTable); !ok {
 		t.Error("a game with every storm one kind was offered the table")
+	}
+}
+
+// TestFontHasTheMarks: the font draws the mastered and locked marks,
+// rather than a '?' (D63, D64).
+func TestFontHasTheMarks(t *testing.T) {
+	f, err := os.Open("../../assets/font/font8x8.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	font, err := bitfont.Parse(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, mark := range []string{Tick, Lock} {
+		if r, _ := utf8.DecodeRuneInString(mark); !font.Has(r) {
+			t.Errorf("the font has no %q", mark)
+		}
 	}
 }

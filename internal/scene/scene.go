@@ -67,6 +67,11 @@ type Context struct {
 	// it in debug builds. Such games go on no high score table either.
 	Storms config.StormKind
 
+	// Bonus starts new games straight on the mode's bonus level, for
+	// tuning it; the -bonus flag sets it in debug builds. Such games go on
+	// no high score table, and master no mode (D61).
+	Bonus bool
+
 	// NoShaders is set when the game's shader effects can't run, so the
 	// options for them are dimmed. Debug builds can set it with -noshaders.
 	NoShaders bool
@@ -78,10 +83,12 @@ type Context struct {
 	scoresChanged   bool
 }
 
-// Testing reports whether games are started for testing, part way in or
-// with every storm one kind: they go on no high score table and clear no
-// mode.
-func (c *Context) Testing() bool { return c.StartLevel > 1 || c.Storms != config.AnyStorm }
+// Testing reports whether games are started for testing, part way in,
+// with every storm one kind, or on the bonus level: they go on no high
+// score table, and master and open no mode (D62, D64).
+func (c *Context) Testing() bool {
+	return c.StartLevel > 1 || c.Storms != config.AnyStorm || c.Bonus
+}
 
 // ModeList is the modes the menus offer: Modes, or config.Modes if unset.
 func (c *Context) ModeList() []config.Mode {

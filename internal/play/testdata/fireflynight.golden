@@ -1,0 +1,21 @@
+tick 64: firefly 1 caught at 7,10
+tick 148: firefly 2 caught at 8,3
+tick 164: firefly 3 caught at 11,3
+tick 172: firefly 4 caught at 11,2
+tick 188: a firefly comes in
+tick 198: a nook
+tick 306: a firefly comes in
+tick 316: a firefly comes in
+tick 335: a firefly comes in
+tick 492: firefly 5 caught at 11,10
+tick 618: a firefly comes in
+tick 699: firefly 6 caught at 17,9
+tick 803: firefly 7 caught at 22,1
+tick 1540: firefly 8 caught at 3,8
+tick 1556: firefly 9 caught at 1,8
+tick 1908: firefly 10 caught at 14,2
+tick 1908: ended 44, 8 s left
+grid 26x13  mode stroll  level 8
+tick 1908  ticks left 493
+score 3500  lives 3
+hero cell 14,2  at 5444,768  facing down  hopping false

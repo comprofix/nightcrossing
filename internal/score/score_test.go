@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/comprofix/nightcrossing/internal/config"
@@ -14,17 +15,17 @@ var modes = []config.Mode{{ID: "easy"}, {ID: "hard"}}
 func TestAddKeepsOrderAndSize(t *testing.T) {
 	tb := New()
 	for i := range config.TableSize {
-		if got := tb.Add("easy", "abc", 100+i*10); got != 0 {
+		if got := tb.Add("easy", Entry{Initials: "abc", Score: 100 + i*10}); got != 0 {
 			t.Fatalf("score %d went to place %d, want 0", 100+i*10, got)
 		}
 	}
 	if tb.Qualifies("easy", 100) {
 		t.Error("a score equal to the lowest of a full table qualifies")
 	}
-	if got := tb.Add("easy", "low", 50); got != -1 {
+	if got := tb.Add("easy", Entry{Initials: "low", Score: 50}); got != -1 {
 		t.Errorf("a score below a full table went to place %d", got)
 	}
-	if got := tb.Add("easy", "tie", 150); got != 5 {
+	if got := tb.Add("easy", Entry{Initials: "tie", Score: 150}); got != 5 {
 		t.Errorf("a tie with 150 went to place %d, want 5 (below the earlier 150)", got)
 	}
 	es := tb.Table("easy")
@@ -58,10 +59,10 @@ func TestCleanInitials(t *testing.T) {
 func TestSaveAndLoad(t *testing.T) {
 	path := filepath.Join(t.TempDir(), config.ScoresFile)
 	tb := New()
-	tb.Add("easy", "ABC", 300)
-	tb.Add("easy", "DEF", 200)
-	tb.Add("hard", "GHI", 50)
-	tb.MarkCleared("hard")
+	tb.Add("easy", Entry{Initials: "ABC", Score: 300, Mastered: true, Continued: 23})
+	tb.Add("easy", Entry{Initials: "DEF", Score: 200, Mastered: true})
+	tb.Add("hard", Entry{Initials: "GHI", Score: 50})
+	tb.MarkMastered("hard")
 	if err := tb.Save(path); err != nil {
 		t.Fatal(err)
 	}
@@ -115,20 +116,40 @@ func TestLoadChecksEveryEntry(t *testing.T) {
 	}
 }
 
-// TestCleared checks a mode is marked cleared once, and a cleared mark for
-// a mode the game doesn't have is dropped on loading.
-func TestCleared(t *testing.T) {
+// TestMastered checks a mode is marked mastered once, opening the next;
+// a mark for a mode the game doesn't have is dropped on loading; and a
+// mode cleared in a file from before 1.7 counts as mastered (D64).
+func TestMastered(t *testing.T) {
 	tb := New()
-	if tb.IsCleared("easy") {
-		t.Fatal("cleared before playing")
+	if tb.IsMastered("easy") || !tb.Open(modes, 0) || tb.Open(modes, 1) {
+		t.Fatal("before playing: want easy open and not mastered, hard locked")
 	}
-	if !tb.MarkCleared("easy") || tb.MarkCleared("easy") {
-		t.Error("MarkCleared should report new only the first time")
+	if !tb.MarkMastered("easy") || tb.MarkMastered("easy") {
+		t.Error("MarkMastered should report new only the first time")
+	}
+	if !tb.Open(modes, 1) {
+		t.Error("mastering easy didn't open hard")
 	}
 	path := filepath.Join(t.TempDir(), config.ScoresFile)
-	os.WriteFile(path, []byte(`{"tables": {}, "cleared": {"easy": true, "gone": true}}`), 0o644)
+	os.WriteFile(path, []byte(`{"tables": {}, "mastered": {"easy": true, "gone": true}, "cleared": {"hard": true}}`), 0o644)
 	got := Load(path, modes)
-	if !got.IsCleared("easy") || got.IsCleared("gone") {
-		t.Errorf("loaded cleared %v, want only easy", got.Cleared)
+	if !got.IsMastered("easy") || !got.IsMastered("hard") || got.IsMastered("gone") {
+		t.Errorf("loaded mastered %v, want easy and hard (cleared before 1.7)", got.Mastered)
+	}
+	if err := got.Save(path); err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(path); strings.Contains(string(data), "cleared") {
+		t.Errorf("saved %s: the old cleared marks should go", data)
+	}
+}
+
+// TestOldEntriesLoadUnmarked: entries from before 1.7 have no marks, and
+// load as runs that didn't master the mode (D63).
+func TestOldEntriesLoadUnmarked(t *testing.T) {
+	path := filepath.Join(t.TempDir(), config.ScoresFile)
+	os.WriteFile(path, []byte(`{"tables": {"easy": [{"initials": "ABC", "score": 10}]}}`), 0o644)
+	if es := Load(path, modes).Table("easy"); len(es) != 1 || es[0].Mastered || es[0].Continued != 0 {
+		t.Errorf("loaded %v, want one unmarked entry", es)
 	}
 }

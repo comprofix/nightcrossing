@@ -57,6 +57,10 @@ const (
 	FireflyCaught                    // the hero caught a firefly: a life, with ExtraLife, or points at the cap (D58)
 	FireflyGone                      // the firefly flew away, its visit over (D58)
 	FruitTaken                       // the nook filled had fruit in it (D59)
+	Slipped                          // on a bonus level, a slip into the water or a car: time lost, no life (D61)
+	Blocked                          // on a bonus level, a hop into a parked car, refused (D61)
+	BonusOver                        // the bonus level's clock ran out (D61)
+	AllCaught                        // every firefly of the bonus level is caught, ending it early (D61)
 )
 
 // Stats are the points earned on this level, for the level-clear tally.
@@ -70,6 +74,7 @@ type Stats struct {
 	Fruit     int // points for fruit taken, before the combo (D59)
 	Fireflies int // fireflies caught (D58)
 	AtCap     int // points for fireflies caught with lives at the cap (D57)
+	All       int // on a bonus level, the points for catching every firefly (D61)
 }
 
 // World is one level of a game.
@@ -90,18 +95,23 @@ type World struct {
 	Cleared    bool                    // every nook is filled
 	Over       bool                    // the game has ended
 	Stats      Stats
-	Combo      Combo // the hop combo, on levels with it (D38)
-	Gained     int   // points to pop up this tick: what the combo multiplied, and a firefly's at the cap
-	FruitNook  int   // the nook fruit shows in, or -1 (D59)
-	Flyer      Flyer // the firefly, or by day the dragonfly (D58)
+	Combo      Combo   // the hop combo, on levels with it (D38)
+	Gained     int     // points to pop up this tick: what the combo multiplied, and a firefly's at the cap
+	FruitNook  int     // the nook fruit shows in, or -1 (D59)
+	Flyer      Flyer   // the firefly, or by day the dragonfly (D58)
+	Swarm      []Flyer // a bonus level's fireflies (D61)
 
-	fruitTicks int   // ticks until the fruit goes, or until it next shows
-	furthest   int   // the furthest row reached this attempt
-	fallen     int   // whose death is under way: Hero, or a toadlet (D53)
-	clearUntil int64 // no weather starts before this tick: the clear stretch after a storm (D51)
-	storms     int   // storms chosen this level, counting the next
-	stormRun   int   // how many of them in a row are the latest's kind
-	lastWet    bool  // the latest storm chosen is wet
+	sent       int                            // a bonus level's fireflies sent for so far: on the field, caught, or due
+	cameRoad   int                            // of them, how many have come in to the road
+	cameRiver  int                            // and to the river
+	reach      [config.Rows][config.Cols]bool // the land cells the toad can get to past a bonus level's parked cars
+	fruitTicks int                            // ticks until the fruit goes, or until it next shows
+	furthest   int                            // the furthest row reached this attempt
+	fallen     int                            // whose death is under way: Hero, or a toadlet (D53)
+	clearUntil int64                          // no weather starts before this tick: the clear stretch after a storm (D51)
+	storms     int                            // storms chosen this level, counting the next
+	stormRun   int                            // how many of them in a row are the latest's kind
+	lastWet    bool                           // the latest storm chosen is wet
 	rng        *rand.Rand
 	events     []Event
 }
@@ -125,17 +135,23 @@ func New(s *session.Session, level config.Level, rng *rand.Rand) *World {
 		w.nextStorm(s)
 	}
 	w.newFruit()
+	w.TicksLeft = level.TimerTicks
 	w.newAttempt()
 	w.rollFirefly()
+	if w.Bonus() {
+		w.newBonus()
+	}
 	return w
 }
 
 // newAttempt puts the hero, and its line if it has one, on the start row
-// with a full clock.
+// with a full clock; on a bonus level, the clock runs on (D61).
 func (w *World) newAttempt() {
 	w.Player = newPlayer(config.StartCol, config.StartRow)
 	w.Line = newLine(w.Level.Toadlets)
-	w.TicksLeft = w.Level.TimerTicks
+	if !w.Bonus() {
+		w.TicksLeft = w.Level.TimerTicks
+	}
 	w.furthest = config.StartRow
 	w.Combo = Combo{}
 }
@@ -161,6 +177,7 @@ func (w *World) Update(press Dir) []Event {
 		}
 	}
 	w.updateFirefly()
+	w.updateSwarm()
 	w.updateFruit()
 	w.Rail.update(w)
 	w.updateSpells()
@@ -193,8 +210,13 @@ func (w *World) Update(press Dir) []Event {
 		}
 		if w.playing() {
 			w.carry()
-			w.updateTimer()
+			if !w.Bonus() {
+				w.updateTimer()
+			}
 		}
+	}
+	if w.Bonus() && !w.Cleared {
+		w.updateBonusClock() // it never stops, not for slips or nooks (D61)
 	}
 	return w.events
 }
@@ -206,12 +228,14 @@ func (w *World) playing() bool { return w.Dying == 0 && w.Home == 0 && !w.Cleare
 func (w *World) emit(e Event) { w.events = append(w.events, e) }
 
 // score adds points, and a life each time the score passes a multiple of
-// config.ExtraLifeEvery, up to the cap (DESIGN §5.4, D57).
+// config.ExtraLifeEvery, up to the cap (DESIGN §5.4, D57). A bonus level's
+// points give no life, so it can't be farmed for Finish's life bonus
+// (D61, D62).
 func (w *World) score(points int) {
 	s := w.Session
 	before := s.Score
 	s.AddScore(points)
-	if lives := s.Score/config.ExtraLifeEvery - before/config.ExtraLifeEvery; lives > 0 {
+	if lives := s.Score/config.ExtraLifeEvery - before/config.ExtraLifeEvery; lives > 0 && !w.Bonus() {
 		w.gainLives(lives)
 	}
 }
@@ -228,9 +252,10 @@ func (w *World) gainLives(n int) {
 }
 
 // landed scores a hop into a row further than the hero has reached on
-// this attempt (DESIGN §5.5). updatePlayer calls it on each landing.
+// this attempt (DESIGN §5.5). updatePlayer calls it on each landing. A
+// bonus level scores what is collected, not hops (D61).
 func (w *World) landed() {
-	if r := w.Player.Row; r < w.furthest {
+	if r := w.Player.Row; r < w.furthest && !w.Bonus() {
 		w.furthest = r
 		if !w.Player.Sliding {
 			w.countHop() // a slide is not a hop (D31)
@@ -275,8 +300,11 @@ func (w *World) checkHazards(i int) {
 	left, right := p.X+m, p.X+cellUnits-m
 	switch lane.Kind {
 	case config.Road:
-		if lane.hits(left, right, config.HitMargin) {
+		switch {
+		case lane.hits(left, right, config.HitMargin):
 			w.dieAs(i, Squashed)
+		case w.Bonus() && i == Hero && !p.Hopping():
+			w.catchSwarm(p.LaneRow(), left, right) // a firefly in a road gap (D61)
 		}
 	case config.River:
 		switch mid := p.Middle(); {
@@ -287,6 +315,8 @@ func (w *World) checkHazards(i int) {
 			w.dieAs(i, Splashed)
 		case lane.heronIn(left, right):
 			w.dieAs(i, Caught)
+		case i == Hero && w.Bonus():
+			w.catchSwarm(p.LaneRow(), left, right)
 		case i == Hero:
 			w.catchFirefly(p.LaneRow(), left, right)
 		}
@@ -326,6 +356,10 @@ func (w *World) reachBank() {
 		w.die(Bumped)
 		return
 	}
+	if w.Bonus() {
+		w.bonusNook()
+		return
+	}
 	w.Filled[n] = true
 	secs := w.TicksLeft / config.TPS
 	toadlets := len(w.Line) * config.PointsToadlet
@@ -353,13 +387,19 @@ func (w *World) die(how Event) { w.dieAs(Hero, how) }
 
 // dieAs starts the death of body i, the hero or a toadlet. Either ends the
 // attempt (D53). The life goes at once, so the status bar shows it during
-// the death.
+// the death. On a bonus level it is a slip: the same splash or bump, but
+// no life goes, and it gives out Slipped rather than how (D61).
 func (w *World) dieAs(i int, how Event) {
 	w.body(i).Death = how
 	w.fallen = i
 	w.Player.queued = None
 	w.Player.push = 0
 	w.Combo = Combo{}
+	if w.Bonus() {
+		w.Dying = config.SlipTicks
+		w.emit(Slipped)
+		return
+	}
 	w.Dying = config.DeathTicks
 	w.Session.LoseLife()
 	w.emit(how)

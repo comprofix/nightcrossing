@@ -9,6 +9,12 @@ type Session struct {
 	Mode  config.Mode
 	Score int
 	Lives int
+
+	// Mastered is set once the run reaches the MASTERED screen, and
+	// Continued is the level it has reached since carrying on from there;
+	// 0 if it hasn't. The high score tables show both (DESIGN §6.7, D63).
+	Mastered  bool
+	Continued int
 }
 
 // New starts a game in a mode with the given lives.

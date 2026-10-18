@@ -130,8 +130,9 @@ type Level struct {
 	FireflyOn  [NumHosts]bool             // the platforms a firefly can ride (D60)
 	FruitPts   int                        // what fruit in a nook is worth; 0 for no fruit (D59)
 	Fruit      int                        // which of Fruits it is
-	TimerTicks int                        // the time for each attempt
+	TimerTicks int                        // the time for each attempt; on a bonus level, for the whole level
 	Hint       string
+	Bonus      *Bonus // the bonus level this is, or nil (D61)
 }
 
 // After the last level, the last LoopLevels levels loop. Each time round,

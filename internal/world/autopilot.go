@@ -17,6 +17,7 @@ func (w *World) Clone(rng *rand.Rand) *World {
 		c.Lanes[r].Entities = slices.Clone(w.Lanes[r].Entities)
 	}
 	c.Spells = slices.Clone(w.Spells)
+	c.Swarm = slices.Clone(w.Swarm)
 	c.Line = cloneLine(w.Line)
 	c.rng = rng
 	c.events = nil
@@ -57,12 +58,20 @@ func (Autopilot) Next(w *World) Dir {
 // good the best line is. caught is how many fireflies were caught before
 // the line began. w is changed.
 func value(w *World, d Dir, depth, caught int) int {
+	before := w.Stats.Fireflies
 	if t, ok := step(w, d); !ok {
 		return dead + t
 	}
-	bonus := (w.Stats.Fireflies - caught) * config.DemoFirefly * config.Cols * 2
-	if w.Home > 0 || w.Cleared {
-		return 1000*config.Rows + bonus // a nook filled: as good as it gets
+	worth, soon := config.DemoFirefly, 0
+	if w.Bonus() {
+		// On a bonus level the fireflies are the point, and one caught
+		// sooner is worth a little more, so it never puts a catch off
+		// (D61).
+		worth, soon = config.DemoSwarmFirefly, (w.Stats.Fireflies-before)*depth
+	}
+	bonus := (w.Stats.Fireflies - caught) * worth * config.Cols * 2
+	if w.Cleared || w.Home > 0 && !w.Bonus() {
+		return 1000*config.Rows + bonus + soon // a nook filled: as good as it gets
 	}
 	if depth == 1 {
 		for t := range config.DemoTailTicks {
@@ -70,13 +79,13 @@ func value(w *World, d Dir, depth, caught int) int {
 				return dead + config.DemoTailTicks*config.DemoLookahead + t
 			}
 		}
-		return progress(w) + bonus
+		return progress(w) + bonus + soon
 	}
 	best := dead - 1
 	for _, d := range moves {
 		best = max(best, value(w.Clone(w.rng), d, depth-1, caught))
 	}
-	return best
+	return best + soon
 }
 
 // step plays one move: a hop until it lands, or a short wait. It reports
@@ -89,6 +98,9 @@ func step(w *World, d Dir) (int, bool) {
 	for t := range n {
 		if t == 0 {
 			w.Update(d)
+			if d != None && w.Bonus() && w.playing() && !w.Player.Hopping() {
+				return 0, false // a parked car in the way: no move at all (D61)
+			}
 		} else {
 			w.Update(None)
 		}
@@ -106,6 +118,9 @@ func step(w *World, d Dir) (int, bool) {
 // column is from an empty nook, which counts for more the nearer the bank
 // it is, so it does not ride the top row away from the last nook.
 func progress(w *World) int {
+	if w.Bonus() {
+		return -hunt(w) * config.Cols * 2
+	}
 	p := w.Player
 	far := config.Cols
 	for i, c := range config.Nooks {
@@ -125,4 +140,45 @@ func abs(n int) int {
 		return -n
 	}
 	return n
+}
+
+// hunt is how many hops the hero is from the nearest firefly on a bonus
+// level, round the parked cars, or 0 with none about (D61). The river
+// counts as open, since its logs come round.
+func hunt(w *World) int {
+	type cell struct{ col, row int }
+	var dist [config.Rows][config.Cols]int
+	for r := range dist {
+		for c := range dist[r] {
+			dist[r][c] = -1
+		}
+	}
+	p := w.Player
+	start := cell{columnOf(p.X), p.Row}
+	dist[start.row][start.col] = 0
+	queue := []cell{start}
+	for len(queue) > 0 {
+		c := queue[0]
+		queue = queue[1:]
+		for _, d := range [...]cell{{0, -1}, {0, 1}, {-1, 0}, {1, 0}} {
+			n := cell{c.col + d.col, c.row + d.row}
+			if n.row < 0 || n.row >= w.Rows || n.col < 0 || n.col >= w.Cols || dist[n.row][n.col] >= 0 ||
+				w.Lanes[n.row].Kind == config.Bank || w.Parked(n.col, n.row) {
+				continue
+			}
+			dist[n.row][n.col] = dist[c.row][c.col] + 1
+			queue = append(queue, n)
+		}
+	}
+	best := -1
+	for i := range w.Swarm {
+		f := &w.Swarm[i]
+		if !f.Visiting {
+			continue
+		}
+		if d := dist[f.row][columnOf(w.spotX(f))]; d >= 0 && (best < 0 || d < best) {
+			best = d
+		}
+	}
+	return max(best, 0)
 }

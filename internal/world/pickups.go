@@ -68,7 +68,7 @@ func (w *World) updateFirefly() {
 		if f.Facing > 0 {
 			out = fieldWidth + cellUnits
 		}
-		if w.flyTo(out, f.Y) {
+		if f.flyTo(out, f.Y) {
 			f.Visiting = false
 			w.emit(FireflyGone)
 		}
@@ -85,7 +85,7 @@ func (w *World) updateFirefly() {
 			return
 		}
 		f.X += w.Lanes[f.row].Step() // it flies with its spot as it goes, so it always gets there
-		if w.flyTo(e.X()+f.offset, f.row*cellUnits) {
+		if f.flyTo(e.X()+f.offset, f.row*cellUnits) {
 			f.Landed, f.sit = true, between(w, config.FireflySitMinTicks, config.FireflySitMaxTicks)
 		}
 	}
@@ -207,8 +207,7 @@ func (w *World) perch(r int, e Entity, offset, margin int) bool {
 
 // flyTo moves the firefly toward x, y at its speed, and reports whether
 // it is there.
-func (w *World) flyTo(x, y int) bool {
-	f := &w.Flyer
+func (f *Flyer) flyTo(x, y int) bool {
 	dx, dy := x-f.X, y-f.Y
 	if dx != 0 {
 		f.Facing = 1

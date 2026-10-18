@@ -227,6 +227,10 @@ func (w *World) move(d Dir, slide bool) bool {
 	if m := x + cellUnits/2; m < 0 || m >= fieldWidth {
 		return false
 	}
+	if w.Lanes[row].Kind != config.River && w.Parked(columnOf(x), row) {
+		w.emit(Blocked) // a parked car: the toad stays put (D61)
+		return false
+	}
 	// The verge is a checkpoint: the hero takes its line onto the river on
 	// its back, once it is all in its cell (D53).
 	onto := w.Lanes[row].Kind == config.River && w.Lanes[p.Row].Kind != config.River

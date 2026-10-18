@@ -1,5 +1,6 @@
 // Package score keeps the high score tables: the best config.TableSize
-// scores for each mode, with initials, saved between runs.
+// scores for each mode, with initials, saved between runs, and which modes
+// have been mastered (DESIGN §6.7, D63, D64).
 package score
 
 import (
@@ -11,21 +12,31 @@ import (
 	"github.com/comprofix/nightcrossing/internal/config"
 )
 
-// Entry is one line of a table.
+// Entry is one line of a table. Mastered and Continued mark a run that
+// mastered the mode, and the level it reached if it carried on (D63).
 type Entry struct {
-	Initials string `json:"initials"`
-	Score    int    `json:"score"`
+	Initials  string `json:"initials"`
+	Score     int    `json:"score"`
+	Mastered  bool   `json:"mastered,omitempty"`
+	Continued int    `json:"continued,omitempty"` // the level reached after carrying on; 0 if it didn't
 }
 
 // Tables holds a table for each mode, keyed by Mode.ID, best first, and
-// which modes have been cleared.
+// which modes have been mastered.
 type Tables struct {
-	ByMode  map[string][]Entry `json:"tables"`
-	Cleared map[string]bool    `json:"cleared,omitempty"`
+	ByMode   map[string][]Entry `json:"tables"`
+	Mastered map[string]bool    `json:"mastered,omitempty"`
+}
+
+// file is the saved form, which also reads the modes cleared in files
+// from before 1.7: a cleared mode counts as mastered (D64).
+type file struct {
+	Tables
+	Cleared map[string]bool `json:"cleared,omitempty"`
 }
 
 // New returns empty tables.
-func New() *Tables { return &Tables{ByMode: map[string][]Entry{}, Cleared: map[string]bool{}} }
+func New() *Tables { return &Tables{ByMode: map[string][]Entry{}, Mastered: map[string]bool{}} }
 
 // Load reads the tables at path. A missing or broken file gives empty
 // tables, and every entry is checked: tables for unknown modes are
@@ -37,24 +48,25 @@ func Load(path string, modes []config.Mode) *Tables {
 	if err != nil {
 		return t
 	}
-	var f Tables
+	var f file
 	if json.Unmarshal(data, &f) != nil {
 		return t
 	}
-	for _, sk := range modes {
+	for _, m := range modes {
 		var es []Entry
-		for _, e := range f.ByMode[sk.ID] {
+		for _, e := range f.ByMode[m.ID] {
 			if e.Score <= 0 {
 				continue
 			}
-			es = append(es, Entry{Initials: CleanInitials(e.Initials), Score: min(e.Score, config.MaxScore)})
+			es = append(es, Entry{Initials: CleanInitials(e.Initials), Score: min(e.Score, config.MaxScore),
+				Mastered: e.Mastered, Continued: max(e.Continued, 0)})
 		}
 		slices.SortStableFunc(es, func(a, b Entry) int { return b.Score - a.Score })
 		if len(es) > 0 {
-			t.ByMode[sk.ID] = es[:min(len(es), config.TableSize)]
+			t.ByMode[m.ID] = es[:min(len(es), config.TableSize)]
 		}
-		if f.Cleared[sk.ID] {
-			t.Cleared[sk.ID] = true
+		if f.Mastered[m.ID] || f.Cleared[m.ID] {
+			t.Mastered[m.ID] = true
 		}
 	}
 	return t
@@ -78,35 +90,42 @@ func (t *Tables) Qualifies(mode string, score int) bool {
 	return score > 0 && (len(es) < config.TableSize || score > es[len(es)-1].Score)
 }
 
-// Add puts a score in a mode's table and returns its place, 0 for the
-// top, or -1 if it didn't make the table. A score equal to one already
-// there goes below it: the earlier score keeps its place.
-func (t *Tables) Add(mode, initials string, score int) int {
-	if !t.Qualifies(mode, score) {
+// Add puts e in a mode's table and returns its place, 0 for the top, or
+// -1 if it didn't make the table. A score equal to one already there goes
+// below it: the earlier score keeps its place.
+func (t *Tables) Add(mode string, e Entry) int {
+	if !t.Qualifies(mode, e.Score) {
 		return -1
 	}
-	score = min(score, config.MaxScore)
+	e.Score = min(e.Score, config.MaxScore)
+	e.Initials = CleanInitials(e.Initials)
 	es := t.ByMode[mode]
 	i := 0
-	for i < len(es) && es[i].Score >= score {
+	for i < len(es) && es[i].Score >= e.Score {
 		i++
 	}
-	es = slices.Insert(es, i, Entry{Initials: CleanInitials(initials), Score: score})
+	es = slices.Insert(es, i, e)
 	t.ByMode[mode] = es[:min(len(es), config.TableSize)]
 	return i
 }
 
-// IsCleared reports whether a mode has been cleared.
-func (t *Tables) IsCleared(mode string) bool { return t.Cleared[mode] }
+// IsMastered reports whether a mode has been mastered.
+func (t *Tables) IsMastered(mode string) bool { return t.Mastered[mode] }
 
-// MarkCleared records that a mode has been cleared, and reports whether
-// that is new.
-func (t *Tables) MarkCleared(mode string) bool {
-	if t.Cleared[mode] {
+// MarkMastered records that a mode has been mastered, which opens the
+// next, and reports whether that is new.
+func (t *Tables) MarkMastered(mode string) bool {
+	if t.Mastered[mode] {
 		return false
 	}
-	t.Cleared[mode] = true
+	t.Mastered[mode] = true
 	return true
+}
+
+// Open reports whether mode i of modes can be played: the first always,
+// and each later one once the one before it is mastered (D64).
+func (t *Tables) Open(modes []config.Mode, i int) bool {
+	return i == 0 || t.IsMastered(modes[i-1].ID)
 }
 
 // Letters are the characters initials may use.

@@ -185,24 +185,49 @@ func TestIntroBackReturnsToItsMode(t *testing.T) {
 func TestSuggestedMode(t *testing.T) {
 	tab := score.New()
 	if n := SuggestedMode(config.Modes, tab); n != -1 {
-		t.Errorf("nothing cleared: suggested %d, want none", n)
+		t.Errorf("nothing mastered: suggested %d, want none", n)
 	}
-	tab.MarkCleared(config.Modes[0].ID)
-	want := -1 // every built mode cleared
-	if len(config.Modes) > 1 {
-		want = 1
+	tab.MarkMastered(config.Modes[0].ID)
+	if n := SuggestedMode(config.Modes, tab); n != 1 {
+		t.Errorf("first mode mastered: suggested %d, want the one it opened, 1", n)
 	}
-	if n := SuggestedMode(config.Modes, tab); n != want {
-		t.Errorf("first mode cleared: suggested %d, want %d", n, want)
+	for _, m := range config.Modes {
+		tab.MarkMastered(m.ID)
+	}
+	if n := SuggestedMode(config.Modes, tab); n != -1 {
+		t.Errorf("every mode mastered: suggested %d, want none", n)
 	}
 }
 
-func TestModeSelectMarksClearedModes(t *testing.T) {
+// TestModeSelectLocksAndMarks: a mastered mode is marked, the one it opened
+// is suggested, and the modes after are dimmed with what opens them and
+// can't be chosen (D64).
+func TestModeSelectLocksAndMarks(t *testing.T) {
 	h := newHarness(t, NewModeSelect())
-	h.ctx.Scores.MarkCleared(config.Modes[0].ID)
+	h.ctx.Scores.MarkMastered(config.Modes[0].ID)
 	h.ticks(1)
-	if l := current[*ModeSelect](t, h).menu.Items[0].Label; !strings.HasSuffix(l, "CLEARED") {
-		t.Errorf("label %q, want it marked cleared", l)
+	m := current[*ModeSelect](t, h).menu
+	if l := m.Items[0].Label; !strings.HasSuffix(l, Tick+" MASTERED") {
+		t.Errorf("label %q, want it marked mastered", l)
+	}
+	if l := m.Items[1].Label; !strings.HasSuffix(l, "NEXT") || m.Items[1].Disabled || m.Cursor != 1 {
+		t.Errorf("label %q, disabled %v, cursor %d: want the opened mode suggested", l, m.Items[1].Disabled, m.Cursor)
+	}
+	want := Lock + " MASTER " + strings.ToUpper(config.Modes[1].Name) + " TO OPEN"
+	if l := m.Items[2].Label; !strings.HasSuffix(l, want) || !m.Items[2].Disabled {
+		t.Errorf("label %q, disabled %v: want it locked, %q", l, m.Items[2].Disabled, want)
+	}
+}
+
+// TestTestGamesCanPickALockedMode: a test game can start any mode (D64).
+func TestTestGamesCanPickALockedMode(t *testing.T) {
+	h := newHarness(t, NewModeSelect())
+	h.ctx.StartLevel = 5
+	h.ticks(1)
+	for i, it := range current[*ModeSelect](t, h).menu.Items {
+		if it.Disabled {
+			t.Errorf("mode %d disabled in a test game", i)
+		}
 	}
 }
 

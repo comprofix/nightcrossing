@@ -193,10 +193,26 @@ var (
 	}}
 )
 
+// The bonus level's sounds (D61): softer than a death's, since a slip
+// costs only time, and a parked car only a moment.
+var (
+	// Slip is a slip on a bonus level, into the water or a car: a soft
+	// falling plop.
+	Slip = &audio.Effect{Name: "slip", Channel: 1, Priority: 4, Part: audio.Part{
+		Voice: audio.Voice{Wave: audio.Triangle, Decay: audio.Ticks(8), Sustain: 0.3, Release: audio.Ticks(6), Volume: 0.6},
+		Notes: audio.Notes("C5:3 G4:3 C4:10"),
+	}}
+	// Blocked is a hop into a parked car, refused: a small dull knock.
+	Blocked = &audio.Effect{Name: "blocked", Channel: 3, Priority: 2, Part: audio.Part{
+		Voice: audio.Voice{Wave: audio.Noise, Decay: audio.Ticks(4), Release: audio.Ticks(1), Volume: 0.45},
+		Notes: []audio.Note{{Hz: 220, Dur: audio.Ticks(4)}},
+	}}
+)
+
 // Sounds are the game's tunes and effects, listed for the sound test.
 var Sounds = audio.Bank{
-	Tunes:   []*audio.Tune{NightTitle, Stroll, LevelClearJingle, GameOverJingle, HighScores},
-	Effects: []*audio.Effect{ToadHop, Crash, Bump, Splash, Bubbles, Squawk, Home, OneUp, TimeLow, TimeUp, Bell, Horn, HornLow, Rumble, TrainCrash, ComboUp, HornChorus, HornChorusLow, FogHorn, Thunder, Skid, Howl, Whoosh, Rising, DistantThunder, ToadletPeep, ToadletCry, FireflyTwinkle, DragonflyBuzz, FruitPick},
+	Tunes:   []*audio.Tune{NightTitle, Stroll, BonusNight, LevelClearJingle, GameOverJingle, HighScores},
+	Effects: []*audio.Effect{ToadHop, Crash, Bump, Splash, Bubbles, Squawk, Home, OneUp, TimeLow, TimeUp, Bell, Horn, HornLow, Rumble, TrainCrash, ComboUp, HornChorus, HornChorusLow, FogHorn, Thunder, Skid, Howl, Whoosh, Rising, DistantThunder, ToadletPeep, ToadletCry, FireflyTwinkle, DragonflyBuzz, FruitPick, Slip, Blocked},
 }
 
 // soundsFor is the effects an event plays (DESIGN §3.4). The level clear
@@ -253,6 +269,10 @@ func (p *Play) soundsFor(e world.Event) []*audio.Effect {
 		return []*audio.Effect{p.hero.Catch}
 	case world.FruitTaken:
 		return []*audio.Effect{FruitPick}
+	case world.Slipped:
+		return []*audio.Effect{Slip}
+	case world.Blocked:
+		return []*audio.Effect{Blocked}
 	}
 	return nil
 }
