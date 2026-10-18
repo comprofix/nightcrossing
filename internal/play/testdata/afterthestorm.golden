@@ -1,0 +1,16 @@
+tick 209: dragonfly 1 caught at 3,4, run 1
+tick 233: dragonfly 2 caught at 2,2, run 2
+tick 613: dragonfly 3 caught at 14,1, run 3
+tick 831: dragonfly 4 caught at 8,1, run 4
+tick 900: dragonfly 5 caught at 9,4, run 5
+tick 1140: dragonfly 6 caught at 13,5, run 1
+tick 1236: dragonfly 7 caught at 16,1, run 2
+tick 1276: dragonfly 8 caught at 14,4, run 3
+tick 1492: dragonfly 9 caught at 11,5, run 4
+tick 1536: dragonfly 10 caught at 14,3, run 5
+tick 1704: dragonfly 11 caught at 12,1, run 6
+tick 2400: ended 43, 0 s left, best run 6
+grid 26x13  mode storm  level 8
+tick 2400  ticks left 0
+score 7000  lives 3
+hero cell 6,0  at 2272,192  facing up  hopping true

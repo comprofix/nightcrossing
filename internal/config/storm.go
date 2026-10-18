@@ -16,6 +16,7 @@ var Storm = Mode{
 	},
 	Also:   []string{"Everything in Stroll, Last Train and Rush Hour", PickupsAlso},
 	Levels: stormLevels(),
+	Bonus:  AfterTheStorm,
 }
 
 // stormCurrents are each level's current rows (D50): one on levels 1–3,

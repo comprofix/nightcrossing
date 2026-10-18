@@ -109,6 +109,7 @@ func (p *Play) drawField(ctx *scene.Context, dst *ebiten.Image) {
 	}
 	p.drawFlood(field)
 	p.drawRoadSheen(field)
+	p.drawRainbow(field) // after the storm, over the water (DESIGN §6.7)
 	lamp := sheet.Sprite("lamp")
 	for _, lp := range p.streetLamps() {
 		lamp.Draw(field, 0, cellX(lp.col), cellY(lp.row), false)
@@ -130,6 +131,7 @@ func (p *Play) drawField(ctx *scene.Context, dst *ebiten.Image) {
 	p.drawSweepers(ctx, field)
 	p.drawTrain(ctx, field)
 	p.drawFog(field)
+	p.drawMist(field)
 	p.drawHero(ctx, field)
 
 	p.addLights(ctx, p.light)

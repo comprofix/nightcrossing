@@ -76,18 +76,18 @@ func TestLevel8LeadsToTheBonus(t *testing.T) {
 // TestNoBonusYetGoesToMastered: a mode with no bonus level built yet goes
 // from level 8's tally straight to the MASTERED screen (D61).
 func TestNoBonusYetGoesToMastered(t *testing.T) {
-	h := bonusHarness(t, config.Storm)
+	h := bonusHarness(t, config.SchoolRun)
 	scenetest.Current[*Mastered](h)
-	if !h.Ctx.Scores.IsMastered(config.Storm.ID) {
+	if !h.Ctx.Scores.IsMastered(config.SchoolRun.ID) {
 		t.Error("Storm isn't mastered")
 	}
 }
 
 // TestFinish: Finish counts up 1,000 for each life left, then the high
-// score entry with the run marked MASTERED, then the next mode's intro
-// (D62, D63).
+// score entry with the run marked MASTERED, then the MODE menu, School Run
+// being the last mode (D62, D63).
 func TestFinish(t *testing.T) {
-	h := bonusHarness(t, config.Storm)
+	h := bonusHarness(t, config.SchoolRun)
 	before := h.Ctx.Session.Score
 	h.Press(ebiten.KeyEnter) // Finish
 	scenetest.Current[*scene.Tally](h)
@@ -101,17 +101,17 @@ func TestFinish(t *testing.T) {
 		h.Press(ebiten.KeyEnter)
 	}
 	scenetest.Current[*scene.HighScoreTable](h)
-	if es := h.Ctx.Scores.Table(config.Storm.ID); len(es) != 1 || !es[0].Mastered || es[0].Continued != 0 {
+	if es := h.Ctx.Scores.Table(config.SchoolRun.ID); len(es) != 1 || !es[0].Mastered || es[0].Continued != 0 {
 		t.Errorf("table %+v: want the run marked mastered, not continued", es)
 	}
 	h.Press(ebiten.KeyEnter)
-	scenetest.Current[*scene.Intro](h) // School Run's
+	scenetest.Current[*scene.ModeSelect](h) // School Run is the last mode: no next one to open
 }
 
 // TestCarryOn: Carry on goes to level 9 with no life bonus, and each
 // level reached is the run's CONTINUED mark (D62, D63).
 func TestCarryOn(t *testing.T) {
-	h := bonusHarness(t, config.Storm)
+	h := bonusHarness(t, config.SchoolRun)
 	before := h.Ctx.Session.Score
 	h.Press(ebiten.KeyArrowDown)
 	h.Press(ebiten.KeyEnter) // Carry on
@@ -122,7 +122,7 @@ func TestCarryOn(t *testing.T) {
 	if s := h.Ctx.Session; !s.Mastered || s.Continued != 9 {
 		t.Errorf("session marks %v, %d: want mastered, continued to 9", s.Mastered, s.Continued)
 	}
-	newLevel(h.Ctx, config.Storm.Levels, 10)
+	newLevel(h.Ctx, config.SchoolRun.Levels, 10)
 	if e := entry(h.Ctx.Session); e.Continued != 10 {
 		t.Errorf("entry %+v: want continued to 10", e)
 	}
@@ -295,4 +295,39 @@ func TestEmptyRoadsReplay(t *testing.T) {
 	}
 	fmt.Fprintf(&log, "tick %d: ended %v, %d s left\n", w.Tick, p.ending, w.TicksLeft/config.TPS)
 	scenetest.Golden(t, "emptyroads", log.String()+summary(p, h.Ctx))
+}
+
+// TestAfterTheStormReplay: the autopilot plays Storm's bonus level from a
+// seed, riding the logs for runs of dragonflies; a golden record of each
+// catch, the run it was in, and how it ends (DESIGN §6.7).
+func TestAfterTheStormReplay(t *testing.T) {
+	h := scenetest.New(t, 12)
+	h.Ctx.NewPlay, h.Ctx.Bonus = New, true
+	p := New(h.Ctx, config.Storm).(*Play)
+	h.Start(p)
+	h.Ticks(scene.FadeTicks)
+
+	keys := map[world.Dir]ebiten.Key{world.Up: ebiten.KeyArrowUp, world.Down: ebiten.KeyArrowDown,
+		world.Left: ebiten.KeyArrowLeft, world.Right: ebiten.KeyArrowRight}
+	var log strings.Builder
+	var a world.Autopilot
+	w := p.World()
+	caught, dying := 0, 0
+	for !w.Cleared {
+		if key, ok := keys[a.Next(w)]; ok {
+			h.Run(scenetest.Hold(1, key))
+		} else {
+			h.Ticks(1)
+		}
+		switch {
+		case w.Stats.Fireflies != caught:
+			fmt.Fprintf(&log, "tick %d: dragonfly %d caught at %d,%d, run %d\n", w.Tick, w.Stats.Fireflies,
+				w.Player.Col, w.Player.Row, w.Run)
+		case w.Dying > 0 && dying == 0:
+			fmt.Fprintf(&log, "tick %d: a slip\n", w.Tick)
+		}
+		caught, dying = w.Stats.Fireflies, w.Dying
+	}
+	fmt.Fprintf(&log, "tick %d: ended %v, %d s left, best run %d\n", w.Tick, p.ending, w.TicksLeft/config.TPS, w.Stats.BestRun)
+	scenetest.Golden(t, "afterthestorm", log.String()+summary(p, h.Ctx))
 }

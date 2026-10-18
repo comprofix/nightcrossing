@@ -77,6 +77,8 @@ type Stats struct {
 	AtCap     int // points for fireflies caught with lives at the cap (D57)
 	All       int // on a bonus level, the points for collecting the whole set (D61)
 	Picked    int // on a bonus level, the fruit collected (DESIGN §6.7)
+	Run       int // on a bonus level with runs, what the runs' multipliers added (DESIGN §6.7)
+	BestRun   int // and the longest run
 }
 
 // World is one level of a game.
@@ -105,6 +107,7 @@ type World struct {
 	Yard       []Rake     // a bonus level's trains standing on the track rows (DESIGN §6.7)
 	Picks      []Pick     // a bonus level's fruit (DESIGN §6.7)
 	Sweepers   [2]Sweeper // a bonus level's street sweepers (DESIGN §6.7)
+	Run        int        // a bonus level's run: fireflies caught since the toad last stood on land (DESIGN §6.7)
 
 	sent       int                            // a bonus level's fireflies sent for so far: on the field, caught, or due
 	cameRoad   int                            // of them, how many have come in to the road
@@ -219,6 +222,7 @@ func (w *World) Update(press Dir) []Event {
 				w.checkHazards(i)
 			}
 		}
+		w.endRun()
 		if w.playing() {
 			w.carry()
 			if !w.Bonus() {

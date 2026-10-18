@@ -225,8 +225,15 @@ func (p *Play) bonusLines() []scene.TallyLine {
 	st, b := p.world.Stats, p.world.Level.Bonus
 	var lines []scene.TallyLine
 	if b.Fireflies > 0 {
-		lines = append(lines, scene.TallyLine{Label: fmt.Sprintf("FIREFLIES %d x %d", st.Fireflies, b.Firefly),
+		name := "FIREFLIES"
+		if b.Dawn {
+			name = "DRAGONFLIES"
+		}
+		lines = append(lines, scene.TallyLine{Label: fmt.Sprintf("%s %d x %d", name, st.Fireflies, b.Firefly),
 			Points: st.Fireflies * b.Firefly})
+	}
+	if b.RunMax > 0 {
+		lines = append(lines, scene.TallyLine{Label: fmt.Sprintf("BEST RUN %d", st.BestRun), Points: st.Run})
 	}
 	if len(b.Fruit) > 0 {
 		lines = append(lines, scene.TallyLine{Label: fmt.Sprintf("FRUIT %d/%d", st.Picked, len(b.Fruit)), Points: st.Fruit})
@@ -369,13 +376,21 @@ func (p *Play) drawCaught(ctx *scene.Context, dst *ebiten.Image, ty int) {
 	}
 	sc, f := ctx.Scheme, ctx.Fonts
 	sp, frame := ctx.Sheet(Sheet).Sprite(p.hero.Pickup), 0
-	if b.Fireflies == 0 {
+	switch {
+	case b.Fireflies == 0:
 		sp = ctx.Sheet(Sheet).Sprite("fruit")
 		frame = sp.Frames() - 1 // the watermelon, the best of them
+	case b.Dawn:
+		sp = ctx.Sheet(Sheet).Sprite(p.hero.DayPickup)
 	}
 	sp.Draw(dst, frame, hudComboX, float64((config.HUDHeight-sp.H)/2), false)
-	f.Small.DrawShadowed(dst, fmt.Sprintf("%d/%d", p.world.Collected(), b.Size()),
-		hudComboX+sp.W+hudLifeGap, ty, sc.Highlight, sc.Shadow)
+	count := fmt.Sprintf("%d/%d", p.world.Collected(), b.Size())
+	x := hudComboX + sp.W + hudLifeGap
+	f.Small.DrawShadowed(dst, count, x, ty, sc.Highlight, sc.Shadow)
+	if m := p.world.RunMult(); m > 1 { // what the next catch in the run is worth, before the icon (DESIGN §6.7)
+		label := fmt.Sprintf("x%d", m)
+		f.Small.DrawShadowed(dst, label, hudComboX-(len(label)+1)*f.Small.Size, ty, sc.Title, sc.Shadow)
+	}
 }
 
 // allLabel is what collecting a bonus level's whole set is called: ALL

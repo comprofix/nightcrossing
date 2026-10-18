@@ -183,10 +183,10 @@ func (w *World) updatePlayer(i int, press Dir) {
 		}
 		return
 	}
-	// In the rain a hop that lands on the road slides one more cell the
-	// same way; a slide never slides again, and the wind's push never slides
-	// (D31, D47).
-	if !slid && !pushed && w.out(i) && w.Raining() && w.Lanes[p.Row].Kind == config.Road {
+	// In the rain, or on a bonus level's slippery road, a hop that lands on
+	// the road slides one more cell the same way; a slide never slides
+	// again, and the wind's push never slides (D31, D47, DESIGN §6.7).
+	if !slid && !pushed && w.out(i) && w.slippery() && w.Lanes[p.Row].Kind == config.Road {
 		if w.move(p.Facing, true) {
 			return
 		}

@@ -17,9 +17,18 @@ type Bonus struct {
 	AtOnce    int // on the field at the start
 	Firefly   int // points for each
 	All       int // points for collecting the whole set: every firefly and fruit
-	// Dawn lights the level as Last Train's dawn, rather than the night;
-	// Wet leaves the road shining from the night's rain, only as a look.
-	Dawn, Wet bool
+	// Dawn lights the level as Last Train's dawn, rather than the night,
+	// and its fireflies come as dragonflies; Wet leaves the road shining
+	// from the night's rain, only as a look, and Slippery makes it slide
+	// as in the rain (D31).
+	Dawn, Wet, Slippery bool
+	// Rainbow hangs a rainbow over the river, and mist on the water: only
+	// the look (DESIGN §6.7).
+	Rainbow bool
+	// RunMax is the most a run of catches multiplies a firefly's points
+	// by, each caught without setting foot on land worth one more times
+	// than the last; 0 for no runs (DESIGN §6.7).
+	RunMax int
 	// Sweeper sends two street sweepers along the road lanes, one down
 	// from the top and one up from the bottom, sweeping up fruit in their
 	// path (DESIGN §6.7).
@@ -262,6 +271,42 @@ var EmptyRoads = &Bonus{
 		{Fruit: 2, Side: FruitRoad}, {Fruit: 2, Side: FruitRoad}, {Fruit: 3, Side: FruitRoad}, {Fruit: 3, Side: FruitRoad},
 		{Fruit: 4, Side: FruitRoad}, {Fruit: 5, Side: FruitRoad}, {Fruit: 6, Side: FruitRoad}, {Fruit: 7, Side: FruitRoad},
 	},
+}
+
+// afterTheStormLayout is the far bank, firefly night's slow river with two
+// of Storm's currents at its level 1 strength, one with the flow and one
+// against it, both on rows of long logs, the verge, the track as scenery
+// and the road, its traffic gone.
+var afterTheStormLayout = func() *Layout {
+	with, against := nightLogsRight, nightLogsRight
+	with.Current, against.Current = 3, -3
+	l := strollLayout("After the storm", [5]Lane{with, nightLogsLeft, against, nightLogsLeft, nightLogsRight})
+	for r, lane := range l.Lanes {
+		if lane.Kind == Road {
+			l.Lanes[r] = Lane{Kind: Road, Dir: lane.Dir}
+		}
+	}
+	return l
+}()
+
+// AfterTheStorm is Storm's bonus level (DESIGN §6.7): dawn as the storm
+// clears, a rainbow over the river, the road still slippery, and twelve
+// dragonflies on the logs, each caught in a run without setting foot on
+// land worth more than the last.
+var AfterTheStorm = &Bonus{
+	Name:      "AFTER THE STORM",
+	Hint:      "STAY ON THE LOGS: A RUN OF CATCHES SCORES MORE",
+	Layout:    afterTheStormLayout,
+	Secs:      40,
+	Fireflies: 12,
+	AtOnce:    5,
+	Firefly:   200,
+	All:       1000,
+	Dawn:      true,
+	Wet:       true,
+	Slippery:  true,
+	Rainbow:   true,
+	RunMax:    5,
 }
 
 // BonusLevel is m's bonus level as it is played, numbered as the level it
