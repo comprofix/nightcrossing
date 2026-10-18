@@ -1,0 +1,20 @@
+tick 32: gathered at 9,12, a line of 1
+tick 80: gathered at 8,7, a line of 2
+tick 104: gathered at 5,7, a line of 3
+tick 128: gathered at 2,7, a line of 4
+tick 246: 4 home, 4 in all
+tick 316: gathered at 18,12, a line of 1
+tick 340: gathered at 21,12, a line of 2
+tick 412: gathered at 24,6, a line of 3
+tick 506: gathered at 16,6, a line of 4
+tick 600: 4 home, 8 in all
+tick 710: gathered at 3,12, a line of 1
+tick 726: gathered at 1,12, a line of 2
+tick 892: 2 home, 10 in all
+tick 892: ended 44, 25 s left, trips bonus 1600
+grid 26x13  mode schoolrun  level 8
+tick 892  ticks left 1509
+score 6150  lives 3
+hero cell 2,0  at 768,0  facing up  hopping false
+toadlet 0 cell 2,0  at 784,48  riding true
+toadlet 1 cell 2,0  at 784,48  riding true

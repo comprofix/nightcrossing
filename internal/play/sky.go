@@ -46,7 +46,7 @@ func (p *Play) updateSky() {
 			filled++
 		}
 	}
-	p.sky = min(p.sky+1, int(config.DayCycle[filled])*config.DayEaseTicks)
+	p.sky = min(p.sky+1, int(skyFor(p.world.Level, filled))*config.DayEaseTicks)
 }
 
 // sky is the light at a point on the clock, mixed between the stages
@@ -104,3 +104,23 @@ func (p *Play) lampK() float64 {
 
 // stage is the clock in stages, for skyAt.
 func (p *Play) stage() float64 { return float64(p.sky) / config.DayEaseTicks }
+
+// skyFor is the time of day level is lit for with filled nooks filled: as
+// the cycle has it, or the late afternoon all through on a bonus level
+// lit for dusk (DESIGN §6.7).
+func skyFor(level config.Level, filled int) config.TimeOfDay {
+	if b := level.Bonus; b != nil && b.Dusk {
+		return config.Dusk
+	}
+	return config.DayCycle[filled]
+}
+
+// skyStart is where the clock stands as level starts: the night before
+// its dawn, so each level opens with the sky brightening, or already dusk
+// on a bonus level lit for it.
+func skyStart(level config.Level) int {
+	if b := level.Bonus; b != nil && b.Dusk {
+		return int(config.Dusk) * config.DayEaseTicks
+	}
+	return skyBefore
+}

@@ -20,6 +20,7 @@ func (w *World) Clone(rng *rand.Rand) *World {
 	c.Swarm = slices.Clone(w.Swarm)
 	c.Yard = slices.Clone(w.Yard)
 	c.Picks = slices.Clone(w.Picks)
+	c.Stragglers = slices.Clone(w.Stragglers)
 	c.Line = cloneLine(w.Line)
 	c.rng = rng
 	c.events = nil
@@ -53,7 +54,17 @@ func (Autopilot) Next(w *World) Dir {
 			best, bestV = d, v
 		}
 	}
+	if best != None && w.Bonus() && w.refused(best) {
+		return None // wait on the verge for the line to gather, rather than peep at it (DESIGN §6.7)
+	}
 	return best
+}
+
+// refused reports whether a hop in d now would be refused: off the verge
+// onto the river with the line not yet gathered (D53).
+func (w *World) refused(d Dir) bool {
+	p := &w.Player
+	return d == Up && p.Row > 0 && w.Lanes[p.Row-1].Kind == config.River && w.Lanes[p.Row].Kind != config.River && !w.gathered()
 }
 
 // value plays move d on w, then the best of depth-1 more moves, and is how
@@ -99,8 +110,8 @@ func step(w *World, d Dir) (int, bool) {
 	}
 	for t := range n {
 		if t == 0 {
-			w.Update(d)
-			if d != None && w.Bonus() && w.playing() && !w.Player.Hopping() {
+			ev := w.Update(d)
+			if d != None && w.Bonus() && w.playing() && !w.Player.Hopping() && !slices.Contains(ev, Refused) {
 				return 0, false // a parked car in the way: no move at all (D61)
 			}
 		} else {
@@ -121,7 +132,9 @@ func step(w *World, d Dir) (int, bool) {
 // it is, so it does not ride the top row away from the last nook.
 func progress(w *World) int {
 	if w.Bonus() {
-		return -hunt(w) * config.Cols * 2
+		// A straggler in the line is half way home: worth more than the
+		// walk to the next, but less than bringing it home (DESIGN §6.7).
+		return -hunt(w)*config.Cols*2 + len(w.Line)*config.DemoSwarmFirefly*config.Cols
 	}
 	p := w.Player
 	far := config.Cols
@@ -189,6 +202,32 @@ func hunt(w *World) int {
 		col := min(max(columnOf(w.PickX(i)+cellUnits/2), 0), w.Cols-1)
 		if d := dist[w.Picks[i].Row][col]; d >= 0 && (best < 0 || d < best) {
 			best = d
+		}
+	}
+	// On the school gates, a straggler waiting while the line has room;
+	// with the line full, or none left waiting, a nook, one hop up from
+	// the river's top row (DESIGN §6.7).
+	waiting := 0
+	for i := range w.Stragglers {
+		if w.Stragglers[i].Waiting() {
+			waiting++
+		}
+	}
+	if b := w.Level.Bonus; b != nil && b.Stragglers > 0 {
+		if waiting > 0 && len(w.Line) < b.LineMax {
+			for _, s := range w.Stragglers {
+				if d := dist[s.Row][s.Col]; s.Waiting() && d >= 0 && (best < 0 || d < best) {
+					best = d
+				}
+			}
+		} else if len(w.Line) > 0 {
+			for _, c := range config.Nooks {
+				for col := c; col < c+config.NookWidth; col++ {
+					if d := dist[config.GoalRow+1][col]; d >= 0 && (best < 0 || d+1 < best) {
+						best = d + 1
+					}
+				}
+			}
 		}
 	}
 	return max(best, 0)

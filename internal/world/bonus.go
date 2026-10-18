@@ -20,6 +20,8 @@ import (
 //     the carriages of a goods yard (yard.go), with the same ending.
 //   - On a level with runs, each firefly caught without setting foot on
 //     land is worth one more times than the last, up to its most.
+//   - Or toadlets wait at the kerbs, to be gathered into the toad's line
+//     and walked home through a nook (gates.go).
 //   - Its points never give a life.
 
 // Bonus reports whether w is a bonus level.
@@ -34,6 +36,7 @@ func (w *World) newBonus() {
 	}
 	w.newSweepers() // first, so no fruit is laid where they would beat the toad to it
 	w.layFruit()
+	w.layStragglers()
 	w.Swarm = make([]Flyer, w.Level.Bonus.AtOnce)
 	for i := range w.Swarm {
 		f := &w.Swarm[i]
@@ -285,17 +288,21 @@ func (w *World) RunMult() int {
 }
 
 // collect collects whatever of the set is on row r over left–right, in
-// SubPx units, where the toad is down: a firefly landed there, and fruit.
+// SubPx units, where the toad is down: a firefly landed there, fruit, and
+// on the school gates, as it lands, a straggler waiting there.
 func (w *World) collect(r, left, right int) {
 	w.catchSwarm(r, left, right)
 	if !w.Cleared {
 		w.pickFruit(r, left, right)
 	}
+	if p := &w.Player; w.Level.Bonus.Stragglers > 0 && p.stood == 0 && !p.Hopping() {
+		w.gather(r, columnOf(p.X))
+	}
 }
 
 // Collected is how much of the bonus level's set has been collected:
-// fireflies caught and fruit picked.
-func (w *World) Collected() int { return w.Stats.Fireflies + w.Stats.Picked }
+// fireflies caught, fruit picked and stragglers brought home.
+func (w *World) Collected() int { return w.Stats.Fireflies + w.Stats.Picked + w.Stats.Toadlets }
 
 // checkSet ends the bonus level early once the whole set is collected
 // (D61).
@@ -337,6 +344,7 @@ func (w *World) endBonus(all bool) {
 // bonusNook is the toad reaching nook n on a bonus level: its points, and
 // back to the start row once it has shown there; the nook never fills.
 func (w *World) bonusNook() {
+	w.homeLine() // the school gates' line home (DESIGN §6.7)
 	w.score(config.PointsBonusNook)
 	w.Stats.Goals++
 	w.Home = config.GoalTicks

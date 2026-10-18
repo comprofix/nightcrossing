@@ -258,7 +258,7 @@ func (p *Play) soundsFor(e world.Event) []*audio.Effect {
 		return []*audio.Effect{TimeLow}
 	case world.Goal:
 		return []*audio.Effect{Home}
-	case world.Refused:
+	case world.Refused, world.Joined:
 		return []*audio.Effect{p.hero.Peep}
 	case world.ExtraLife:
 		return []*audio.Effect{OneUp}

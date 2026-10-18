@@ -15,6 +15,7 @@ var SchoolRun = Mode{
 	},
 	Also:   []string{"Everything in Stroll, Last Train, Rush Hour and Storm", PickupsAlso},
 	Levels: schoolRunLevels(),
+	Bonus:  SchoolGates,
 }
 
 // BunchTicks is how long the hero stands still on a safe row before the

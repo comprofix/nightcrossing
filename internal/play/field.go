@@ -256,12 +256,14 @@ func (p *Play) drawShipPiece(ctx *scene.Context, dst *ebiten.Image, e world.Enti
 // by side, and they go with a dead hero (D56).
 func (p *Play) drawHero(ctx *scene.Context, dst *ebiten.Image) {
 	w := p.world
+	p.drawStragglers(ctx, dst)
 	if w.Home > 0 {
 		return // it is in its nook, drawn with the bank
 	}
+	young := p.young()
 	for i := range w.Line {
 		if !p.onBack(i) {
-			p.drawToad(ctx, dst, &w.Line[i].Player, p.hero.Young, 0)
+			p.drawToad(ctx, dst, &w.Line[i].Player, young, 0)
 		}
 	}
 	p.drawToad(ctx, dst, &w.Player, p.hero.Sprite, 0)
@@ -271,7 +273,7 @@ func (p *Play) drawHero(ctx *scene.Context, dst *ebiten.Image) {
 	n := float64(len(w.Line))
 	for i := range w.Line {
 		if p.onBack(i) {
-			p.drawToad(ctx, dst, &w.Line[i].Player, p.hero.Young, (float64(i)-(n-1)/2)*riderGapPx)
+			p.drawToad(ctx, dst, &w.Line[i].Player, young, (float64(i)-(n-1)/2)*riderGapPx)
 		}
 	}
 }
@@ -394,8 +396,12 @@ func (p *Play) drawBank(ctx *scene.Context, dst *ebiten.Image, r int) {
 	sheet := ctx.Sheet(Sheet)
 	p.drawTiles(dst, sheet.Sprite("bank"), r)
 	nook, toad := sheet.Sprite("nook"), sheet.Sprite(p.hero.Sprite)
+	sign := sheet.Sprite("schoolsign")
 	for i, c := range config.Nooks {
 		nook.Draw(dst, 0, cellX(c), cellY(r), false)
+		if b := p.world.Level.Bonus; b != nil && b.Gates { // a school sign by each nook (DESIGN §6.7)
+			sign.Draw(dst, 0, cellX(c)-float64(sign.W+1), cellY(r)+float64(config.Cell-sign.H), false)
+		}
 		if p.world.Filled[i] || p.world.Bonus() && p.world.HomeNook() == i { // a bonus level's nooks never fill (D61)
 			x := cellX(c) + float64(config.NookWidth*config.Cell-toad.W)/2
 			toad.Draw(dst, frameRest, x, cellY(r), false)
