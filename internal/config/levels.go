@@ -133,6 +133,10 @@ type Level struct {
 	Fruit      int                        // which of Fruits it is
 	TimerTicks int                        // the time for each attempt; on a bonus level, for the whole level
 	Hint       string
+	Stalk      bool   // herons stalk their logs (D67)
+	Strike     bool   // and strike (D67)
+	Fox        bool   // a fox works the nooks (D68)
+	PreyHint   string // a predator coming in, shown in turn with Hint (D66)
 	Bonus      *Bonus // the bonus level this is, or nil (D61)
 }
 
@@ -178,6 +182,8 @@ type ModeLevels struct {
 
 	FruitFrom   int           // the first level with fruit in the nooks; 0 for none (D59, D60)
 	FireflyFrom [NumHosts]int // the first level with a firefly on each kind of platform; 0 for none (D58, D60)
+
+	Predators bool // the stalking heron and the fox from PredatorsFrom, the strike from StrikeFrom (D66)
 }
 
 // Level is level n (1 for the first) as it is played.
@@ -199,6 +205,16 @@ func (m ModeLevels) Level(n int) Level {
 		}
 	}
 	lv.FireflyPct = FireflyPct(first, n)
+	if m.Predators && n >= PredatorsFrom {
+		lv.Stalk, lv.Fox, lv.Strike = true, true, n >= StrikeFrom
+		lv.HeronPct = StalkingHeronPct(n)
+		switch n {
+		case PredatorsFrom:
+			lv.PreyHint = StalkHint
+		case StrikeFrom:
+			lv.PreyHint = StrikeHint
+		}
+	}
 	lv.Combo = m.ComboFrom > 0 && n >= m.ComboFrom
 	lv.DayCycle = m.CycleFrom > 0 && n >= m.CycleFrom
 	for k := range lv.Events {

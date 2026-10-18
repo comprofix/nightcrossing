@@ -155,6 +155,33 @@ var (
 	}}
 )
 
+// The predators' sounds (D67, D68). Each warning is quiet and short, so it
+// never covers a cue, but plain enough to hear coming.
+var (
+	// Clack is a heron cocking its head, the warning before it strikes: two
+	// dry knocks of its beak.
+	Clack = &audio.Effect{Name: "beak clack", Channel: 3, Priority: 3, Part: audio.Part{
+		Voice: audio.Voice{Wave: audio.Noise, Decay: audio.Ticks(3), Release: audio.Ticks(1), Volume: 0.5},
+		Notes: []audio.Note{{Hz: 1800, Dur: audio.Ticks(3)}, audio.Rest(3), {Hz: 1600, Dur: audio.Ticks(4)}},
+	}}
+	// Rustle is a fox's eyes glinting in a nook: something stirring in the
+	// grass.
+	Rustle = &audio.Effect{Name: "rustle", Channel: 3, Priority: 2, Part: audio.Part{
+		Voice: audio.Voice{Wave: audio.Noise, Attack: audio.Ticks(6), Sustain: 0.5, Release: audio.Ticks(10), Volume: 0.35},
+		Notes: []audio.Note{{Hz: 900, Dur: audio.Ticks(8)}, {Hz: 700, Dur: audio.Ticks(10)}},
+	}}
+	// Yip is the fox coming into its nook: a short high bark.
+	Yip = &audio.Effect{Name: "yip", Channel: 2, Priority: 3, Part: audio.Part{
+		Voice: audio.Voice{Wave: audio.Pulse25, Decay: audio.Ticks(6), Sustain: 0.2, Release: audio.Ticks(3), Volume: 0.5},
+		Notes: audio.Notes("A5:3 E6:5"),
+	}}
+	// Snarl is the fox snatching the hero: a low growl, falling.
+	Snarl = &audio.Effect{Name: "snarl", Channel: 1, Priority: 4, Part: audio.Part{
+		Voice: audio.Voice{Wave: audio.Pulse12, Decay: audio.Ticks(16), Sustain: 0.4, Release: audio.Ticks(8), Volume: 0.7},
+		Notes: audio.Notes("E4:4 G4:3 D4:6 A3:12"),
+	}}
+)
+
 // The toadlets' sounds (D56).
 var (
 	// ToadletPeep is a toadlet left behind at the verge, or getting home: a
@@ -212,7 +239,7 @@ var (
 // Sounds are the game's tunes and effects, listed for the sound test.
 var Sounds = audio.Bank{
 	Tunes:   []*audio.Tune{NightTitle, Stroll, BonusNight, LevelClearJingle, GameOverJingle, HighScores},
-	Effects: []*audio.Effect{ToadHop, Crash, Bump, Splash, Bubbles, Squawk, Home, OneUp, TimeLow, TimeUp, Bell, Horn, HornLow, Rumble, TrainCrash, ComboUp, HornChorus, HornChorusLow, FogHorn, Thunder, Skid, Howl, Whoosh, Rising, DistantThunder, ToadletPeep, ToadletCry, FireflyTwinkle, DragonflyBuzz, FruitPick, Slip, Blocked},
+	Effects: []*audio.Effect{ToadHop, Crash, Bump, Splash, Bubbles, Squawk, Home, OneUp, TimeLow, TimeUp, Bell, Horn, HornLow, Rumble, TrainCrash, ComboUp, HornChorus, HornChorusLow, FogHorn, Thunder, Skid, Howl, Whoosh, Rising, DistantThunder, ToadletPeep, ToadletCry, FireflyTwinkle, DragonflyBuzz, FruitPick, Slip, Blocked, Clack, Rustle, Yip, Snarl},
 }
 
 // soundsFor is the effects an event plays (DESIGN §3.4). The level clear
@@ -230,6 +257,14 @@ func (p *Play) soundsFor(e world.Event) []*audio.Effect {
 		return []*audio.Effect{Splash, Bubbles}
 	case world.Caught:
 		return []*audio.Effect{Squawk}
+	case world.Snatched:
+		return []*audio.Effect{Snarl}
+	case world.HeronCocks:
+		return []*audio.Effect{Clack}
+	case world.EyesGlint:
+		return []*audio.Effect{Rustle}
+	case world.FoxIn:
+		return []*audio.Effect{Yip}
 	case world.Struck:
 		return []*audio.Effect{TrainCrash}
 	case world.TrainComing:

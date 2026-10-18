@@ -412,6 +412,7 @@ func (p *Play) drawBank(ctx *scene.Context, dst *ebiten.Image, r int) {
 		x := cellX(config.Nooks[n]) + float64(config.NookWidth*config.Cell-fruit.W)/2
 		fruit.Draw(dst, min(p.world.Level.Fruit, fruit.Frames()-1), x, cellY(r)+float64(config.Cell-fruit.H)/2, false)
 	}
+	p.drawFox(ctx, dst)
 }
 
 // How the firefly or dragonfly moves its wings and body (D58): a fast
@@ -475,18 +476,12 @@ func (p *Play) drawFlyer(ctx *scene.Context, dst *ebiten.Image) {
 	}
 }
 
-// drawHerons draws the herons standing on row r's logs, facing the way
-// the logs move (DESIGN §5.2, D34).
+// drawHerons draws the herons on row r's logs: standing, facing the way
+// the logs move, or stalking and striking (DESIGN §5.2, D34, D67).
 func (p *Play) drawHerons(ctx *scene.Context, dst *ebiten.Image, r int) {
-	lane := &p.world.Lanes[r]
-	heron := ctx.Sheet(Sheet).Sprite("heron")
-	for _, e := range lane.Entities {
-		if !e.Heron {
-			continue
-		}
-		x := float64(config.FieldX) + math.Floor(float64(e.X())/config.SubPx) + float64(e.HeronCell*config.Cell)
-		heron.Draw(dst, 0, x, cellY(r), lane.Dir < 0)
-	}
+	p.eachHeron(ctx, r, func(img *ebiten.Image, x, y float64, flip bool) {
+		dst.DrawImage(img, &ebiten.DrawImageOptions{GeoM: spriteGeoM(img, x, y, flip)})
+	})
 }
 
 // lampHeadY is how far down a lamp sprite its glowing head is, in pixels.

@@ -168,7 +168,7 @@ func (p *Play) Update(ctx *scene.Context) error {
 		switch e {
 		case world.Squashed, world.Bumped:
 			ctx.Shake.Start(shakeTicks, shakePx)
-		case world.Splashed, world.Swept, world.Caught, world.TimeUp, world.Slipped:
+		case world.Splashed, world.Swept, world.Caught, world.Snatched, world.TimeUp, world.Slipped:
 			ctx.Shake.Start(shakeTicks, softShakePx)
 		case world.Struck:
 			ctx.Shake.Start(shakeTicks, struckShakePx)
@@ -426,6 +426,18 @@ func (p *Play) overLabel() string {
 	return "TIME UP"
 }
 
+// levelHints are the hints of the level, for what it brings in: its own,
+// and a predator coming in (D66).
+func (p *Play) levelHints() []string {
+	var hs []string
+	for _, h := range []string{p.world.Level.Hint, p.world.Level.PreyHint} {
+		if h != "" {
+			hs = append(hs, h)
+		}
+	}
+	return hs
+}
+
 // drawHint draws the strip below the playfield: the controls, or for a
 // while at the start of a level that brings in something new, its hint
 // (DESIGN §7).
@@ -433,8 +445,8 @@ func (p *Play) drawHint(ctx *scene.Context, dst *ebiten.Image) {
 	sc, f := ctx.Scheme, ctx.Fonts
 	top := config.FieldY + config.Rows*config.Cell
 	text, c := hint, sc.Dim
-	if h := p.world.Level.Hint; h != "" && p.ticks < levelHintTicks {
-		text, c = h, sc.Highlight
+	if hs := p.levelHints(); len(hs) > 0 && p.ticks < levelHintTicks {
+		text, c = hs[p.ticks*len(hs)/levelHintTicks], sc.Highlight // in turn, sharing the time (D66)
 	}
 	if m := p.eventMessage(); m != "" {
 		text, c = m, sc.Highlight // an event is announced (DESIGN §6.1)

@@ -294,7 +294,7 @@ func (w *World) updateFruit() {
 	}
 	var empty []int
 	for n, f := range w.Filled {
-		if !f {
+		if !f && !w.foxShowing(n) { // never in the fox's nook (D68)
 			empty = append(empty, n)
 		}
 	}

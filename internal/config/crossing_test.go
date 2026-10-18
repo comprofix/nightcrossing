@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"slices"
 	"testing"
 )
 
@@ -13,7 +14,9 @@ import (
 //   - River: from the row below, a platform that will hold the hero comes
 //     within reach before the row below carries it off the field. This is
 //     the worst case: diving pads and sinking ships count as water, and
-//     each log loses a cell to a heron (D34).
+//     each log loses a cell to a heron (D34), or two where herons strike
+//     (D67).
+//   - Stalking herons (D67): every log keeps a cell out of a heron's reach.
 //   - A hero on a sinking ship can reach a platform in the row above or
 //     below before the ship's stern goes under (D33).
 //   - Mixed traffic (D65): each gap behind a truck is at least
@@ -87,7 +90,7 @@ func crossingProblems(lv Level) []error {
 					errs = append(errs, fmt.Errorf("row %d: the current slides the hero a cell in %d ticks, want %d", r, t, CrossOpenTicks))
 				}
 			}
-			if lv.Events[StormFront].Beat > 0 && !holdsAPush(l) {
+			if lv.Events[StormFront].Beat > 0 && !holdsAPush(l, heronCells(lv)) {
 				errs = append(errs, fmt.Errorf("row %d: no platform two cells long that always holds, to take the wind's push", r))
 			}
 			below := lv.Lanes[r+1]
@@ -109,6 +112,11 @@ func crossingProblems(lv Level) []error {
 				}
 			}
 			for _, s := range l.Pattern {
+				if lv.Stalk && slices.Contains(Logs(), s.Entity) && s.Entity.Length/Cell <= heronCells(lv) {
+					errs = append(errs, fmt.Errorf("row %d: a %s has no cell out of a stalking heron's reach", r, s.Entity.ID))
+				}
+			}
+			for _, s := range l.Pattern {
 				if !s.Sinks {
 					continue
 				}
@@ -121,7 +129,7 @@ func crossingProblems(lv Level) []error {
 						best = 0 // a safe row, or the bank's nooks, is right there
 						break
 					}
-					if w, ok := boardTicksFrom(a, l); ok && (best < 0 || w < best) {
+					if w, ok := boardTicksFrom(a, l, heronCells(lv)); ok && (best < 0 || w < best) {
 						best = w
 					}
 				}
@@ -139,7 +147,7 @@ const fieldUnits = Cols * Cell * SubPx
 // boardTicks is the longest a hero in the row below row r may wait for a
 // platform in row r to come under it, and whether one ever does.
 func boardTicks(lv Level, r int, below Lane) (int, bool) {
-	return boardTicksFrom(lv.Lanes[r], below)
+	return boardTicksFrom(lv.Lanes[r], below, heronCells(lv))
 }
 
 // boardTicksFrom is the longest a hero riding in lane from (or standing,
@@ -147,8 +155,8 @@ func boardTicks(lv Level, r int, below Lane) (int, bool) {
 // will hold it, and whether one ever comes.
 // On a row with a current the hero may move at its platform's speed or
 // slide along with the current, so the slower of the two meetings counts.
-func boardTicksFrom(to, from Lane) (int, bool) {
-	water, ok := widestWater(to)
+func boardTicksFrom(to, from Lane, herons int) (int, bool) {
+	water, ok := widestWater(to, herons)
 	if !ok {
 		return 0, false
 	}
@@ -184,14 +192,24 @@ func rideSpeed(lv Level, l Lane) int {
 	return worst
 }
 
+// heronCells is how many cells of a log a heron can make deadly at once on
+// level lv: its own, and the one it jabs where herons strike (D34, D67).
+func heronCells(lv Level) int {
+	if lv.Strike {
+		return 2
+	}
+	return 1
+}
+
 // holdsAPush reports whether river lane l has a platform at least two
 // cells long that always holds the hero: not one that dives or sinks, and
-// for a log, still two cells with a heron on one (D34, D47).
-func holdsAPush(l Lane) bool {
+// for a log, still two cells with herons cells of it deadly (D34, D47,
+// D67).
+func holdsAPush(l Lane, herons int) bool {
 	for _, s := range l.Pattern {
 		n := s.Entity.Length
 		if s.Entity == LogShort || s.Entity == LogLong {
-			n -= Cell
+			n -= herons * Cell
 		}
 		if !s.Dives && !s.Sinks && n >= 2*Cell {
 			return true
@@ -211,14 +229,14 @@ func abs(n int) int {
 // platform that will hold the hero, in the worst case: diving pads and
 // sinking ships are under, and each log has a heron on an end cell. It
 // reports false if no platform always holds.
-func widestWater(l Lane) (int, bool) {
+func widestWater(l Lane, herons int) (int, bool) {
 	n := len(l.Pattern)
 	steady := func(s Spawn) int { // how much of it always holds
 		switch {
 		case s.Dives || s.Sinks:
 			return 0
 		case s.Entity == LogShort || s.Entity == LogLong:
-			return s.Entity.Length - Cell
+			return s.Entity.Length - herons*Cell
 		}
 		return s.Entity.Length
 	}
