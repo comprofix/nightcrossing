@@ -155,6 +155,7 @@ func (p *Play) addLights(ctx *scene.Context, l *fx.Lighting) {
 		l.Add(fx.Light{X: x, Y: y, Radius: fruitR, Colour: gfx.RGBA(resurrect64.Gold), Strength: fruitLight * fade})
 	}
 	p.addPickLights(ctx, l)
+	p.addSweeperLights(l)
 	for i, fl := range p.flyers() {
 		p.addFlyerLight(ctx, l, fl, i)
 	}

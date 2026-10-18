@@ -1,0 +1,17 @@
+tick 32: fruit 1 picked at 13,8
+tick 56: fruit 2 picked at 10,8
+tick 72: fruit 3 picked at 10,6
+tick 88: fruit 4 picked at 8,6
+tick 104: fruit 5 picked at 6,6
+tick 136: fruit 6 picked at 2,6
+tick 176: fruit 7 picked at 1,10
+tick 312: fruit 8 picked at 17,9
+tick 336: fruit 9 picked at 19,10
+tick 368: fruit 10 picked at 21,8
+tick 384: fruit 11 picked at 23,8
+tick 408: fruit 12 picked at 24,6
+tick 408: ended 44, 33 s left
+grid 26x13  mode rushhour  level 8
+tick 408  ticks left 1993
+score 5600  lives 3
+hero cell 24,6  at 9216,2304  facing right  hopping false

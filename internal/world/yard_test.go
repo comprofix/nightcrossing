@@ -56,11 +56,11 @@ func TestTheLastTrainHomeStarts(t *testing.T) {
 			p := w.Picks[i]
 			x, mid := w.PickX(i), w.PickX(i)+cellUnits/2
 			fmt.Fprintf(&layout, "%d,%d ", columnOf(mid), p.Row)
-			if !w.Showing(i) || p.Fruit != f.Fruit || (w.Lanes[p.Row].Kind == config.River) != f.River {
+			if !w.Showing(i) || p.Fruit != f.Fruit || (w.Lanes[p.Row].Kind == config.River) != (f.Side == config.FruitRiver) {
 				t.Fatalf("seed %d: fruit %d is %d on row %d, showing %v", seed, i, p.Fruit, p.Row, w.Showing(i))
 			}
 			switch {
-			case f.River:
+			case f.Side == config.FruitRiver:
 				e := w.Lanes[p.Row].Entities[p.host]
 				if p.host < 0 || x < e.X() || x+cellUnits > e.X()+e.Kind.Length*config.SubPx {
 					t.Errorf("seed %d: fruit %d isn't on a log", seed, i)

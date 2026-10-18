@@ -60,7 +60,8 @@ const (
 	Slipped                          // on a bonus level, a slip into the water or a car: time lost, no life (D61)
 	Blocked                          // on a bonus level, a hop into a parked car, refused (D61)
 	BonusOver                        // the bonus level's clock ran out (D61)
-	AllCaught                        // every firefly of the bonus level is caught, ending it early (D61)
+	AllCaught                        // the whole set of the bonus level is collected, ending it early (D61)
+	FruitSwept                       // a street sweeper swept up a fruit (DESIGN §6.7)
 )
 
 // Stats are the points earned on this level, for the level-clear tally.
@@ -96,13 +97,14 @@ type World struct {
 	Cleared    bool                    // every nook is filled
 	Over       bool                    // the game has ended
 	Stats      Stats
-	Combo      Combo   // the hop combo, on levels with it (D38)
-	Gained     int     // points to pop up this tick: what the combo multiplied, and a firefly's at the cap
-	FruitNook  int     // the nook fruit shows in, or -1 (D59)
-	Flyer      Flyer   // the firefly, or by day the dragonfly (D58)
-	Swarm      []Flyer // a bonus level's fireflies (D61)
-	Yard       []Rake  // a bonus level's trains standing on the track rows (DESIGN §6.7)
-	Picks      []Pick  // a bonus level's fruit (DESIGN §6.7)
+	Combo      Combo      // the hop combo, on levels with it (D38)
+	Gained     int        // points to pop up this tick: what the combo multiplied, and a firefly's at the cap
+	FruitNook  int        // the nook fruit shows in, or -1 (D59)
+	Flyer      Flyer      // the firefly, or by day the dragonfly (D58)
+	Swarm      []Flyer    // a bonus level's fireflies (D61)
+	Yard       []Rake     // a bonus level's trains standing on the track rows (DESIGN §6.7)
+	Picks      []Pick     // a bonus level's fruit (DESIGN §6.7)
+	Sweepers   [2]Sweeper // a bonus level's street sweepers (DESIGN §6.7)
 
 	sent       int                            // a bonus level's fireflies sent for so far: on the field, caught, or due
 	cameRoad   int                            // of them, how many have come in to the road
@@ -186,6 +188,7 @@ func (w *World) Update(press Dir) []Event {
 	}
 	w.updateFirefly()
 	w.updateSwarm()
+	w.updateSweepers()
 	w.updateFruit()
 	w.Rail.update(w)
 	w.updateSpells()
@@ -290,7 +293,7 @@ func (w *World) updateTimer() {
 // is over is checked (PLAN §3).
 //   - Road: a vehicle overlaps it. Its box is a cell trimmed by
 //     config.HeroMargin; vehicles are trimmed by config.HitMargin (DESIGN
-//     §5.1, D13).
+//     §5.1, D13), or a bonus level's street sweepers (DESIGN §6.7).
 //   - River: a platform carried its middle off the field, or it has landed
 //     with no platform under its middle, or on a heron (DESIGN §5.2). Water
 //     and herons only count once it is down, so a hop over a gap onto a
@@ -301,7 +304,8 @@ func (w *World) updateTimer() {
 //   - Bank: on landing, the hero fills an empty nook or bumps into the bank
 //     (DESIGN §5.3); a toadlet goes into the hero's nook.
 //   - Verge: in a flood, a cell under water is a splash once it is down,
-//     whether it landed there or the water came to it (D48).
+//     whether it landed there or the water came to it (D48). On a bonus
+//     level, it collects fruit there (DESIGN §6.7).
 func (w *World) checkHazards(i int) {
 	p := w.body(i)
 	lane := &w.Lanes[p.LaneRow()]
@@ -310,10 +314,10 @@ func (w *World) checkHazards(i int) {
 	switch lane.Kind {
 	case config.Road:
 		switch {
-		case lane.hits(left, right, config.HitMargin):
+		case lane.hits(left, right, config.HitMargin), w.sweeperHits(p.LaneRow(), left, right):
 			w.dieAs(i, Squashed)
 		case w.Bonus() && i == Hero && !p.Hopping():
-			w.collect(p.LaneRow(), left, right) // a firefly in a road gap (D61)
+			w.collect(p.LaneRow(), left, right) // a firefly in a road gap, or fruit (D61)
 		}
 	case config.River:
 		switch mid := p.Middle(); {
@@ -341,8 +345,12 @@ func (w *World) checkHazards(i int) {
 			w.reachBank()
 		}
 	case config.Safe:
-		if !p.Hopping() && p.Row == config.VergeRow && w.Flooded(columnOf(p.X)) {
+		switch {
+		case p.Hopping():
+		case p.Row == config.VergeRow && w.Flooded(columnOf(p.X)):
 			w.dieAs(i, Splashed)
+		case w.Bonus() && i == Hero:
+			w.collect(p.LaneRow(), left, right) // fruit on the verge (DESIGN §6.7)
 		}
 	}
 }

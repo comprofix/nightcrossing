@@ -76,10 +76,10 @@ func TestLevel8LeadsToTheBonus(t *testing.T) {
 // TestNoBonusYetGoesToMastered: a mode with no bonus level built yet goes
 // from level 8's tally straight to the MASTERED screen (D61).
 func TestNoBonusYetGoesToMastered(t *testing.T) {
-	h := bonusHarness(t, config.RushHour)
+	h := bonusHarness(t, config.Storm)
 	scenetest.Current[*Mastered](h)
-	if !h.Ctx.Scores.IsMastered(config.RushHour.ID) {
-		t.Error("Rush Hour isn't mastered")
+	if !h.Ctx.Scores.IsMastered(config.Storm.ID) {
+		t.Error("Storm isn't mastered")
 	}
 }
 
@@ -87,7 +87,7 @@ func TestNoBonusYetGoesToMastered(t *testing.T) {
 // score entry with the run marked MASTERED, then the next mode's intro
 // (D62, D63).
 func TestFinish(t *testing.T) {
-	h := bonusHarness(t, config.RushHour)
+	h := bonusHarness(t, config.Storm)
 	before := h.Ctx.Session.Score
 	h.Press(ebiten.KeyEnter) // Finish
 	scenetest.Current[*scene.Tally](h)
@@ -101,17 +101,17 @@ func TestFinish(t *testing.T) {
 		h.Press(ebiten.KeyEnter)
 	}
 	scenetest.Current[*scene.HighScoreTable](h)
-	if es := h.Ctx.Scores.Table(config.RushHour.ID); len(es) != 1 || !es[0].Mastered || es[0].Continued != 0 {
+	if es := h.Ctx.Scores.Table(config.Storm.ID); len(es) != 1 || !es[0].Mastered || es[0].Continued != 0 {
 		t.Errorf("table %+v: want the run marked mastered, not continued", es)
 	}
 	h.Press(ebiten.KeyEnter)
-	scenetest.Current[*scene.Intro](h) // Storm's
+	scenetest.Current[*scene.Intro](h) // School Run's
 }
 
 // TestCarryOn: Carry on goes to level 9 with no life bonus, and each
 // level reached is the run's CONTINUED mark (D62, D63).
 func TestCarryOn(t *testing.T) {
-	h := bonusHarness(t, config.RushHour)
+	h := bonusHarness(t, config.Storm)
 	before := h.Ctx.Session.Score
 	h.Press(ebiten.KeyArrowDown)
 	h.Press(ebiten.KeyEnter) // Carry on
@@ -122,7 +122,7 @@ func TestCarryOn(t *testing.T) {
 	if s := h.Ctx.Session; !s.Mastered || s.Continued != 9 {
 		t.Errorf("session marks %v, %d: want mastered, continued to 9", s.Mastered, s.Continued)
 	}
-	newLevel(h.Ctx, config.RushHour.Levels, 10)
+	newLevel(h.Ctx, config.Storm.Levels, 10)
 	if e := entry(h.Ctx.Session); e.Continued != 10 {
 		t.Errorf("entry %+v: want continued to 10", e)
 	}
@@ -250,4 +250,49 @@ func TestTheLastTrainPullsOut(t *testing.T) {
 	}
 	h.Ticks(departTicks - clearTicks + scene.FadeTicks)
 	scenetest.Current[*scene.Tally](h)
+}
+
+// TestEmptyRoadsReplay: the autopilot plays Rush Hour's bonus level from
+// a seed, racing the street sweepers to the fruit; a golden record of what
+// it collects, what the sweepers sweep up, and when (DESIGN §6.7).
+func TestEmptyRoadsReplay(t *testing.T) {
+	h := scenetest.New(t, 11)
+	h.Ctx.NewPlay, h.Ctx.Bonus = New, true
+	p := New(h.Ctx, config.RushHour).(*Play)
+	h.Start(p)
+	h.Ticks(scene.FadeTicks)
+
+	keys := map[world.Dir]ebiten.Key{world.Up: ebiten.KeyArrowUp, world.Down: ebiten.KeyArrowDown,
+		world.Left: ebiten.KeyArrowLeft, world.Right: ebiten.KeyArrowRight}
+	var log strings.Builder
+	var a world.Autopilot
+	w := p.World()
+	picked, swept, dying := 0, 0, 0
+	gone := func() int {
+		n := 0
+		for _, pk := range w.Picks {
+			if pk.Gone {
+				n++
+			}
+		}
+		return n
+	}
+	for !w.Cleared {
+		if key, ok := keys[a.Next(w)]; ok {
+			h.Run(scenetest.Hold(1, key))
+		} else {
+			h.Ticks(1)
+		}
+		switch {
+		case w.Stats.Picked != picked:
+			fmt.Fprintf(&log, "tick %d: fruit %d picked at %d,%d\n", w.Tick, w.Stats.Picked, w.Player.Col, w.Player.Row)
+		case gone() != swept:
+			fmt.Fprintf(&log, "tick %d: fruit swept\n", w.Tick)
+		case w.Dying > 0 && dying == 0:
+			fmt.Fprintf(&log, "tick %d: a slip\n", w.Tick)
+		}
+		picked, swept, dying = w.Stats.Picked, gone(), w.Dying
+	}
+	fmt.Fprintf(&log, "tick %d: ended %v, %d s left\n", w.Tick, p.ending, w.TicksLeft/config.TPS)
+	scenetest.Golden(t, "emptyroads", log.String()+summary(p, h.Ctx))
 }

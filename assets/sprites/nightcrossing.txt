@@ -1782,3 +1782,58 @@ vvvvvvvv
 ...vD...
 ...vD...
 ..kkkk..
+
+; The street sweeper on empty roads at dawn (DESIGN §6.7), facing right:
+; a white hopper with an orange stripe, the cab with an amber beacon,
+; and two round brushes at the front. The brushes turn, the wheels roll
+; and the beacon flashes from frame to frame.
+sprite sweeper 48 24
+.........................................nnnn...
+........................................nCnCnC..
+........................................CnCnCn..
+......cDcDc...............cDcDc..........nnnn...
+..kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk..
+.kVvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvkwwwsssyk..
+.kVvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvkwwwssswk..
+.kVvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvkwwwssswk..
+.kVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVkwwwssswk..
+.kVvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvkwwwssswk..
+.kVvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvkwwwssswk..
+.kVooooooooooooooooooooooooooooooooookaawssswk..
+.kVooooooooooooooooooooooooooooooooookaawssswk..
+.kVvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvkwwwssswk..
+.kVvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvkwwwssswk..
+.kVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVkwwwssswk..
+.kVvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvkwwwssswk..
+.kVvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvkwwwssswk..
+.kVvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvkwwwsssyk..
+..kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk..
+......cDcDc...............cDcDc..........nnnn...
+........................................nCnCnC..
+........................................CnCnCn..
+.........................................nnnn...
+
+.........................................nnnn...
+........................................CnCnCn..
+........................................nCnCnC..
+......DcDcD...............DcDcD..........nnnn...
+..kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk..
+.kVvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvkwwwsssyk..
+.kVvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvkwwwssswk..
+.kVvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvkwwwssswk..
+.kVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVkwwwssswk..
+.kVvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvkwwwssswk..
+.kVvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvkwwwssswk..
+.kVooooooooooooooooooooooooooooooooookEEwssswk..
+.kVooooooooooooooooooooooooooooooooookEEwssswk..
+.kVvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvkwwwssswk..
+.kVvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvkwwwssswk..
+.kVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVkwwwssswk..
+.kVvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvkwwwssswk..
+.kVvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvkwwwssswk..
+.kVvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvkwwwsssyk..
+..kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk..
+......DcDcD...............DcDcD..........nnnn...
+........................................CnCnCn..
+........................................nCnCnC..
+.........................................nnnn...
