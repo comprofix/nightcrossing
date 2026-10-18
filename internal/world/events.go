@@ -214,6 +214,12 @@ func (w *World) weatherBut(k config.EventKind) bool {
 	return false
 }
 
+// slippery reports whether the road is slippery: in the rain, or on a
+// bonus level left slippery by the storm (D31, DESIGN §6.7).
+func (w *World) slippery() bool {
+	return w.Raining() || w.Bonus() && w.Level.Bonus.Slippery
+}
+
 // Raining reports whether it is raining: the road is slippery (D31). A wet
 // storm rains all through (D51).
 func (w *World) Raining() bool {

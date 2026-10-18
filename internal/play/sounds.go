@@ -263,7 +263,7 @@ func (p *Play) soundsFor(e world.Event) []*audio.Effect {
 	case world.ExtraLife:
 		return []*audio.Effect{OneUp}
 	case world.FireflyCaught:
-		if p.world != nil && p.world.Flyer.Day {
+		if p.world != nil && (p.world.Flyer.Day || p.world.Bonus() && p.world.Level.Bonus.Dawn) { // a bonus level's dragonflies by dawn
 			return []*audio.Effect{p.hero.DayCatch}
 		}
 		return []*audio.Effect{p.hero.Catch}

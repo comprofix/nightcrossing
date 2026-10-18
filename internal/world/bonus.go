@@ -18,6 +18,8 @@ import (
 //     one ends the level early, and the seconds left pay a time bonus.
 //   - Or a set of fruit lies about from the start, on the ground, logs or
 //     the carriages of a goods yard (yard.go), with the same ending.
+//   - On a level with runs, each firefly caught without setting foot on
+//     land is worth one more times than the last, up to its most.
 //   - Its points never give a life.
 
 // Bonus reports whether w is a bonus level.
@@ -40,7 +42,7 @@ func (w *World) newBonus() {
 			f.due = 1 // nowhere just now: it comes in as soon as there is
 			continue
 		}
-		f.Visiting, f.Landed = true, true
+		f.Visiting, f.Landed, f.Day = true, true, w.Level.Bonus.Dawn
 		f.X, f.Y, f.Facing = w.spotX(f), f.row*cellUnits, 1
 	}
 }
@@ -218,7 +220,7 @@ func (w *World) swarmIn(i int) {
 		f.X, f.Facing = fieldWidth, -1
 	}
 	f.Y = f.row * cellUnits
-	f.Visiting, f.Landed = true, false
+	f.Visiting, f.Landed, f.Day = true, false, w.Level.Bonus.Dawn // by dawn, a dragonfly (DESIGN §6.7)
 
 }
 
@@ -245,8 +247,15 @@ func (w *World) catchSwarm(r, left, right int) {
 		}
 		f.Visiting, f.Landed = false, false
 		w.Stats.Fireflies++
-		w.score(b.Firefly)
-		w.Gained += b.Firefly
+		pts := b.Firefly
+		if b.RunMax > 0 { // each in a run worth one more times than the last (DESIGN §6.7)
+			w.Run++
+			pts *= min(w.Run, b.RunMax)
+			w.Stats.Run += pts - b.Firefly
+			w.Stats.BestRun = max(w.Stats.BestRun, w.Run)
+		}
+		w.score(pts)
+		w.Gained += pts
 		w.emit(FireflyCaught)
 		if w.sent < b.Fireflies { // counted as it is sent for, so a quick run of catches never sends too many
 			f.due = between(w, config.BonusComeMinTicks, config.BonusComeMaxTicks)
@@ -255,6 +264,24 @@ func (w *World) catchSwarm(r, left, right int) {
 		w.checkSet()
 		return
 	}
+}
+
+// endRun ends the run once the toad stands on land: the verge, the track,
+// the road or the start row, where a slip or a nook sends it too (DESIGN
+// §6.7).
+func (w *World) endRun() {
+	if p := &w.Player; w.Run > 0 && !p.Hopping() && w.land(p.Row) {
+		w.Run = 0
+	}
+}
+
+// RunMult is what the next firefly caught is multiplied by: one more than
+// the run so far, up to the level's most; 1 on a level without runs.
+func (w *World) RunMult() int {
+	if b := w.Level.Bonus; b != nil && b.RunMax > 0 {
+		return min(w.Run+1, b.RunMax)
+	}
+	return 1
 }
 
 // collect collects whatever of the set is on row r over left–right, in

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -133,5 +134,33 @@ func TestEmptyRoads(t *testing.T) {
 		if f.Side != FruitRoad {
 			t.Errorf("fruit %d isn't on the road", i)
 		}
+	}
+}
+
+// TestAfterTheStorm: Storm's bonus level is after the storm: dawn, the
+// road empty and slippery, twelve dragonflies all on the river, runs up
+// to x5, and two currents, one each way (DESIGN §6.7).
+func TestAfterTheStorm(t *testing.T) {
+	b := AfterTheStorm
+	if Storm.Bonus != b || !b.Dawn || !b.Slippery || !b.Rainbow || b.Fireflies != 12 || b.OnRoad != 0 ||
+		b.RunMax != 5 || len(b.Fruit) != 0 || len(b.Yard) != 0 || b.Sweeper {
+		t.Fatalf("Storm's bonus level %+v", b)
+	}
+	var with, against int
+	for r, l := range b.Layout.Lanes {
+		switch {
+		case l.Kind == Road && len(l.Pattern) > 0:
+			t.Errorf("traffic on row %d", r)
+		case l.Current > 0:
+			with++
+		case l.Current < 0:
+			against++
+		}
+		if l.Current != 0 && (l.Kind != River || !slices.ContainsFunc(l.Pattern, func(s Spawn) bool { return s.Entity == LogLong })) {
+			t.Errorf("a current on row %d, which isn't a river row of long logs", r)
+		}
+	}
+	if with != 1 || against != 1 {
+		t.Errorf("%d currents with the flow and %d against, want one of each", with, against)
 	}
 }
