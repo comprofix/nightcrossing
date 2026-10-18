@@ -13,6 +13,7 @@ const (
 	Fog                         // fog over the road (D29, D44)
 	Rain                        // rain: the road is slippery (D31, D44)
 	StormFront                  // a storm front rolling in and away: wet (rain, a flood) or dry (wind) (D51)
+	Emergency                   // an emergency vehicle through a middle road lane (DESIGN §6.9, D72)
 	NumEventKinds
 )
 
@@ -39,7 +40,7 @@ type EventDef struct {
 	WarnTicks  int
 	Message    string
 	Weather    bool // only one weather at a time (D42)
-	Big        bool // only one big event at a time: a wave or a storm (D48, D51)
+	Big        bool // only one big event at a time: a wave, a storm or an emergency vehicle (D48, D51, D72)
 	First, Top EventTiming
 }
 
@@ -75,6 +76,16 @@ var Events = [NumEventKinds]EventDef{
 		Big:       true,
 		First:     EventTiming{QuietMin: 45 * TPS, QuietMax: 60 * TPS, Last: 15 * TPS, LastMax: 18 * TPS},
 		Top:       EventTiming{QuietMin: 20 * TPS, QuietMax: 30 * TPS, Last: 22 * TPS, LastMax: 25 * TPS},
+	},
+	// The warning runs until the lane is clear and the trap closed, at
+	// least WarnTicks, the escape window; and the vehicle's run lasts as
+	// long as it takes, so Last is unused (D72).
+	Emergency: {
+		WarnTicks: EscapeTicks,
+		Message:   EmergencyMessage,
+		Big:       true,
+		First:     EventTiming{QuietMin: 25 * TPS, QuietMax: 40 * TPS},
+		Top:       EventTiming{QuietMin: 15 * TPS, QuietMax: 25 * TPS},
 	},
 }
 

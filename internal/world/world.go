@@ -76,6 +76,12 @@ const (
 	SnakeTurns                       // the snake turned at an end of its stretch
 	SnakeGone                        // the snake slipped away into the grass
 	Bitten                           // the hero landed on the snake, or it slid into the hero (D70)
+	SirenSounds                      // an emergency vehicle is coming: its lights flash at its lane's edge (D72)
+	SirenComing                      // the emergency vehicle comes onto the field
+	SirenGone                        // it has left the field
+	BrakesOff                        // the queues' brake lights go off: they are about to move off
+	TrafficMoves                     // the queues move off
+	RunDown                          // the emergency vehicle hit the hero (D71)
 )
 
 // Stats are the points earned on this level, for the level-clear tally.
@@ -120,6 +126,7 @@ type World struct {
 	Fox        Fox         // the fox that works the nooks, on levels with it (D68)
 	Rats       [2]Rat      // the water rats, on levels with them (D69)
 	Snake      Snake       // the snake on the verge, on levels with it (D70)
+	Siren      Siren       // an emergency vehicle's coming, on levels with them (D72)
 	Flyer      Flyer       // the firefly, or by day the dragonfly (D58)
 	Swarm      []Flyer     // a bonus level's fireflies (D61)
 	Yard       []Rake      // a bonus level's trains standing on the track rows (DESIGN §6.7)
@@ -215,6 +222,7 @@ func (w *World) Update(press Dir) []Event {
 			}
 		}
 	}
+	w.moveHeld()
 	for i := range w.Yard {
 		w.Yard[i].update()
 	}
@@ -353,6 +361,8 @@ func (w *World) checkHazards(i int) {
 		switch {
 		case lane.hits(left, right, config.HitMargin), w.sweeperHits(p.LaneRow(), left, right):
 			w.dieAs(i, Squashed)
+		case w.sirenHits(p.LaneRow(), left, right):
+			w.dieAs(i, RunDown)
 		case w.Bonus() && i == Hero && !p.Hopping():
 			w.collect(p.LaneRow(), left, right) // a firefly in a road gap, or fruit (D61)
 		}

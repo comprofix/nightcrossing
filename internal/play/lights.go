@@ -140,6 +140,7 @@ func (p *Play) addLights(ctx *scene.Context, l *fx.Lighting) {
 	}
 	p.addRailLights(l)
 	p.addWaveLights(l)
+	p.addSirenLights(l)
 	for i, c := range config.Nooks {
 		x, y := cellX(c)+float64(config.NookWidth*config.Cell)/2, cellY(config.GoalRow)+cell/2
 		if w.Filled[i] {
@@ -173,7 +174,7 @@ func (p *Play) addVehicleLights(ctx *scene.Context, l *fx.Lighting, r int) {
 	lane := &p.world.Lanes[r]
 	y := cellY(r) + float64(config.Cell)/2
 	for i, e := range lane.Entities {
-		if e.Out {
+		if e.Hidden() {
 			continue
 		}
 		x := float64(config.FieldX) + math.Floor(float64(e.X())/config.SubPx)
@@ -186,6 +187,11 @@ func (p *Play) addVehicleLights(ctx *scene.Context, l *fx.Lighting, r int) {
 			reach = bikeLightR
 		}
 		k := flicker(ctx.Tick, r, i) * p.lampK()
+		if lane.Brakes { // standing for an emergency vehicle: dipped headlamps, and brake lights by day too (D72)
+			l.Add(fx.Light{X: front, Y: y, Radius: lensR, Colour: gfx.RGBA(resurrect64.Lemon), Strength: k * dippedLight})
+			l.Add(fx.Light{X: back, Y: y, Radius: brakeR, Colour: gfx.RGBA(resurrect64.Red), Strength: brakeLight})
+			continue
+		}
 		l.Add(fx.Light{Shape: fx.Beam, X: front, Y: y, Radius: reach, Flip: lane.Dir < 0,
 			Colour: gfx.RGBA(resurrect64.Lemon), Strength: headlight * k})
 		l.Add(fx.Light{X: front, Y: y, Radius: lensR, Colour: gfx.RGBA(resurrect64.Lemon), Strength: k})

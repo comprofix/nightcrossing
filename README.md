@@ -75,6 +75,12 @@ snake.
     headlights.
   - **Rain,** from level 3. A hop that lands on the road slides one more
     cell the same way: plan for it.
+  - **Emergency vehicles,** from level 3. Red and blue lights flash at the
+    edge of one of the two middle lanes: "EMERGENCY VEHICLE: CLEAR THE
+    LANE". Its cars hurry off, and the lanes either side of it bunch up and
+    stop to let it through. Get out of that lane before the vehicle comes,
+    or you're run down. The police car comes first, the ambulance from
+    level 4 and the fire truck from level 5.
 - **Storm:** Rush Hour, plus storms that roll in, darken the sky with
   lightning and thunder, and roll away again, with clear spells between:
   - **Currents.** Arrows on the water show a current. Standing on a log or

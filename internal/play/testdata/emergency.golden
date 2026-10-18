@@ -1,0 +1,11 @@
+tick 168: nook filled, 1 of 5
+tick 375: nook filled, 2 of 5
+tick 734: nook filled, 3 of 5
+tick 1078: nook filled, 4 of 5
+tick 1401: the ambulance coming down row 10
+tick 1594: it comes through
+tick 1613: nook filled, 5 of 5
+grid 26x13  mode rushhour  level 8
+tick 1613  ticks left 1356
+score 5750  lives 5
+hero cell 22,0  at 8448,0  facing up  hopping false

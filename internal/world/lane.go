@@ -26,9 +26,24 @@ type Lane struct {
 	Waving   bool // a rush hour wave is on: its vehicles come on as they come round (D43)
 	Current  int  // the current's slide along a platform, SubPx units per tick: + with the flow, - against (D46)
 	Surge    int  // how much faster a flood makes the river run, in percent (D48)
+	Role     Role // the lane's part in an emergency vehicle's coming (D72)
+	Brakes   bool // a queue's cars show their brake lights: they are standing for the vehicle
 
 	lastHeron bool // the last log to come on had a heron
+	held      bool // its cars move the emergency's way, or find their way back to their places, not with the lane
+	pace      int  // how fast its cars move while held, in SubPx units per tick
+	extras    int  // queue cars brought on so far, so they take the lane's kinds in turn
 }
+
+// Role is a road lane's part in an emergency vehicle's coming (D72).
+type Role int
+
+// The roles.
+const (
+	Unheld Role = iota // as usual, or its cars finding their way back to their places
+	Clear              // the emergency lane: its cars drive off and none come on
+	Queue              // a lane either side: its cars bunch up and stand, giving way to the hero
+)
 
 // Entity is one vehicle on a road lane or platform on a river lane.
 type Entity struct {
@@ -51,6 +66,11 @@ type Entity struct {
 
 	Wave bool // an extra vehicle that only runs in a rush hour wave (D43)
 	Out  bool // not on the lane: a wave vehicle between waves
+
+	Home   int  // where the lane's pattern has it, while its lane is held for an emergency vehicle (D72)
+	Away   bool // off the lane until its place comes round off the field: an emergency lane's car, or one back from a queue
+	Extra  bool // a car come on to close a queue, gone once off the field after it
+	Halted bool // a queue's car that stood this tick
 
 	log bool // a log, which herons can stand on
 }
@@ -127,7 +147,11 @@ func (l *Lane) update(rng *rand.Rand) {
 	for i := range l.Entities {
 		e := &l.Entities[i]
 		wasOff := e.off()
-		e.U = ((e.U+l.Step())%l.Loop + l.Loop) % l.Loop
+		if l.held {
+			e.Home = l.wrap(e.Home + l.Step()) // its place moves on; the emergency moves the car (D72)
+		} else {
+			e.U = l.wrap(e.U + l.Step())
+		}
 		if e.Wave && e.off() {
 			e.Out = !l.Waving // only while wholly off the field, so none pops in or out
 		}
@@ -176,6 +200,13 @@ func (e *Entity) updateSink(rng *rand.Rand) {
 		}
 	}
 }
+
+// wrap is u brought back onto the lane's loop.
+func (l *Lane) wrap(u int) int { return (u%l.Loop + l.Loop) % l.Loop }
+
+// Hidden reports whether e is off the lane: a wave vehicle between waves,
+// or a car away for an emergency vehicle (D43, D72).
+func (e Entity) Hidden() bool { return e.Out || e.Away }
 
 // Step is how far the lane moves things in one tick, in SubPx units, with
 // its direction's sign: faster in a flood (D48).
@@ -268,7 +299,7 @@ func (e Entity) span(margin int) (left, right int) {
 // with each vehicle's ends trimmed by margin pixels.
 func (l *Lane) hits(left, right, margin int) bool {
 	for _, e := range l.Entities {
-		if e.Out {
+		if e.Hidden() {
 			continue
 		}
 		el, er := e.span(margin)

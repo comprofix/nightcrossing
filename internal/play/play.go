@@ -61,6 +61,9 @@ type Play struct {
 	clear  int         // ticks since the level was cleared; 0 until then
 	ending world.Event // how it ended: LevelClear, or on a bonus level AllCaught or BonusOver (D61)
 	later  []lateSound // sounds waiting to play
+	// sirenCut: the emergency vehicle has run the hero down, and its siren
+	// is cut off until it has gone (D71).
+	sirenCut bool
 
 	light     *fx.Lighting
 	parts     *fx.Particles
@@ -168,6 +171,9 @@ func (p *Play) Update(ctx *scene.Context) error {
 		switch e {
 		case world.Squashed, world.Bumped:
 			ctx.Shake.Start(shakeTicks, shakePx)
+		case world.RunDown:
+			ctx.Shake.Start(shakeTicks, shakePx)
+			p.sirenCut = true
 		case world.Splashed, world.Swept, world.Caught, world.Snatched, world.Nipped, world.Bitten, world.TimeUp, world.Slipped:
 			ctx.Shake.Start(shakeTicks, softShakePx)
 		case world.Struck:
@@ -189,6 +195,12 @@ func (p *Play) Update(ctx *scene.Context) error {
 	}
 	p.popGained()
 	if e := p.railEffect(); e != nil {
+		ctx.Audio.PlayEffect(e)
+	}
+	if p.world.Siren.Phase == world.SirenAway {
+		p.sirenCut = false
+	}
+	if e := p.sirenEffect(); e != nil {
 		ctx.Audio.PlayEffect(e)
 	}
 	return nil

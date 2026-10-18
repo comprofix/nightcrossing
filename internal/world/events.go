@@ -74,6 +74,10 @@ func (w *World) Spell(k config.EventKind) *Spell {
 func (w *World) updateSpells() {
 	for i := range w.Spells {
 		s := &w.Spells[i]
+		if s.Kind == config.Emergency && s.Phase != SpellQuiet {
+			w.updateSiren(s) // its warning lasts until the trap is closed (D72)
+			continue
+		}
 		if s.Left--; s.Left > 0 {
 			if s.pushesNow() {
 				w.blow(s.Dir)
@@ -139,6 +143,11 @@ func (w *World) warn(s *Spell) {
 		w.emit(RainWarning)
 	case config.StormFront:
 		w.warnStorm(s)
+	case config.Emergency:
+		if !w.warnSiren() {
+			s.Left = config.EventRetryTicks
+			return
+		}
 	}
 	s.Phase, s.Left = SpellWarning, config.Events[s.Kind].WarnTicks
 }
@@ -174,7 +183,7 @@ func (w *World) end(s *Spell) {
 }
 
 // bigBut reports whether a big event other than k is announced or on: a
-// wave and a storm never overlap (D48, D51).
+// wave, a storm and an emergency vehicle never overlap (D48, D51, D72).
 func (w *World) bigBut(k config.EventKind) bool {
 	for _, s := range w.Spells {
 		if s.Kind != k && config.Events[s.Kind].Big && s.Phase != SpellQuiet {
