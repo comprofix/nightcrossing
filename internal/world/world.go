@@ -67,6 +67,15 @@ const (
 	EyesGlint                        // a fox's eyes glint in a nook: it is coming (D68)
 	FoxIn                            // the fox is in its nook: hopping in is a death
 	Snatched                         // the hero hopped into a nook with the fox in it (D68)
+	Ripple                           // a ripple in the river: a water rat is coming up (D69)
+	RatGrabs                         // a water rat grabbed the end of its platform (D69)
+	RatDives                         // a water rat let go of its platform and dived
+	Nipped                           // a water rat grabbed the hero (D69)
+	GrassRustles                     // the verge grass rustles: the snake is coming out (D70)
+	SnakeSlides                      // the snake is out on the verge
+	SnakeTurns                       // the snake turned at an end of its stretch
+	SnakeGone                        // the snake slipped away into the grass
+	Bitten                           // the hero landed on the snake, or it slid into the hero (D70)
 )
 
 // Stats are the points earned on this level, for the level-clear tally.
@@ -109,6 +118,8 @@ type World struct {
 	Gained     int         // points to pop up this tick: what the combo multiplied, and a firefly's at the cap
 	FruitNook  int         // the nook fruit shows in, or -1 (D59)
 	Fox        Fox         // the fox that works the nooks, on levels with it (D68)
+	Rats       [2]Rat      // the water rats, on levels with them (D69)
+	Snake      Snake       // the snake on the verge, on levels with it (D70)
 	Flyer      Flyer       // the firefly, or by day the dragonfly (D58)
 	Swarm      []Flyer     // a bonus level's fireflies (D61)
 	Yard       []Rake      // a bonus level's trains standing on the track rows (DESIGN §6.7)
@@ -123,6 +134,7 @@ type World struct {
 	reach      [config.Rows][config.Cols]bool // the land cells the toad can get to past a bonus level's parked cars
 	roof       int                            // the rake in Yard whose carriage roof the hero landed on, or -1 (DESIGN §6.7)
 	fruitTicks int                            // ticks until the fruit goes, or until it next shows
+	prowlIn    int                            // ticks until the next water rat or snake may come (D66)
 	furthest   int                            // the furthest row reached this attempt
 	fallen     int                            // whose death is under way: Hero, or a toadlet (D53)
 	clearUntil int64                          // no weather starts before this tick: the clear stretch after a storm (D51)
@@ -154,6 +166,7 @@ func New(s *session.Session, level config.Level, rng *rand.Rand) *World {
 	}
 	w.newFruit()
 	w.newFox()
+	w.newProwl()
 	w.TicksLeft = level.TimerTicks
 	w.newAttempt()
 	w.rollFirefly()
@@ -210,6 +223,7 @@ func (w *World) Update(press Dir) []Event {
 	w.updateSweepers()
 	w.updateFruit()
 	w.updateFox()
+	w.updateProwl()
 	w.Rail.update(w)
 	w.updateSpells()
 	switch {
@@ -316,17 +330,19 @@ func (w *World) updateTimer() {
 //     config.HeroMargin; vehicles are trimmed by config.HitMargin (DESIGN
 //     §5.1, D13), or a bonus level's street sweepers (DESIGN §6.7).
 //   - River: a platform carried its middle off the field, or it has landed
-//     with no platform under its middle, or on a heron (DESIGN §5.2). Water
-//     and herons only count once it is down, so a hop over a gap onto a
-//     platform is safe.
+//     with no platform under its middle, or on a heron (DESIGN §5.2), or
+//     in the cell ahead of a water rat's nose (D69). Water and predators
+//     only count once it is down, so a hop over a gap onto a platform is
+//     safe.
 //   - Rail: a passing train overlaps it, trimmed like a vehicle (DESIGN
 //     §6.2). In a bonus level's goods yard, a rake ran it over on the
 //     rails, or carried its middle off the field on a roof (DESIGN §6.7).
 //   - Bank: on landing, the hero fills an empty nook or bumps into the bank
 //     (DESIGN §5.3); a toadlet goes into the hero's nook.
 //   - Verge: in a flood, a cell under water is a splash once it is down,
-//     whether it landed there or the water came to it (D48). On a bonus
-//     level, it collects fruit there (DESIGN §6.7).
+//     whether it landed there or the water came to it (D48); and the snake
+//     out there is a bite once it is down (D70). On a bonus level, it
+//     collects fruit there (DESIGN §6.7).
 func (w *World) checkHazards(i int) {
 	p := w.body(i)
 	lane := &w.Lanes[p.LaneRow()]
@@ -349,6 +365,8 @@ func (w *World) checkHazards(i int) {
 			w.dieAs(i, Splashed)
 		case lane.heronIn(left, right):
 			w.dieAs(i, Caught)
+		case w.ratBites(p.LaneRow(), left, right):
+			w.dieAs(i, Nipped)
 		case i == Hero && w.Bonus():
 			w.collect(p.LaneRow(), left, right)
 		case i == Hero:
@@ -370,6 +388,8 @@ func (w *World) checkHazards(i int) {
 		case p.Hopping():
 		case p.Row == config.VergeRow && w.Flooded(columnOf(p.X)):
 			w.dieAs(i, Splashed)
+		case p.Row == config.VergeRow && w.snakeBites(left, right):
+			w.dieAs(i, Bitten)
 		case w.Bonus() && i == Hero:
 			w.collect(p.LaneRow(), left, right) // fruit on the verge (DESIGN §6.7)
 		}

@@ -62,7 +62,7 @@ func playStorms(n int, k config.StormKind, seed uint64, minutes int) balanceRun 
 				} else {
 					out.clearNooks++
 				}
-			case Squashed, Splashed, Swept, Caught, Struck, TimeUp:
+			case Squashed, Splashed, Swept, Caught, Snatched, Nipped, Bitten, Struck, TimeUp:
 				if on {
 					out.stormDeaths++
 				}
@@ -146,7 +146,7 @@ func playLives(m config.Mode, last int, seed uint64, minutes int) []livesLevel {
 			caught := false
 			for _, e := range w.Update(a.Next(w)) {
 				switch e {
-				case Squashed, Splashed, Swept, Caught, Bumped, Struck, TimeUp:
+				case Squashed, Splashed, Swept, Caught, Snatched, Nipped, Bitten, Bumped, Struck, TimeUp:
 					r.deaths++
 				case FireflyCaught:
 					r.fireflies++

@@ -125,6 +125,7 @@ func (p *Play) drawField(ctx *scene.Context, dst *ebiten.Image) {
 		p.drawEntities(ctx, field, r)
 		p.drawHerons(ctx, field, r)
 	}
+	p.drawProwl(ctx, field) // the water rats and the snake (D69, D70)
 	p.drawParked(ctx, field)
 	p.drawYard(ctx, field)
 	p.drawPicks(ctx, field)
@@ -357,6 +358,7 @@ func (p *Play) drawHitBoxes(ctx *scene.Context, dst *ebiten.Image) {
 			debug.Box(dst, x, cellY(r), float64(e.Kind.Length-2*hm), config.Cell, c)
 		}
 	}
+	p.drawProwlBoxes(dst, c)
 }
 
 // facing turns a w×h sprite drawn facing up to face d, keeping it in the

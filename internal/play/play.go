@@ -168,7 +168,7 @@ func (p *Play) Update(ctx *scene.Context) error {
 		switch e {
 		case world.Squashed, world.Bumped:
 			ctx.Shake.Start(shakeTicks, shakePx)
-		case world.Splashed, world.Swept, world.Caught, world.Snatched, world.TimeUp, world.Slipped:
+		case world.Splashed, world.Swept, world.Caught, world.Snatched, world.Nipped, world.Bitten, world.TimeUp, world.Slipped:
 			ctx.Shake.Start(shakeTicks, softShakePx)
 		case world.Struck:
 			ctx.Shake.Start(shakeTicks, struckShakePx)

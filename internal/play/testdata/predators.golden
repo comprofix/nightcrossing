@@ -1,13 +1,24 @@
 tick 168: nook filled, 1 of 5
-tick 582: nook filled, 2 of 5
-tick 832: nook filled, 3 of 5
-tick 886: fox eyes in nook 4
-tick 976: the fox in nook 4
-tick 1066: the fox gone
-tick 1114: nook filled, 4 of 5
-tick 1223: a heron in row 1 cocks its head on cell 2, facing 1
-tick 1352: nook filled, 5 of 5
+tick 334: nook filled, 2 of 5
+tick 409: a heron in row 5 cocks its head on cell 2, facing -1
+tick 531: the grass rustles at column 7
+tick 561: nook filled, 3 of 5
+tick 586: fox eyes in nook 0
+tick 591: the snake out
+tick 676: the fox in nook 0
+tick 756: a heron in row 5 cocks its head on cell 0, facing 1
+tick 766: the fox gone
+tick 876: a heron in row 1 cocks its head on cell 1, facing 1
+tick 999: nook filled, 4 of 5
+tick 1027: a water rat comes up in row 3
+tick 1087: the water rat in row 3 swims
+tick 1159: fox eyes in nook 0
+tick 1207: the water rat in row 3 grabs its platform
+tick 1237: a water rat dives
+tick 1249: the fox in nook 0
+tick 1339: the fox gone
+tick 1381: nook filled, 5 of 5
 grid 26x13  mode lasttrain  level 6
-tick 1352  ticks left 1893
-score 5510  lives 5
-hero cell 22,0  at 8448,0  facing up  hopping false
+tick 1381  ticks left 1749
+score 5880  lives 5
+hero cell 3,0  at 1152,0  facing up  hopping false

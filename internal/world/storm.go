@@ -52,7 +52,7 @@ func (w *World) nextStorm(s *Spell) {
 func (w *World) warnStorm(s *Spell) {
 	s.Length = s.Timing.Last + w.rng.IntN(s.Timing.Spread()+1)
 	s.Cells = [config.Cols]bool{}
-	if s.Wet && s.Timing.Size > 0 && w.Lanes[config.VergeRow].Kind == config.Safe {
+	if s.Wet && s.Timing.Size > 0 && w.Lanes[config.VergeRow].Kind == config.Safe && w.Snake.Phase == SnakeAway { // never a flood with the snake out (D70)
 		s.Cells = floodCells(s.Timing.Size, w.rng)
 	}
 	if s.Wet {

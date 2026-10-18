@@ -15,7 +15,7 @@ import (
 // outlineColour rings the hazards in high contrast (DESIGN §8).
 const outlineColour = resurrect64.White
 
-// drawOutlines rings every vehicle and heron with a one-pixel line in
+// drawOutlines rings every vehicle, heron, water rat and snake with a one-pixel line in
 // outlineColour (DESIGN §8: high contrast). It draws over the lit field,
 // so night does not dim the line.
 func (p *Play) drawOutlines(ctx *scene.Context, dst *ebiten.Image) {
@@ -45,9 +45,10 @@ func (p *Play) drawOutlines(ctx *scene.Context, dst *ebiten.Image) {
 
 // eachHazard calls draw with the frame, place and facing of every sprite
 // that can kill the hero by touch: each piece of a vehicle and of the
-// train, and each heron.
+// train, each heron, and each water rat and snake.
 func (p *Play) eachHazard(ctx *scene.Context, draw func(img *ebiten.Image, x, y float64, flip bool)) {
 	p.eachTrainPiece(ctx, draw)
+	p.eachProwler(ctx, draw)
 	sheet := ctx.Sheet(Sheet)
 	for r := range p.world.Lanes {
 		lane := &p.world.Lanes[r]
