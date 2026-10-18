@@ -92,6 +92,9 @@ func value(w *World, d Dir, depth, caught int) int {
 				return dead + config.DemoTailTicks*config.DemoLookahead + t
 			}
 		}
+		if w.trapped() {
+			return dead/2 + progress(w) // in the emergency lane as its vehicle comes: get out (D72)
+		}
 		return progress(w) + bonus + soon
 	}
 	best := dead - 1

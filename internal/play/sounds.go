@@ -276,8 +276,55 @@ var (
 
 // Sounds are the game's tunes and effects, listed for the sound test.
 var Sounds = audio.Bank{
-	Tunes:   []*audio.Tune{NightTitle, Stroll, BonusNight, LevelClearJingle, GameOverJingle, HighScores},
-	Effects: []*audio.Effect{ToadHop, Crash, Bump, Splash, Bubbles, Squawk, Home, OneUp, TimeLow, TimeUp, Bell, Horn, HornLow, Rumble, TrainCrash, ComboUp, HornChorus, HornChorusLow, FogHorn, Thunder, Skid, Howl, Whoosh, Rising, DistantThunder, ToadletPeep, ToadletCry, FireflyTwinkle, DragonflyBuzz, FruitPick, Slip, Blocked, Clack, Rustle, Yip, Snarl, Burble, Scrabble, Plop, Squeak, Hiss, HissSoft, Strike},
+	Tunes: []*audio.Tune{NightTitle, Stroll, BonusNight, LevelClearJingle, GameOverJingle, HighScores},
+	Effects: []*audio.Effect{ToadHop, Crash, Bump, Splash, Bubbles, Squawk, Home, OneUp, TimeLow, TimeUp, Bell, Horn, HornLow, Rumble, TrainCrash, ComboUp, HornChorus, HornChorusLow, FogHorn, Thunder, Skid, Howl, Whoosh, Rising, DistantThunder, ToadletPeep, ToadletCry, FireflyTwinkle, DragonflyBuzz, FruitPick, Slip, Blocked, Clack, Rustle, Yip, Snarl, Burble, Scrabble, Plop, Squeak, Hiss, HissSoft, Strike,
+		PoliceFar, PoliceNear, AmbulanceFar, AmbulanceNear, FireFar, FireNear, FireHorn, Blare, BlareLow},
+}
+
+// The emergency vehicles' sirens (D73), each heard from afar through the
+// warning, then close by as it comes: the police car's wail rising and
+// falling, the ambulance's two tones, and the fire truck's deep wail after
+// a blast of its horn. Blare is a vehicle's horn as it runs the hero down,
+// with the crash, its siren cut off (D71); BlareLow is its lower note.
+var (
+	PoliceFar     = sirenWail("police siren far", 0.25, glide(700, 1400, 12, 2))
+	PoliceNear    = sirenWail("police siren", 0.5, glide(700, 1400, 12, 2))
+	AmbulanceFar  = sirenWail("ambulance siren far", 0.25, audio.Notes("B5:16 E5:16"))
+	AmbulanceNear = sirenWail("ambulance siren", 0.5, audio.Notes("B5:16 E5:16"))
+	FireFar       = sirenWail("fire truck siren far", 0.3, glide(330, 660, 14, 3))
+	FireNear      = sirenWail("fire truck siren", 0.6, glide(330, 660, 14, 3))
+	FireHorn      = &audio.Effect{Name: "fire truck horn", Channel: 2, Priority: 3, Part: audio.Part{
+		Voice: hornVoice(audio.Pulse50), Notes: audio.Notes("A2:30 -:4 A2:30"),
+	}}
+	Blare = &audio.Effect{Name: "blare", Channel: 0, Priority: 5, Part: audio.Part{
+		Voice: hornVoice(audio.Pulse25), Notes: audio.Notes("G4:40"),
+	}}
+	BlareLow = &audio.Effect{Name: "blare low", Channel: 2, Priority: 5, Part: audio.Part{
+		Voice: hornVoice(audio.Pulse50), Notes: audio.Notes("E4:40"),
+	}}
+)
+
+// sirenWail is a siren of the given notes and loudness, on the lead
+// channel, so it is heard over the tune and the hops.
+func sirenWail(name string, volume float64, notes []audio.Note) *audio.Effect {
+	return &audio.Effect{Name: name, Channel: 0, Priority: 2, Part: audio.Part{
+		Voice: audio.Voice{Wave: audio.Pulse25, Attack: audio.Ticks(1), Sustain: 1, Release: audio.Ticks(2), Volume: volume},
+		Notes: notes,
+	}}
+}
+
+// glide is notes sliding from hz from up to hz to in steps of ticks each,
+// and back down.
+func glide(from, to float64, steps, ticks int) []audio.Note {
+	var ns []audio.Note
+	for i := range 2 * steps {
+		k := i
+		if i >= steps {
+			k = 2*steps - 1 - i
+		}
+		ns = append(ns, audio.Note{Hz: from + (to-from)*float64(k)/float64(steps-1), Dur: audio.Ticks(ticks)})
+	}
+	return ns
 }
 
 // soundsFor is the effects an event plays (DESIGN §3.4). The level clear
@@ -321,6 +368,12 @@ func (p *Play) soundsFor(e world.Event) []*audio.Effect {
 		return []*audio.Effect{Strike}
 	case world.Struck:
 		return []*audio.Effect{TrainCrash}
+	case world.RunDown:
+		return []*audio.Effect{Blare, BlareLow, Crash}
+	case world.SirenSounds:
+		return p.sirenSounds()
+	case world.SirenComing:
+		return []*audio.Effect{sirens[p.world.Siren.Vehicle].near}
 	case world.TrainComing:
 		return []*audio.Effect{Horn, HornLow}
 	case world.ComboUp:

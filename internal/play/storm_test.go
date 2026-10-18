@@ -144,7 +144,8 @@ func TestStormSky(t *testing.T) {
 }
 
 // TestLightning: lightning only flashes in a storm, the first within two
-// seconds of it beginning and then every 4–8 s, lifting the light toward
+// seconds of it beginning, not counting while a cue holds it back, and
+// then every 4–8 s, lifting the light toward
 // daylight and fading, with thunder a beat later; never while an event is
 // announced; softer with reduced motion (D49). Its timing takes nothing
 // from the game's random numbers, so the replay in road_storm.golden
@@ -154,16 +155,19 @@ func TestLightning(t *testing.T) {
 	h.Ctx.StartLevel = 3
 	p := New(h.Ctx, config.Storm).(*Play)
 	var flashes, thunders []int
-	began, inStorm, storms := -1, 0, 0
+	began, inStorm, storms, held := -1, 0, 0, 0
 	for tick := range 4 * 60 * config.TPS {
 		ev := stormTick(p)
+		if p.stormOn() && inStorm == 0 && p.cueShowing() {
+			held++ // a warning holds the first flash back (D49)
+		}
 		if p.flash == 0 {
 			flashes = append(flashes, tick)
 			inStorm++
 			if !p.stormOn() {
 				t.Errorf("tick %d: a flash with no storm on", tick)
 			}
-			if inStorm == 1 && tick-began > lightningFirst {
+			if inStorm == 1 && tick-began-held > lightningFirst {
 				t.Errorf("tick %d: a storm's first flash %d ticks after it began", tick, tick-began)
 			}
 			for _, s := range p.world.Spells {
@@ -181,7 +185,7 @@ func TestLightning(t *testing.T) {
 		}
 		switch {
 		case slices.Contains(ev, world.StormStart):
-			began, inStorm = tick, 0
+			began, inStorm, held = tick, 0, 0
 		case slices.Contains(ev, world.StormEnd):
 			storms++
 			if inStorm < 2 {

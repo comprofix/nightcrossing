@@ -130,6 +130,7 @@ func (p *Play) drawField(ctx *scene.Context, dst *ebiten.Image) {
 	p.drawYard(ctx, field)
 	p.drawPicks(ctx, field)
 	p.drawSweepers(ctx, field)
+	p.drawSiren(ctx, field) // an emergency vehicle coming through (DESIGN §6.9)
 	p.drawTrain(ctx, field)
 	p.drawFog(field)
 	p.drawMist(field)
@@ -189,8 +190,8 @@ func (p *Play) drawEntities(ctx *scene.Context, dst *ebiten.Image, r int) {
 	flip := lane.Dir < 0
 	y := cellY(r)
 	for _, e := range lane.Entities {
-		if e.Out {
-			continue // a wave vehicle between waves
+		if e.Hidden() {
+			continue // a wave vehicle between waves, or away for an emergency vehicle
 		}
 		x := float64(config.FieldX) + math.Floor(float64(e.X())/config.SubPx)
 		frame := stageFrame(e.Stage(), e.FlashPhase())
@@ -348,7 +349,7 @@ func (p *Play) drawHitBoxes(ctx *scene.Context, dst *ebiten.Image) {
 			hm = -config.StandGrace
 		}
 		for _, e := range lane.Entities {
-			if e.Out {
+			if e.Hidden() {
 				continue
 			}
 			if st := e.Stage(); st == world.Under || st == world.Sunk {
@@ -359,6 +360,11 @@ func (p *Play) drawHitBoxes(ctx *scene.Context, dst *ebiten.Image) {
 		}
 	}
 	p.drawProwlBoxes(dst, c)
+	if s := w.Siren; s.Phase == world.SirenRun { // the emergency vehicle (D72)
+		hm := config.HitMargin
+		x := float64(config.FieldX) + float64(s.X)/config.SubPx + float64(hm)
+		debug.Box(dst, x, cellY(s.Row), float64(s.Responder().Length-2*hm), config.Cell, c)
+	}
 }
 
 // facing turns a w×h sprite drawn facing up to face d, keeping it in the

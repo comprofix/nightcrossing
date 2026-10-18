@@ -109,5 +109,6 @@ func rushHourLevels() ModeLevels {
 	m.Levels[2].Hint = "RAIN: ON THE ROAD YOU SLIDE ONE MORE CELL"
 	m.ComboFrom, m.CycleFrom = 1, 1
 	m.EventsFrom[Wave], m.EventsFrom[Fog], m.EventsFrom[Rain] = 1, 2, 3
+	m.EventsFrom[Emergency] = EmergencyFrom // and on into Storm and School Run (DESIGN §6.9)
 	return m
 }

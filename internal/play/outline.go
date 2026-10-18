@@ -49,13 +49,14 @@ func (p *Play) drawOutlines(ctx *scene.Context, dst *ebiten.Image) {
 func (p *Play) eachHazard(ctx *scene.Context, draw func(img *ebiten.Image, x, y float64, flip bool)) {
 	p.eachTrainPiece(ctx, draw)
 	p.eachProwler(ctx, draw)
+	p.eachSiren(ctx, draw)
 	sheet := ctx.Sheet(Sheet)
 	for r := range p.world.Lanes {
 		lane := &p.world.Lanes[r]
 		flip := lane.Dir < 0
 		p.eachHeron(ctx, r, draw)
 		for _, e := range lane.Entities {
-			if e.Out {
+			if e.Hidden() {
 				continue
 			}
 			x := float64(config.FieldX) + math.Floor(float64(e.X())/config.SubPx)

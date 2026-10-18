@@ -68,7 +68,7 @@ func (p *Play) effects(e world.Event) {
 			row = f.LaneRow()
 		}
 		p.parts.Emit(at(splashDrops, x, cellY(row)+config.Cell/2))
-	case world.Squashed:
+	case world.Squashed, world.RunDown:
 		p.parts.Emit(at(crashSparks, x, y))
 	case world.Struck:
 		p.parts.Emit(at(trainSparks, x, y))
