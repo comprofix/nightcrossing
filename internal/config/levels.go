@@ -136,6 +136,11 @@ type Level struct {
 	Stalk      bool   // herons stalk their logs (D67)
 	Strike     bool   // and strike (D67)
 	Fox        bool   // a fox works the nooks (D68)
+	Rats       bool   // water rats swim for the ends of platforms (D69)
+	Snake      bool   // and a snake patrols the verge (D70)
+	Pair       bool   // two of them out at once (D66)
+	ProwlMin   int    // the quiet between them coming, shortest, in ticks
+	ProwlMax   int    // and longest
 	PreyHint   string // a predator coming in, shown in turn with Hint (D66)
 	Bonus      *Bonus // the bonus level this is, or nil (D61)
 }
@@ -208,9 +213,17 @@ func (m ModeLevels) Level(n int) Level {
 	if m.Predators && n >= PredatorsFrom {
 		lv.Stalk, lv.Fox, lv.Strike = true, true, n >= StrikeFrom
 		lv.HeronPct = StalkingHeronPct(n)
+		if n >= RatFrom {
+			lv.Rats, lv.Snake, lv.Pair = true, n >= SnakeFrom, n >= PairFrom
+			lv.ProwlMin, lv.ProwlMax = ProwlQuiet(n)
+		}
 		switch n {
 		case PredatorsFrom:
 			lv.PreyHint = StalkHint
+		case RatFrom:
+			lv.PreyHint = RatHint
+		case SnakeFrom:
+			lv.PreyHint = SnakeHint
 		case StrikeFrom:
 			lv.PreyHint = StrikeHint
 		}

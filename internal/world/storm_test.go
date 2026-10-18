@@ -196,9 +196,12 @@ func TestWindNeverSlides(t *testing.T) {
 	}
 }
 
-// stormWorld is level n of Storm from seed.
+// stormWorld is level n of Storm from seed, without the snake, which
+// keeps a storm from flooding the verge while it is out (D70).
 func stormWorld(n int, seed uint64) *World {
-	return New(session.New(config.Storm, config.StartLives), config.Storm.Levels.Level(n), rand.New(rand.NewPCG(seed, seed)))
+	lv := config.Storm.Levels.Level(n)
+	lv.Snake = false
+	return New(session.New(config.Storm, config.StartLives), lv, rand.New(rand.NewPCG(seed, seed)))
 }
 
 // keep keeps the hero going on w for a long run: a full clock and lives.

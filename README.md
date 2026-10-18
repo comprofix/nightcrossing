@@ -41,6 +41,24 @@ lane, the bottom lane mixes too from level 6, and all four lanes are mixed
 from level 8. Big trucks stay in the top lane. Each lane keeps its speed and
 its pattern, so it can still be learned.
 
+From level 3 of every later mode, **predators** come out, each with a
+warning:
+
+- **The heron** walks along its log a cell at a time, turning at the ends.
+  From level 6 it stops, cocks its head and flashes, then jabs the cell it
+  faces.
+- **The fox** works the nooks at dusk and night. First its eyes glint in a
+  nook: hop in then and it slinks off. Once the fox is in, that nook is
+  deadly until it goes.
+- **The water rat,** from level 4. A ripple on the water, then it swims for
+  the end of a log or a boat and grabs it. Don't wait on that end.
+- **The snake,** from level 5. The verge grass rustles, then a snake slides
+  back and forth along a stretch of it for a while. Don't land on it. It
+  never comes out while the verge floods.
+
+From level 6 two can be out at once: two water rats, or a water rat and the
+snake.
+
 - **Last Train:** Stroll, plus:
   - **Trains.** When the crossing lights flash and the bell rings, a train
     is coming: stay off the track until it has passed. Each level the

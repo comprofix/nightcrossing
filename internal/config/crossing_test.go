@@ -15,8 +15,11 @@ import (
 //     within reach before the row below carries it off the field. This is
 //     the worst case: diving pads and sinking ships count as water, and
 //     each log loses a cell to a heron (D34), or two where herons strike
-//     (D67).
+//     (D67); where water rats swim, each steady ship loses its front cell
+//     to one, and a rat never swims for a log with a heron (D69).
 //   - Stalking herons (D67): every log keeps a cell out of a heron's reach.
+//   - The snake (D70): the verge keeps VergeFreeMin cells free of its
+//     stretch.
 //   - A hero on a sinking ship can reach a platform in the row above or
 //     below before the ship's stern goes under (D33).
 //   - Mixed traffic (D65): each gap behind a truck is at least
@@ -77,6 +80,10 @@ func crossingProblems(lv Level) []error {
 					errs = append(errs, fmt.Errorf("row %d: a %s covers the hero's cell for %d ticks, want at most %d", r, s.Entity.ID, c, CoverMaxTicks))
 				}
 			}
+		case Safe:
+			if r == VergeRow && lv.Snake && Cols-SnakeStretch < VergeFreeMin {
+				errs = append(errs, fmt.Errorf("row %d: %d verge cells free of the snake's stretch, want %d", r, Cols-SnakeStretch, VergeFreeMin))
+			}
 		case Rail:
 			if lv.Trains && lv.Train.QuietMin < CrossOpenTicks {
 				errs = append(errs, fmt.Errorf("row %d: %d quiet ticks between trains, want %d", r, lv.Train.QuietMin, CrossOpenTicks))
@@ -90,7 +97,7 @@ func crossingProblems(lv Level) []error {
 					errs = append(errs, fmt.Errorf("row %d: the current slides the hero a cell in %d ticks, want %d", r, t, CrossOpenTicks))
 				}
 			}
-			if lv.Events[StormFront].Beat > 0 && !holdsAPush(l, heronCells(lv)) {
+			if lv.Events[StormFront].Beat > 0 && !holdsAPush(l, bitesOf(lv)) {
 				errs = append(errs, fmt.Errorf("row %d: no platform two cells long that always holds, to take the wind's push", r))
 			}
 			below := lv.Lanes[r+1]
@@ -112,7 +119,7 @@ func crossingProblems(lv Level) []error {
 				}
 			}
 			for _, s := range l.Pattern {
-				if lv.Stalk && slices.Contains(Logs(), s.Entity) && s.Entity.Length/Cell <= heronCells(lv) {
+				if lv.Stalk && slices.Contains(Logs(), s.Entity) && s.Entity.Length/Cell <= bitesOf(lv).log {
 					errs = append(errs, fmt.Errorf("row %d: a %s has no cell out of a stalking heron's reach", r, s.Entity.ID))
 				}
 			}
@@ -129,7 +136,7 @@ func crossingProblems(lv Level) []error {
 						best = 0 // a safe row, or the bank's nooks, is right there
 						break
 					}
-					if w, ok := boardTicksFrom(a, l, heronCells(lv)); ok && (best < 0 || w < best) {
+					if w, ok := boardTicksFrom(a, l, bitesOf(lv)); ok && (best < 0 || w < best) {
 						best = w
 					}
 				}
@@ -147,7 +154,7 @@ const fieldUnits = Cols * Cell * SubPx
 // boardTicks is the longest a hero in the row below row r may wait for a
 // platform in row r to come under it, and whether one ever does.
 func boardTicks(lv Level, r int, below Lane) (int, bool) {
-	return boardTicksFrom(lv.Lanes[r], below, heronCells(lv))
+	return boardTicksFrom(lv.Lanes[r], below, bitesOf(lv))
 }
 
 // boardTicksFrom is the longest a hero riding in lane from (or standing,
@@ -155,8 +162,8 @@ func boardTicks(lv Level, r int, below Lane) (int, bool) {
 // will hold it, and whether one ever comes.
 // On a row with a current the hero may move at its platform's speed or
 // slide along with the current, so the slower of the two meetings counts.
-func boardTicksFrom(to, from Lane, herons int) (int, bool) {
-	water, ok := widestWater(to, herons)
+func boardTicksFrom(to, from Lane, b bites) (int, bool) {
+	water, ok := widestWater(to, b)
 	if !ok {
 		return 0, false
 	}
@@ -192,26 +199,31 @@ func rideSpeed(lv Level, l Lane) int {
 	return worst
 }
 
-// heronCells is how many cells of a log a heron can make deadly at once on
-// level lv: its own, and the one it jabs where herons strike (D34, D67).
-func heronCells(lv Level) int {
+// bites is how many cells of a platform that always holds a predator can
+// make deadly at once: of a log, and of a ship that never sinks.
+type bites struct{ log, ship int }
+
+// bitesOf is the bites on level lv: a heron's cell on a log, and the one
+// it jabs where herons strike (D34, D67); and where water rats swim, the
+// front cell of a ship. A rat never swims for a log with a heron on it, so
+// a log loses no more to one (D69).
+func bitesOf(lv Level) bites {
+	b := bites{log: 1}
 	if lv.Strike {
-		return 2
+		b.log = 2
 	}
-	return 1
+	if lv.Rats {
+		b.ship = 1
+	}
+	return b
 }
 
 // holdsAPush reports whether river lane l has a platform at least two
-// cells long that always holds the hero: not one that dives or sinks, and
-// for a log, still two cells with herons cells of it deadly (D34, D47,
-// D67).
-func holdsAPush(l Lane, herons int) bool {
+// cells long that always holds the hero: not one that dives or sinks,
+// still two cells with b's cells of it deadly (D34, D47, D67, D69).
+func holdsAPush(l Lane, b bites) bool {
 	for _, s := range l.Pattern {
-		n := s.Entity.Length
-		if s.Entity == LogShort || s.Entity == LogLong {
-			n -= herons * Cell
-		}
-		if !s.Dives && !s.Sinks && n >= 2*Cell {
+		if !s.Dives && !s.Sinks && steadyLength(s, b) >= 2*Cell {
 			return true
 		}
 	}
@@ -225,25 +237,31 @@ func abs(n int) int {
 	return n
 }
 
+// steadyLength is how much of platform s always holds, in pixels, with
+// b's cells of it deadly: none of a platform that dives or sinks.
+func steadyLength(s Spawn, b bites) int {
+	switch {
+	case s.Dives || s.Sinks:
+		return 0
+	case s.Entity == LogShort || s.Entity == LogLong:
+		return s.Entity.Length - b.log*Cell
+	case s.Entity == Barge || s.Entity == Ferry:
+		return s.Entity.Length - b.ship*Cell
+	}
+	return s.Entity.Length
+}
+
 // widestWater is the widest stretch, in pixels, along river lane l with no
 // platform that will hold the hero, in the worst case: diving pads and
-// sinking ships are under, and each log has a heron on an end cell. It
-// reports false if no platform always holds.
-func widestWater(l Lane, herons int) (int, bool) {
+// sinking ships are under, each log has a heron on an end cell, and where
+// water rats swim, each steady ship has one at its front (b). It reports
+// false if no platform always holds.
+func widestWater(l Lane, b bites) (int, bool) {
 	n := len(l.Pattern)
-	steady := func(s Spawn) int { // how much of it always holds
-		switch {
-		case s.Dives || s.Sinks:
-			return 0
-		case s.Entity == LogShort || s.Entity == LogLong:
-			return s.Entity.Length - herons*Cell
-		}
-		return s.Entity.Length
-	}
 	widest, run, any := 0, 0, false
 	for i := range 2 * n { // twice round, so a stretch across the pattern's end counts
 		s := l.Pattern[i%n]
-		if h := steady(s); h >= Cell {
+		if h := steadyLength(s, b); h >= Cell {
 			any = true
 			widest = max(widest, run)
 			run = s.Entity.Length - h + s.Gap

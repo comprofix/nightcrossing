@@ -78,6 +78,10 @@ func (p *Play) effects(e world.Event) {
 		p.parts.Emit(at(feathers, x, y))
 	case world.Snatched:
 		p.parts.Emit(at(bumpDust, x, y)) // a scuffle in the nook (D68)
+	case world.Nipped:
+		p.parts.Emit(at(splashDrops, x, y)) // pulled under (D69)
+	case world.Bitten:
+		p.parts.Emit(at(bumpDust, x, y)) // a scuffle in the grass (D70)
 	case world.Goal:
 		if n := world.NookAt(pl.Col); n >= 0 {
 			nx := cellX(config.Nooks[n]) + float64(config.NookWidth*config.Cell)/2

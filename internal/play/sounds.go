@@ -155,7 +155,7 @@ var (
 	}}
 )
 
-// The predators' sounds (D67, D68). Each warning is quiet and short, so it
+// The predators' sounds (D67–D70). Each warning is quiet and short, so it
 // never covers a cue, but plain enough to hear coming.
 var (
 	// Clack is a heron cocking its head, the warning before it strikes: two
@@ -179,6 +179,44 @@ var (
 	Snarl = &audio.Effect{Name: "snarl", Channel: 1, Priority: 4, Part: audio.Part{
 		Voice: audio.Voice{Wave: audio.Pulse12, Decay: audio.Ticks(16), Sustain: 0.4, Release: audio.Ticks(8), Volume: 0.7},
 		Notes: audio.Notes("E4:4 G4:3 D4:6 A3:12"),
+	}}
+	// Burble is a water rat coming up: a few soft bubbles, rising.
+	Burble = &audio.Effect{Name: "burble", Channel: 2, Priority: 2, Part: audio.Part{
+		Voice: audio.Voice{Wave: audio.Triangle, Decay: audio.Ticks(3), Release: audio.Ticks(2), Volume: 0.4},
+		Notes: audio.Notes("G4:2 -:3 C5:2 -:2 E5:2 -:2 A5:3"),
+	}}
+	// Scrabble is a water rat grabbing the end of its platform: claws on
+	// wood, three quick scratches.
+	Scrabble = &audio.Effect{Name: "scrabble", Channel: 3, Priority: 3, Part: audio.Part{
+		Voice: audio.Voice{Wave: audio.Noise, Decay: audio.Ticks(3), Release: audio.Ticks(1), Volume: 0.45},
+		Notes: []audio.Note{{Hz: 3000, Dur: audio.Ticks(3)}, audio.Rest(2), {Hz: 2600, Dur: audio.Ticks(3)}, audio.Rest(2), {Hz: 3200, Dur: audio.Ticks(3)}},
+	}}
+	// Plop is a water rat letting go and diving: a small drop.
+	Plop = &audio.Effect{Name: "plop", Channel: 2, Priority: 2, Part: audio.Part{
+		Voice: audio.Voice{Wave: audio.Triangle, Decay: audio.Ticks(6), Release: audio.Ticks(3), Volume: 0.4},
+		Notes: audio.Notes("A5:2 D5:6"),
+	}}
+	// Squeak is a water rat nipping the hero: a sharp chitter, then the
+	// splash as it is pulled under.
+	Squeak = &audio.Effect{Name: "squeak", Channel: 1, Priority: 4, Part: audio.Part{
+		Voice: audio.Voice{Wave: audio.Pulse12, Decay: audio.Ticks(4), Sustain: 0.4, Release: audio.Ticks(4), Volume: 0.6},
+		Notes: audio.Notes("E7:2 C7:2 E7:2 C7:2 G6:6"),
+	}}
+	// Hiss is the snake coming out on the verge: a long hiss, rising then
+	// trailing away. HissSoft is the snake turning at an end of its
+	// stretch: a shorter, quieter one, so it is heard while it is out.
+	Hiss = &audio.Effect{Name: "hiss", Channel: 3, Priority: 3, Part: audio.Part{
+		Voice: audio.Voice{Wave: audio.Noise, Attack: audio.Ticks(6), Sustain: 0.9, Release: audio.Ticks(16), Volume: 0.8},
+		Notes: []audio.Note{{Hz: 5000, Dur: audio.Ticks(12)}, {Hz: 6500, Dur: audio.Ticks(24)}, {Hz: 4500, Dur: audio.Ticks(12)}},
+	}}
+	HissSoft = &audio.Effect{Name: "hiss soft", Channel: 3, Priority: 2, Part: audio.Part{
+		Voice: audio.Voice{Wave: audio.Noise, Attack: audio.Ticks(4), Sustain: 0.8, Release: audio.Ticks(10), Volume: 0.55},
+		Notes: []audio.Note{{Hz: 6000, Dur: audio.Ticks(18)}, {Hz: 4500, Dur: audio.Ticks(8)}},
+	}}
+	// Strike is the snake biting the hero: a sharp hiss, then a thud.
+	Strike = &audio.Effect{Name: "snake strike", Channel: 3, Priority: 4, Part: audio.Part{
+		Voice: audio.Voice{Wave: audio.Noise, Decay: audio.Ticks(16), Release: audio.Ticks(4), Volume: 0.8},
+		Notes: []audio.Note{{Hz: 6500, Dur: audio.Ticks(5)}, {Hz: 3000, Dur: audio.Ticks(4)}, {Hz: 200, Dur: audio.Ticks(12)}},
 	}}
 )
 
@@ -239,7 +277,7 @@ var (
 // Sounds are the game's tunes and effects, listed for the sound test.
 var Sounds = audio.Bank{
 	Tunes:   []*audio.Tune{NightTitle, Stroll, BonusNight, LevelClearJingle, GameOverJingle, HighScores},
-	Effects: []*audio.Effect{ToadHop, Crash, Bump, Splash, Bubbles, Squawk, Home, OneUp, TimeLow, TimeUp, Bell, Horn, HornLow, Rumble, TrainCrash, ComboUp, HornChorus, HornChorusLow, FogHorn, Thunder, Skid, Howl, Whoosh, Rising, DistantThunder, ToadletPeep, ToadletCry, FireflyTwinkle, DragonflyBuzz, FruitPick, Slip, Blocked, Clack, Rustle, Yip, Snarl},
+	Effects: []*audio.Effect{ToadHop, Crash, Bump, Splash, Bubbles, Squawk, Home, OneUp, TimeLow, TimeUp, Bell, Horn, HornLow, Rumble, TrainCrash, ComboUp, HornChorus, HornChorusLow, FogHorn, Thunder, Skid, Howl, Whoosh, Rising, DistantThunder, ToadletPeep, ToadletCry, FireflyTwinkle, DragonflyBuzz, FruitPick, Slip, Blocked, Clack, Rustle, Yip, Snarl, Burble, Scrabble, Plop, Squeak, Hiss, HissSoft, Strike},
 }
 
 // soundsFor is the effects an event plays (DESIGN §3.4). The level clear
@@ -265,6 +303,22 @@ func (p *Play) soundsFor(e world.Event) []*audio.Effect {
 		return []*audio.Effect{Rustle}
 	case world.FoxIn:
 		return []*audio.Effect{Yip}
+	case world.Ripple:
+		return []*audio.Effect{Burble}
+	case world.RatGrabs:
+		return []*audio.Effect{Scrabble}
+	case world.RatDives:
+		return []*audio.Effect{Plop}
+	case world.Nipped:
+		return []*audio.Effect{Squeak, Splash}
+	case world.GrassRustles:
+		return []*audio.Effect{Rustle}
+	case world.SnakeTurns:
+		return []*audio.Effect{HissSoft}
+	case world.SnakeSlides:
+		return []*audio.Effect{Hiss}
+	case world.Bitten:
+		return []*audio.Effect{Strike}
 	case world.Struck:
 		return []*audio.Effect{TrainCrash}
 	case world.TrainComing:
