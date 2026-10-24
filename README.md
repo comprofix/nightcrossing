@@ -178,6 +178,16 @@ go test ./...
 CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags "-H=windowsgui" -o bin/nightcrossing.exe ./cmd/nightcrossing
 ```
 
+The window always shows the program icon. For Explorer to show it on the exe
+too, link it in before building:
+
+```sh
+go run ./cmd/winicon nightcrossing.ico
+go run github.com/akavel/rsrc@v0.10.2 -arch amd64 -ico nightcrossing.ico -o cmd/nightcrossing/rsrc_windows_amd64.syso
+```
+
+The `.syso` is only used by Windows amd64 builds.
+
 **Linux** (amd64) needs cgo and the X11/GL/ALSA development packages. On
 Debian or Ubuntu:
 
