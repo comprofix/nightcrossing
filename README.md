@@ -161,6 +161,21 @@ hazards and a lighter night).
 Settings and high scores are saved as `settings.json` and `scores.json` next
 to the game.
 
+## Download
+
+Builds for Windows and Linux (64-bit) are on the
+[Releases](https://github.com/comprofix/nightcrossing/releases) page, with
+`SHA256SUMS.txt` to check them against.
+
+- **Windows:** unzip `nightcrossing-vX.Y.Z-windows-amd64.zip` and run
+  `nightcrossing.exe`.
+- **Linux:** extract `nightcrossing-vX.Y.Z-linux-amd64.tar.gz` and run
+  `./nightcrossing`. It needs OpenGL, X11 and ALSA, which desktop systems
+  already have.
+
+Settings and high scores are saved in the folder the game is in, so keep it
+somewhere you can write to.
+
 ## Building
 
 Needs Go 1.27 or later.
