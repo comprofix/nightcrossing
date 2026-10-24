@@ -17,6 +17,7 @@ PLAN.md
 *.so
 *.dylib
 *.syso
+/nightcrossing.ico
 
 # Go test / profiling artefacts
 *.test
