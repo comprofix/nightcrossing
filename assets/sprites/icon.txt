@@ -1,0 +1,59 @@
+; Program icon: the toad's head against the full moon (DESIGN §3.5, D75).
+; Each size is drawn by hand and only ever enlarged in whole steps:
+; icon16 for 16 and 48 pixels, icon32 for 32, 64, 128 and 256.
+colours k=Ink N=Navy I=Indigo E=Lemon c=Lime w=White G=Emerald g=Forest l=Leaf y=Gold
+
+; The small icon.
+sprite icon16 16 16
+.NNNNNNNIIIIINN.
+NNNNNNNIIEEEIINN
+NNwNNNIEEEEEEEIN
+NNNNNNIEEcEEEEIN
+NNNNNwIEEEEEEEIN
+NNNNNNIEEEEEcEIN
+NNkkkNIEEEEkkkIN
+NkyyykIEEEkyyykN
+NkykykkkkkkykykN
+NkkkkGGllGGkkkkN
+kGGGGGkGGkGGGGGk
+kGkGGGGGGGGGGkGk
+kGGkkkkkkkkkkGGk
+kggllllllllllggk
+NkggggggggggggkN
+.NkkkkkkkkkkkkN.
+
+
+; The large icon, with pupils, shine and the moonlit rim.
+sprite icon32 32 32
+..NNNNNNNNNNNNNNNNNNNNNNNNNNNN..
+.NNNNNNNNNNNNNNNNNIIIIIINNNNNNN.
+NNNNNNNNNNNNNNwNIIEEEEEEIINNNNNN
+NNNwNNNNNNNNNNNIEEEEEEEEEEINNNNN
+NNNNNNNNNNNNNNIEEEEEEEEEEEEINNNN
+NNNNNNNNNNNNNIEEEEEEEEEEEEEEINNN
+NNNNNNNNNwNNNIEEEEccEEEEEEEEINNN
+NNNNNNNNNNNNIEEEEEEEEEEEEEEEEINN
+NNNNNNNNNNNNIEEEEEEEEEEEcEEEEINN
+NNNNNNNNNNNNIEEEEEEEEEEEccEEEINN
+NNNNNNNNNNNNIEEEEEEEEEEEEEEEEINN
+NNNNwNNNNNNNIEEEEcEEEEEEEEEEEINN
+NNNNNNNNNNNNIEEEEEEEEEEEEEEEEINN
+NNNNNNkkkkkNNIEEEEEEEkkkkkEEINNN
+NNNNNkyyyyykNIEEEEEEkyyyyykEINNN
+NNNNkyyyyyyykNIEEEEkyyyyyyykNNNN
+NNNNkyywkkyykNNIEEEkyywkkyykNNNN
+NNNNkyykkkyykkkkkkkkyykkkyykNNNN
+NNNkkyyyyyyykGllllGkyyyyyyykkNNN
+NNkGGkyyyyykGGGGGGGGkyyyyykGGkNN
+NNkGGGkkkkkGGGGGGGGGGkkkkkGGGkNN
+NkgGGGGGGGGGGGGGGGGGGGGGGGGGGgkN
+NkgGGGGGGGGGGGkGGkGGGGGGGGGGGgkN
+kggGGGGGGGGGGGGGGGGGGGGGGGGGGggk
+kggkGGGGGGGGGGGGGGGGGGGGGGGGkggk
+kgggkkkkkkkkkkkkkkkkkkkkkkkkgggk
+kgggllllllllllllllllllllllllgggk
+kggggllllllllllllllllllllllggggk
+kggggggllllllllllllllllllggggggk
+kggggggggggggggggggggggggggggggk
+.kggggggggggggggggggggggggggggk.
+..kkkkkkkkkkkkkkkkkkkkkkkkkkkk..

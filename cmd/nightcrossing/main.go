@@ -15,6 +15,7 @@ import (
 	"github.com/comprofix/nightcrossing/internal/config"
 	"github.com/comprofix/nightcrossing/internal/debug"
 	"github.com/comprofix/nightcrossing/internal/game"
+	"github.com/comprofix/nightcrossing/internal/icon"
 	"github.com/comprofix/nightcrossing/internal/score"
 )
 
@@ -56,6 +57,11 @@ func main() {
 	}
 
 	ebiten.SetWindowTitle(config.Title)
+	icons, err := icon.Images()
+	if err != nil {
+		log.Fatal(err)
+	}
+	ebiten.SetWindowIcon(icons)
 	ebiten.SetWindowSize(saved.Settings.WindowW, saved.Settings.WindowH)
 	minW, minH := p.MinWindow()
 	ebiten.SetWindowSizeLimits(minW, minH, config.MaxWindowW, config.MaxWindowH)
