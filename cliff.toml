@@ -3,7 +3,9 @@
 #
 #	git cliff --unreleased                                      # preview the next section
 #	git cliff --unreleased --tag vX.Y.Z --prepend CHANGELOG.md  # add it before tagging
-#	git cliff --current --strip all                             # the tagged version's notes, for a release
+#
+# A release's notes are its section of CHANGELOG.md as committed, so tidy
+# the wording before the release commit (.github/workflows/release.yml).
 #
 # Versions up to 1.10.0 came before Conventional Commits and are written
 # by hand in CHANGELOG.md, so never regenerate the whole file.
