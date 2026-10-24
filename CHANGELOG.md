@@ -5,6 +5,15 @@ All notable changes to Night Crossing are listed here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.0](https://github.com/comprofix/nightcrossing/compare/v1.10.0...v1.11.0) - 2026-10-25
+
+### Added
+
+- A program icon: the toad's head against the full moon, on the window,
+  the taskbar and Alt-Tab, and on the Windows exe in Explorer.
+- Release builds: a Windows zip and a Linux tarball on each GitHub
+  release, with checksums.
+
 ## [1.10.0](https://github.com/comprofix/nightcrossing/compare/v1.9.0...v1.10.0) - 2026-10-18
 
 ### Added
