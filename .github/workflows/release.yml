@@ -1,7 +1,7 @@
-# Builds a release when a version tag such as v1.11.0 is pushed: checks,
-# a Windows zip and a Linux tarball, and a GitHub release holding both with
-# that version's notes from CHANGELOG.md. Everything runs on Ubuntu; the
-# Windows build needs no cgo, so it is cross-built.
+# Builds a release when a version tag such as v1.11.0 is pushed: checks on
+# Linux and Windows, a Windows zip and a Linux tarball, and a GitHub release
+# holding both with that version's notes from CHANGELOG.md. The builds run
+# on Ubuntu; the Windows build needs no cgo, so it is cross-built.
 name: Release
 
 on:
@@ -18,18 +18,25 @@ env:
     libxrandr-dev libxxf86vm-dev libasound2-dev pkg-config
 
 jobs:
+  # The tests run on Windows as well as Linux, as the game is played on
+  # both, even though the Windows build itself is made on Ubuntu.
   check:
-    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
       - name: Install Linux dev packages
+        if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y $LINUX_DEPS
       - run: go vet ./...
       - run: go test ./...
       - name: Check generated sprite sheets are up to date
+        if: runner.os == 'Linux'
         run: |
           go generate ./assets
           git diff --exit-code
