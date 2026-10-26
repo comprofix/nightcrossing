@@ -3,8 +3,6 @@ package play
 import (
 	"math"
 
-	"github.com/hajimehoshi/ebiten/v2"
-
 	"github.com/comprofix/nightcrossing/internal/config"
 	"github.com/comprofix/nightcrossing/internal/fx"
 	"github.com/comprofix/nightcrossing/internal/gfx"
@@ -36,45 +34,44 @@ func heronFlashing(e world.Entity) bool {
 	return e.Cock > 0 && (e.Cock/config.DiveFlashTicks)%2 == 0
 }
 
-// heronSprite is how heron e is drawn: its sprite, frame and facing
+// heronSprite is how heron e is drawn: its sprite's name, frame and facing
 // (DESIGN §5.2, D34, D67).
-func heronSprite(ctx *scene.Context, e world.Entity) (*gfx.Sprite, int, bool) {
-	sheet := ctx.Sheet(Sheet)
-	sp, frame := sheet.Sprite("heron"), heronStand
+func heronSprite(e world.Entity) (string, int, bool) {
+	name, frame := "heron", heronStand
 	switch {
 	case e.Jab > 0:
 		frame = heronReach
 	case e.Cock > 0:
 		frame = heronCock
 		if heronFlashing(e) {
-			sp = sheet.Sprite("heron_flash")
+			name = "heron_flash"
 		}
 	case e.Stride > 0:
 		frame = heronStep
 	}
-	return sp, frame, e.HeronDir < 0
+	return name, frame, e.HeronDir < 0
 }
 
-// eachHeron calls draw with the frame, place and facing of each heron on
-// row r, and of the head of each one jabbing, in the cell it faces.
-func (p *Play) eachHeron(ctx *scene.Context, r int, draw func(img *ebiten.Image, x, y float64, flip bool)) {
+// eachHeron calls draw with each heron on row r, and the head of each one
+// jabbing, in the cell it faces.
+func (p *Play) eachHeron(r int, draw func(pc piece)) {
 	lane := &p.world.Lanes[r]
-	jab := ctx.Sheet(Sheet).Sprite("heron_jab")
 	for _, e := range lane.Entities {
 		if !e.Heron {
 			continue
 		}
-		sp, frame, flip := heronSprite(ctx, e)
+		name, frame, flip := heronSprite(e)
 		x := float64(config.FieldX) + math.Floor(float64(e.X()+e.HeronX())/config.SubPx)
-		draw(sp.Frame(frame), x, cellY(r), flip)
+		draw(piece{name: name, frame: frame, x: x, y: cellY(r), flip: flip})
 		if e.Jab > 0 {
-			draw(jab.Frame(0), x+float64(e.HeronDir*config.Cell), cellY(r), flip)
+			draw(piece{name: "heron_jab", x: x + float64(e.HeronDir*config.Cell), y: cellY(r), flip: flip})
 		}
 	}
 }
 
-// drawFox draws the fox in its nook, or only its eyes as it comes (D68).
-func (p *Play) drawFox(ctx *scene.Context, dst *ebiten.Image) {
+// eachFox calls draw with the fox in its nook, or only its eyes as it
+// comes (D68), if it is out.
+func (p *Play) eachFox(ctx *scene.Context, draw func(pc piece)) {
 	f := p.world.Fox
 	if f.Phase == world.FoxAway {
 		return
@@ -85,7 +82,7 @@ func (p *Play) drawFox(ctx *scene.Context, dst *ebiten.Image) {
 	}
 	sp := ctx.Sheet(Sheet).Sprite(name)
 	x := cellX(config.Nooks[f.Nook]) + float64(config.NookWidth*config.Cell-sp.W)/2
-	sp.Draw(dst, 0, x, cellY(config.GoalRow), false)
+	draw(piece{name: name, x: x, y: cellY(config.GoalRow)})
 }
 
 // addFoxLight adds the glow of a fox's eyes in a nook, and of the fox, so

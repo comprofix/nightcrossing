@@ -94,13 +94,13 @@ func (p *Play) pickXY(sp *gfx.Sprite, i int) (x, y float64) {
 	return x, cellY(w.Picks[i].Row) + float64(config.Cell-sp.H)/2
 }
 
-// drawPicks draws the fruit still to be collected.
-func (p *Play) drawPicks(ctx *scene.Context, dst *ebiten.Image) {
+// eachPick calls draw with each fruit still to be collected.
+func (p *Play) eachPick(ctx *scene.Context, draw func(pc piece)) {
 	sp := ctx.Sheet(Sheet).Sprite("fruit")
 	for i, pk := range p.world.Picks {
 		if p.world.Showing(i) {
 			x, y := p.pickXY(sp, i)
-			sp.Draw(dst, min(pk.Fruit, sp.Frames()-1), x, y, false)
+			draw(piece{name: "fruit", frame: min(pk.Fruit, sp.Frames()-1), x: x, y: y})
 		}
 	}
 }

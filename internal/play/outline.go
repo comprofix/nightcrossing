@@ -73,14 +73,11 @@ func (p *Play) drawSmoothOutlines(ctx *scene.Context, dst *ebiten.Image, k int) 
 // each piece of a vehicle and of the train, each heron, and each water rat
 // and snake.
 func (p *Play) eachHazard(ctx *scene.Context, draw func(pc piece)) {
-	sprite := func(img *ebiten.Image, x, y float64, flip bool) {
-		draw(piece{img: img, x: x, y: y, flip: flip})
-	}
 	p.eachTrainPiece(ctx, draw)
-	p.eachProwler(ctx, sprite)
+	p.eachProwler(ctx, draw)
 	p.eachSiren(ctx, draw)
 	for r := range p.world.Lanes {
-		p.eachHeron(ctx, r, sprite)
+		p.eachHeron(r, draw)
 		if p.world.Lanes[r].Kind == config.Road {
 			p.eachEntityPiece(ctx, r, draw)
 		}

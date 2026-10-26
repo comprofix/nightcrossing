@@ -114,15 +114,16 @@ func (p *Play) drawField(ctx *scene.Context, dst *ebiten.Image) {
 	p.addLights(ctx, p.light)
 	p.light.Draw(dst, 0, 0)
 	out := dst.SubImage(image.Rectangle{Min: bounds.Min.Mul(k), Max: bounds.Max.Mul(k)}).(*ebiten.Image)
-	p.inPixels(out, k, func(img *ebiten.Image) {
-		over := img.SubImage(bounds).(*ebiten.Image)
-		p.drawFlyer(ctx, over)
-		if ctx.Settings.HighContrast && k == 1 {
-			p.drawOutlines(ctx, over)
+	if k == 1 {
+		p.eachFlyer(ctx, func(pc piece) { drawPiece(ctx, out, pc) })
+		if ctx.Settings.HighContrast {
+			p.drawOutlines(ctx, out)
 		}
-	})
-	if ctx.Settings.HighContrast && k > 1 {
-		p.drawSmoothOutlines(ctx, out, k)
+	} else {
+		p.eachFlyer(ctx, func(pc piece) { p.drawSmoothPiece(ctx, out, pc, k) })
+		if ctx.Settings.HighContrast {
+			p.drawSmoothOutlines(ctx, out, k)
+		}
 	}
 	p.drawRain(out, k)
 	p.drawWind(out, k)
@@ -170,28 +171,30 @@ func (p *Play) drawGround(ctx *scene.Context, field *ebiten.Image) {
 
 // drawSmoothMoving draws what drawMoving does, and the nooks' other things,
 // in the smooth look on field, lit's field at scale k: the vehicles,
-// platforms, the emergency vehicle and the train in their smooth art, and
-// between them, in the same order, what is still pixel art, enlarged.
+// platforms, predators, fruit, the emergency vehicle and the train in their
+// smooth art, and between them, in the same order, what is still pixel
+// art, enlarged.
 func (p *Play) drawSmoothMoving(ctx *scene.Context, lit, field *ebiten.Image, bounds image.Rectangle, k int) {
 	w := p.world
 	draw := func(pc piece) { p.drawSmoothPiece(ctx, field, pc, k) }
 	for r := range w.Lanes {
 		p.eachEntityPiece(ctx, r, draw)
 	}
+	for r := range w.Lanes {
+		if w.Lanes[r].Kind == config.Bank {
+			p.inPixels(lit, k, func(art *ebiten.Image) { p.drawSchoolSigns(ctx, art.SubImage(bounds).(*ebiten.Image), r) })
+			p.eachNookThing(ctx, draw)
+		}
+		p.eachHeron(r, draw)
+	}
+	p.drawSmoothProwl(ctx, field, k)
 	p.inPixels(lit, k, func(art *ebiten.Image) {
 		field := art.SubImage(bounds).(*ebiten.Image)
-		for r := range w.Lanes {
-			if w.Lanes[r].Kind == config.Bank {
-				p.drawNookThings(ctx, field, r)
-			}
-			p.drawHerons(ctx, field, r)
-		}
-		p.drawProwl(ctx, field)
 		p.drawParked(ctx, field)
 		p.drawYard(ctx, field)
-		p.drawPicks(ctx, field)
-		p.drawSweepers(ctx, field)
 	})
+	p.eachPick(ctx, draw)
+	p.inPixels(lit, k, func(art *ebiten.Image) { p.drawSweepers(ctx, art.SubImage(bounds).(*ebiten.Image)) })
 	p.eachSiren(ctx, draw)
 	p.eachTrainPiece(ctx, draw)
 	p.inPixels(lit, k, func(art *ebiten.Image) {
@@ -206,14 +209,15 @@ func (p *Play) drawSmoothMoving(ctx *scene.Context, lit, field *ebiten.Image, bo
 // mist.
 func (p *Play) drawMoving(ctx *scene.Context, field *ebiten.Image) {
 	w := p.world
+	draw := func(pc piece) { drawPiece(ctx, field, pc) }
 	for r := range w.Lanes {
 		p.drawEntities(ctx, field, r)
-		p.drawHerons(ctx, field, r)
+		p.eachHeron(r, draw)
 	}
 	p.drawProwl(ctx, field) // the water rats and the snake (D69, D70)
 	p.drawParked(ctx, field)
 	p.drawYard(ctx, field)
-	p.drawPicks(ctx, field)
+	p.eachPick(ctx, draw)
 	p.drawSweepers(ctx, field)
 	p.drawSiren(ctx, field) // an emergency vehicle coming through (DESIGN §6.9)
 	p.drawTrain(ctx, field)
@@ -531,7 +535,8 @@ func (p *Play) drawBank(ctx *scene.Context, dst *ebiten.Image, r int) {
 		nook.Draw(dst, 0, cellX(c), cellY(r), false)
 	}
 	p.drawNookToads(ctx, dst, r)
-	p.drawNookThings(ctx, dst, r)
+	p.drawSchoolSigns(ctx, dst, r)
+	p.eachNookThing(ctx, func(pc piece) { drawPiece(ctx, dst, pc) })
 }
 
 // drawNookToads draws a toad sitting in each nook of bank row r that has
@@ -555,22 +560,28 @@ func (p *Play) homeToads(w int) []float64 {
 	return xs
 }
 
-// drawNookThings draws what else is in and by the nooks of bank row r: the
-// school signs, the fruit and the fox.
-func (p *Play) drawNookThings(ctx *scene.Context, dst *ebiten.Image, r int) {
-	sheet := ctx.Sheet(Sheet)
-	sign := sheet.Sprite("schoolsign")
+// drawSchoolSigns draws a school sign by each nook of bank row r on the
+// school gates' bonus level (DESIGN §6.7).
+func (p *Play) drawSchoolSigns(ctx *scene.Context, dst *ebiten.Image, r int) {
+	if b := p.world.Level.Bonus; b == nil || !b.Gates {
+		return
+	}
+	sign := ctx.Sheet(Sheet).Sprite("schoolsign")
 	for _, c := range config.Nooks {
-		if b := p.world.Level.Bonus; b != nil && b.Gates { // a school sign by each nook (DESIGN §6.7)
-			sign.Draw(dst, 0, cellX(c)-float64(sign.W+1), cellY(r)+float64(config.Cell-sign.H), false)
-		}
+		sign.Draw(dst, 0, cellX(c)-float64(sign.W+1), cellY(r)+float64(config.Cell-sign.H), false)
 	}
+}
+
+// eachNookThing calls draw with what else is in the nooks: the fruit and
+// the fox.
+func (p *Play) eachNookThing(ctx *scene.Context, draw func(pc piece)) {
 	if n := p.world.FruitNook; n >= 0 {
-		fruit := sheet.Sprite("fruit")
+		fruit := ctx.Sheet(Sheet).Sprite("fruit")
 		x := cellX(config.Nooks[n]) + float64(config.NookWidth*config.Cell-fruit.W)/2
-		fruit.Draw(dst, min(p.world.Level.Fruit, fruit.Frames()-1), x, cellY(r)+float64(config.Cell-fruit.H)/2, false)
+		draw(piece{name: "fruit", frame: min(p.world.Level.Fruit, fruit.Frames()-1), x: x,
+			y: cellY(config.GoalRow) + float64(config.Cell-fruit.H)/2})
 	}
-	p.drawFox(ctx, dst)
+	p.eachFox(ctx, draw)
 }
 
 // How the firefly or dragonfly moves its wings and body (D58): a fast
@@ -621,25 +632,21 @@ func (p *Play) flyer(ctx *scene.Context, f *world.Flyer) (sp *gfx.Sprite, frame 
 	return sp, frame, x, y, f.Facing < 0
 }
 
-// drawFlyer draws the firefly or dragonfly, if one is visiting, and a
-// bonus level's fireflies (D61), above
-// everything on the river: it flies over the hero too (D58). It is drawn
-// after the lighting, in its own colours: a firefly makes its own light,
-// and the night's glow would blur it into a blob.
-func (p *Play) drawFlyer(ctx *scene.Context, dst *ebiten.Image) {
+// eachFlyer calls draw with the firefly or dragonfly, if one is visiting,
+// and a bonus level's fireflies (D61). They are drawn above everything on
+// the river: one flies over the hero too (D58). They are drawn after the
+// lighting, in their own colours: a firefly makes its own light, and the
+// night's glow would blur it into a blob.
+func (p *Play) eachFlyer(ctx *scene.Context, draw func(pc piece)) {
 	for _, fl := range p.flyers() {
 		if sp, frame, x, y, flip := p.flyer(ctx, fl); sp != nil {
-			sp.Draw(dst, frame, x, y, flip)
+			name := p.hero.Pickup
+			if fl.Day {
+				name = p.hero.DayPickup
+			}
+			draw(piece{name: name, frame: frame, x: x, y: y, flip: flip})
 		}
 	}
-}
-
-// drawHerons draws the herons on row r's logs: standing, facing the way
-// the logs move, or stalking and striking (DESIGN §5.2, D34, D67).
-func (p *Play) drawHerons(ctx *scene.Context, dst *ebiten.Image, r int) {
-	p.eachHeron(ctx, r, func(img *ebiten.Image, x, y float64, flip bool) {
-		dst.DrawImage(img, &ebiten.DrawImageOptions{GeoM: spriteGeoM(img, x, y, flip)})
-	})
 }
 
 // lampHeadY is how far down a lamp sprite its glowing head is, in pixels.
