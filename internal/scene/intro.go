@@ -40,11 +40,11 @@ func (s *Intro) Draw(ctx *Context, dst *ebiten.Image) {
 	sc, f := ctx.Scheme, ctx.Fonts
 	m := ctx.ModeList()[s.mode]
 	dst.Fill(gfx.RGBA(sc.Backdrop))
-	line := f.Small.Size + ui.LineGap
+	line := f.Small.Size() + ui.LineGap
 
-	y := f.Large.Size
+	y := f.Large.Size()
 	ui.TextCentred(dst, f.Large, strings.ToUpper(m.Name), y, sc.Title, sc.Shadow)
-	y += f.Large.Size + line
+	y += f.Large.Size() + line
 	ui.TextCentred(dst, f.Small, m.Desc, y, sc.Text, sc.Shadow)
 	y += 2 * line
 
@@ -53,21 +53,21 @@ func (s *Intro) Draw(ctx *Context, dst *ebiten.Image) {
 	for _, n := range m.New {
 		nameW = max(nameW, f.Small.Width(n.Name))
 	}
-	descX := 3*f.Small.Size + nameW + 2*f.Small.Size
+	descX := 3*f.Small.Size() + nameW + 2*f.Small.Size()
 	w := f.Small.Width("NEW IN THIS MODE")
 	for _, n := range m.New {
 		w = max(w, descX+f.Small.Width(n.Desc))
 	}
 	for _, a := range m.Also {
-		w = max(w, 2*f.Small.Size+f.Small.Width(a))
+		w = max(w, 2*f.Small.Size()+f.Small.Width(a))
 	}
 	x := (config.Project.ScreenWidth - w) / 2
 
 	f.Small.DrawShadowed(dst, "NEW IN THIS MODE", x, y, sc.Title, sc.Shadow)
 	y += line
 	for _, n := range m.New {
-		f.Small.DrawShadowed(dst, ">", x+f.Small.Size, y, sc.Dim, sc.Shadow)
-		f.Small.DrawShadowed(dst, n.Name, x+3*f.Small.Size, y, sc.Highlight, sc.Shadow)
+		f.Small.DrawShadowed(dst, ">", x+f.Small.Size(), y, sc.Dim, sc.Shadow)
+		f.Small.DrawShadowed(dst, n.Name, x+3*f.Small.Size(), y, sc.Highlight, sc.Shadow)
 		f.Small.DrawShadowed(dst, n.Desc, x+descX, y, sc.Text, sc.Shadow)
 		y += line
 	}
@@ -76,7 +76,7 @@ func (s *Intro) Draw(ctx *Context, dst *ebiten.Image) {
 		f.Small.DrawShadowed(dst, "ALSO", x, y, sc.Title, sc.Shadow)
 		y += line
 		for _, a := range m.Also {
-			f.Small.DrawShadowed(dst, a, x+2*f.Small.Size, y, sc.Text, sc.Shadow)
+			f.Small.DrawShadowed(dst, a, x+2*f.Small.Size(), y, sc.Text, sc.Shadow)
 			y += line
 		}
 	}
@@ -92,5 +92,5 @@ func (s *Intro) Draw(ctx *Context, dst *ebiten.Image) {
 		f.Small.DrawShadowed(dst, c, x+w-f.Small.Width(c), y, sc.Highlight, sc.Shadow)
 	}
 
-	ui.TextCentred(dst, f.Small, "ENTER: PLAY   ESC: BACK", config.Project.ScreenHeight-2*f.Small.Size, sc.Dim, sc.Shadow)
+	ui.TextCentred(dst, f.Small, "ENTER: PLAY   ESC: BACK", config.Project.ScreenHeight-2*f.Small.Size(), sc.Dim, sc.Shadow)
 }

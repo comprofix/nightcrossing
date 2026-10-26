@@ -20,20 +20,20 @@ const SliderCells = 10
 
 // Size returns the menu's width and height in font's pixels, including the
 // cursor's column.
-func (m *Menu) Size(font *gfx.Font) (w, h int) {
+func (m *Menu) Size(font gfx.Font) (w, h int) {
 	col := m.sliderColumn(font)
 	for i, it := range m.Items {
 		if it.Slider != nil {
-			w = max(w, col+(SliderCells+1)*font.Size+font.Width("100%"))
+			w = max(w, col+(SliderCells+1)*font.Size()+font.Width("100%"))
 		} else {
 			w = max(w, font.Width(m.Text(i)))
 		}
 	}
-	w += 2 * font.Size // the "> " cursor
+	w += 2 * font.Size() // the "> " cursor
 	if m.Scrolls() {
-		w += 2 * font.Size // the " ^" marks
+		w += 2 * font.Size() // the " ^" marks
 	}
-	return w, m.Shown()*(font.Size+LineGap) - LineGap
+	return w, m.Shown()*(font.Size()+LineGap) - LineGap
 }
 
 // Draw draws the menu with its top-left corner at (x, y): disabled items in
@@ -42,12 +42,12 @@ func (m *Menu) Size(font *gfx.Font) (w, h int) {
 // scrolls shows the items around the cursor, with a "^" at the right of
 // the top line while there are more above, and a "v" at the bottom while
 // there are more below.
-func (m *Menu) Draw(dst *ebiten.Image, font *gfx.Font, x, y int, sc gfx.Scheme) {
+func (m *Menu) Draw(dst *ebiten.Image, font gfx.Font, x, y int, sc gfx.Scheme) {
 	col := m.sliderColumn(font)
 	first, n := m.First(), m.Shown()
 	if m.Scrolls() {
 		w, _ := m.Size(font)
-		mx, line := x+w-font.Size, font.Size+LineGap
+		mx, line := x+w-font.Size(), font.Size()+LineGap
 		if first > 0 {
 			font.DrawShadowed(dst, "^", mx, y, sc.Dim, sc.Shadow)
 		}
@@ -64,27 +64,27 @@ func (m *Menu) Draw(dst *ebiten.Image, font *gfx.Font, x, y int, sc gfx.Scheme) 
 			c = sc.Highlight
 			font.DrawShadowed(dst, ">", x, y, c, sc.Shadow)
 		}
-		tx := x + 2*font.Size
+		tx := x + 2*font.Size()
 		if s := m.Items[i].Slider; s != nil {
 			v := min(max(s(), 0), 1)
 			font.DrawShadowed(dst, m.Items[i].Label, tx, y, c, sc.Shadow)
 			bx := tx + col
-			drawSlider(dst, bx, y, SliderCells*font.Size, font.Size, v, c, sc)
-			font.DrawShadowed(dst, percent(v), bx+(SliderCells+1)*font.Size, y, c, sc.Shadow)
+			drawSlider(dst, bx, y, SliderCells*font.Size(), font.Size(), v, c, sc)
+			font.DrawShadowed(dst, percent(v), bx+(SliderCells+1)*font.Size(), y, c, sc.Shadow)
 		} else {
 			font.DrawShadowed(dst, m.Text(i), tx, y, c, sc.Shadow)
 		}
-		y += font.Size + LineGap
+		y += font.Size() + LineGap
 	}
 }
 
 // sliderColumn is where sliders start, after the longest slider label and a
 // space, relative to the labels.
-func (m *Menu) sliderColumn(font *gfx.Font) int {
+func (m *Menu) sliderColumn(font gfx.Font) int {
 	col := 0
 	for _, it := range m.Items {
 		if it.Slider != nil {
-			col = max(col, font.Width(it.Label)+font.Size)
+			col = max(col, font.Width(it.Label)+font.Size())
 		}
 	}
 	return col
@@ -112,7 +112,7 @@ func percent(v float64) string {
 }
 
 // DrawCentred draws the menu centred across the screen with its top at y.
-func (m *Menu) DrawCentred(dst *ebiten.Image, font *gfx.Font, y int, sc gfx.Scheme) {
+func (m *Menu) DrawCentred(dst *ebiten.Image, font gfx.Font, y int, sc gfx.Scheme) {
 	w, _ := m.Size(font)
 	m.Draw(dst, font, (config.Project.ScreenWidth-w)/2, y, sc)
 }
@@ -133,7 +133,7 @@ func PanelAround(w, h, y, pad int) image.Rectangle {
 }
 
 // TextCentred draws s with a shadow, centred across the screen.
-func TextCentred(dst *ebiten.Image, font *gfx.Font, s string, y, c, shadow int) {
+func TextCentred(dst *ebiten.Image, font gfx.Font, s string, y, c, shadow int) {
 	font.DrawShadowed(dst, s, font.CentreX(s), y, c, shadow)
 }
 

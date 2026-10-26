@@ -91,13 +91,13 @@ func (e *Ending) Draw(ctx *scene.Context, dst *ebiten.Image) {
 	young.Draw(dst, frameRest, nx-float64(young.W)/2, endingBankY+float64(config.Cell-young.H), false)
 	young.Draw(dst, frameRest, nx+float64(config.NookWidth*config.Cell)-float64(young.W)/2, endingBankY+float64(config.Cell-young.H), false)
 
-	y := endingBankY + config.Cell + 2*f.Small.Size
+	y := endingBankY + config.Cell + 2*f.Small.Size()
 	heading := config.EndingHeading
 	if e.all {
 		heading = config.EndingHeadingAll
 	}
 	ui.TextCentred(dst, f.Large, heading, y, sc.Title, sc.Shadow)
-	y += f.Large.Size + f.Small.Size
+	y += f.Large.Size() + f.Small.Size()
 	ui.TextCentred(dst, f.Small, config.EndingThanks, y, sc.Text, sc.Shadow)
 
 	ry := e.rollTop()

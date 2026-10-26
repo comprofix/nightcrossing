@@ -12,17 +12,32 @@ import (
 	"github.com/comprofix/nightcrossing/internal/config"
 )
 
-// Font draws text in any palette colour.
-type Font struct {
-	*bitfont.Font
-	atlas *ebiten.Image
-	index map[rune]int
+// Font draws text in any palette colour. Every character is Size pixels
+// wide and each line Size pixels tall, so text lays out in character cells.
+type Font interface {
+	// Size is the width and height of one character cell, in pixels.
+	Size() int
+	// Width is the width of s in pixels.
+	Width(s string) int
+	// Draw renders s with its top-left corner at (x, y) in palette colour c.
+	Draw(dst *ebiten.Image, s string, x, y, c int)
+	// DrawShadowed renders s with a drop shadow in palette colour shadow.
+	DrawShadowed(dst *ebiten.Image, s string, x, y, c, shadow int)
+	// CentreX is the x that centres s on the screen.
+	CentreX(s string) int
 }
 
 // Fonts are the game's two fonts.
 type Fonts struct {
-	Small *Font // 8×8
-	Large *Font // 16×16, made from Small with Scale2x
+	Small Font // 8×8
+	Large Font // 16×16, made from Small with Scale2x
+}
+
+// BitmapFont is a Font drawn from a bitmap font's glyphs.
+type BitmapFont struct {
+	bf    *bitfont.Font
+	atlas *ebiten.Image
+	index map[rune]int
 }
 
 // LoadFonts reads the 8×8 font from fsys and makes the large font from it.
@@ -41,11 +56,11 @@ func LoadFonts(fsys fs.FS, path string) (Fonts, error) {
 
 // NewFont builds a glyph atlas for bf. Ink is stored white and tinted when
 // drawn.
-func NewFont(bf *bitfont.Font) *Font {
+func NewFont(bf *bitfont.Font) *BitmapFont {
 	runes := bf.Runes()
 	n := bf.Size
 	img := image.NewRGBA(image.Rect(0, 0, n*len(runes), n))
-	f := &Font{Font: bf, index: make(map[rune]int, len(runes))}
+	f := &BitmapFont{bf: bf, index: make(map[rune]int, len(runes))}
 	for i, r := range runes {
 		bf.Draw(img.SubImage(image.Rect(i*n, 0, (i+1)*n, n)).(*image.RGBA), string(r), i*n, 0, color.RGBA{0xff, 0xff, 0xff, 0xff})
 		f.index[r] = i
@@ -54,10 +69,16 @@ func NewFont(bf *bitfont.Font) *Font {
 	return f
 }
 
+// Size is the font's cell size: 8 or 16.
+func (f *BitmapFont) Size() int { return f.bf.Size }
+
+// Width is the width of s in pixels.
+func (f *BitmapFont) Width(s string) int { return f.bf.Width(s) }
+
 // Draw renders s at (x, y) in palette colour c. Characters missing from the
 // font are drawn as '?'.
-func (f *Font) Draw(dst *ebiten.Image, s string, x, y, c int) {
-	n := f.Size
+func (f *BitmapFont) Draw(dst *ebiten.Image, s string, x, y, c int) {
+	n := f.bf.Size
 	op := &ebiten.DrawImageOptions{}
 	op.ColorScale.ScaleWithColor(RGBA(c))
 	for _, r := range s {
@@ -77,13 +98,13 @@ func (f *Font) Draw(dst *ebiten.Image, s string, x, y, c int) {
 
 // DrawShadowed renders s with a drop shadow in palette colour shadow, offset
 // down and right by one pixel per 8 pixels of font size.
-func (f *Font) DrawShadowed(dst *ebiten.Image, s string, x, y, c, shadow int) {
-	d := max(1, f.Size/8)
+func (f *BitmapFont) DrawShadowed(dst *ebiten.Image, s string, x, y, c, shadow int) {
+	d := max(1, f.bf.Size/8)
 	f.Draw(dst, s, x+d, y+d, shadow)
 	f.Draw(dst, s, x, y, c)
 }
 
 // CentreX is the x that centres s on the screen.
-func (f *Font) CentreX(s string) int {
+func (f *BitmapFont) CentreX(s string) int {
 	return (config.Project.ScreenWidth - f.Width(s)) / 2
 }
