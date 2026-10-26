@@ -80,11 +80,22 @@ func (m *Manager) Darkness() float32 {
 	return 0
 }
 
+// shakeOffset is this tick's shake in the shown screen's pixels. A shake is
+// in the pixel look's, so it moves the screen as far in either look.
+func (c *Context) shakeOffset() (dx, dy int) {
+	dx, dy = c.Shake.Offset()
+	if px := c.Looks.Pixel(); px != nil {
+		k := c.Preset.ScreenWidth / px.ScreenWidth
+		dx, dy = k*dx, k*dy
+	}
+	return dx, dy
+}
+
 // Draw renders the current scene, shaken if a shake is running, then the
 // fade.
 func (m *Manager) Draw(ctx *Context, dst *ebiten.Image) {
 	w, h := dst.Bounds().Dx(), dst.Bounds().Dy()
-	if dx, dy := ctx.Shake.Offset(); dx != 0 || dy != 0 {
+	if dx, dy := ctx.shakeOffset(); dx != 0 || dy != 0 {
 		if m.buf != nil && (m.buf.Bounds().Dx() != w || m.buf.Bounds().Dy() != h) {
 			m.buf.Deallocate()
 			m.buf = nil

@@ -314,6 +314,24 @@ func TestShake(t *testing.T) {
 	}
 }
 
+// TestShakeInEitherLook: a shake moves the screen as far in either look,
+// so twice as many pixels in the smooth one.
+func TestShakeInEitherLook(t *testing.T) {
+	modern := config.Modern
+	ctx := &Context{Looks: config.Looks{First: config.Smooth, Second: &modern}}
+	for _, c := range []struct {
+		look config.Preset
+		want int
+	}{{modern, 3}, {config.Smooth, 6}} {
+		ctx.Preset = c.look
+		ctx.Shake = Shaker{}
+		ctx.Shake.Start(10, 3)
+		if dx, _ := ctx.shakeOffset(); dx != c.want && dx != -c.want {
+			t.Errorf("in %s, a 3-pixel shake moves the screen %d, want ±%d", c.look.Name, dx, c.want)
+		}
+	}
+}
+
 func TestSounds(t *testing.T) {
 	if err := audio.Join(Sounds).Check(); err != nil {
 		t.Error(err)
