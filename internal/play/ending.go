@@ -45,7 +45,7 @@ func (e *Ending) Update(ctx *scene.Context) error {
 		ctx.Audio.PlayTune(NightTitle)
 	}
 	e.ticks++
-	last := e.rollTop() + float64((len(config.Credits)-1)*endingLinePx)
+	last := e.rollTop(ctx) + float64((len(config.Credits)-1)*endingLinePx)
 	done := last < endingClipY-endingLinePx // the last line has rolled away
 	if done || e.ticks > endingRollFrom && (ctx.Input.JustPressed(input.Confirm) || ctx.Input.Clicked()) {
 		ctx.Audio.PlayEffect(scene.MenuConfirm)
@@ -56,15 +56,15 @@ func (e *Ending) Update(ctx *scene.Context) error {
 
 // rollTop is where the credits' first line is: below the screen until the
 // roll begins, then rising.
-func (e *Ending) rollTop() float64 {
-	h := float64(config.Project.ScreenHeight)
+func (e *Ending) rollTop(ctx *scene.Context) float64 {
+	h := float64(ctx.Preset.ScreenHeight)
 	return h - math.Max(0, float64(e.ticks-endingRollFrom))*endingRollPx
 }
 
 // Draw implements scene.Scene.
 func (e *Ending) Draw(ctx *scene.Context, dst *ebiten.Image) {
 	sc, f := ctx.Scheme, ctx.Fonts
-	pr := config.Project
+	pr := ctx.Preset
 	dst.Fill(gfx.RGBA(resurrect64.Ink))
 	for i := range endingStars { // stars, each in its own place, twinkling in its own time
 		x := float64(noise(int64(i), 1, 7) % uint32(pr.ScreenWidth))
@@ -100,7 +100,7 @@ func (e *Ending) Draw(ctx *scene.Context, dst *ebiten.Image) {
 	y += f.Large.LineHeight() + f.Small.LineHeight()
 	ui.TextCentred(dst, f.Small, config.EndingThanks, y, sc.Text, sc.Shadow)
 
-	ry := e.rollTop()
+	ry := e.rollTop(ctx)
 	for i, line := range config.Credits {
 		ly := int(ry) + i*endingLinePx
 		if line == "" || ly < endingClipY || ly > pr.ScreenHeight {

@@ -142,10 +142,10 @@ func TestCarryOn(t *testing.T) {
 // on Carry on going to level 9 (D81).
 func TestCarryOnByMouse(t *testing.T) {
 	h := bonusHarness(t, unbuilt(config.SchoolRun))
-	f := gfx.SmoothFonts(config.Project.ScreenHeight) // the mouse needs the menu measured
+	f := gfx.SmoothFonts(h.Ctx.Preset.ScreenHeight) // the mouse needs the menu measured
 	h.Ctx.Fonts = f
-	y := masteredMenuTop(f) + f.Small.LineHeight() + ui.LineGap + f.Small.LineHeight()/2
-	h.Run(input.Click(config.Project.ScreenWidth/2, y), input.Idle(1))
+	y := masteredMenuTop(h.Ctx) + f.Small.LineHeight() + ui.LineGap + f.Small.LineHeight()/2
+	h.Run(input.Click(h.Ctx.Preset.ScreenWidth/2, y), input.Idle(1))
 	h.Ticks(2 * scene.FadeTicks)
 	if p := scenetest.Current[*Play](h); p.World().Level.Number != 9 {
 		t.Errorf("a click on Carry on went to level %d, want 9", p.World().Level.Number)

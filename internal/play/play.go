@@ -109,14 +109,13 @@ func newLevel(ctx *scene.Context, levels config.ModeLevels, n int) *Play {
 // levels of their own.
 func newPlay(ctx *scene.Context, levels config.ModeLevels, level config.Level) *Play {
 	level.Storms = ctx.Storms // -storm, for testing (D52)
-	return build(ctx.Session, levels, level, ctx.RNG, !ctx.NoShaders)
+	return build(ctx.Preset, ctx.Session, levels, level, ctx.RNG, !ctx.NoShaders)
 }
 
-// build is a level of the game in s, its random choices from rng, lit by
-// shaders if shaders is true.
-func build(s *session.Session, levels config.ModeLevels, level config.Level, rng *rand.Rand, shaders bool) *Play {
+// build is a level of the game in s, shown in preset pr, its random choices
+// from rng, lit by shaders if shaders is true.
+func build(pr config.Preset, s *session.Session, levels config.ModeLevels, level config.Level, rng *rand.Rand, shaders bool) *Play {
 	w := world.New(s, level, rng)
-	pr := config.Project
 	p := &Play{
 		world:  w,
 		hero:   Toad,
@@ -319,7 +318,7 @@ func (e *Ended) Draw(ctx *scene.Context, dst *ebiten.Image) {
 	sc, f := ctx.Scheme, ctx.Fonts
 	e.play.Draw(ctx, dst)
 	scene.Dim(dst, sc.Shadow, 0.5)
-	ui.TextCentred(dst, f.Large, "GAME OVER", (config.Project.ScreenHeight-f.Large.LineHeight())/2, sc.Title, sc.Shadow)
+	ui.TextCentred(dst, f.Large, "GAME OVER", (ctx.Preset.ScreenHeight-f.Large.LineHeight())/2, sc.Title, sc.Shadow)
 }
 
 // pressed is the direction pressed this tick: the first of up, down, left
@@ -370,7 +369,7 @@ func (p *Play) drawHUD(ctx *scene.Context, dst *ebiten.Image) {
 		life.Draw(dst, 0, float64(hudLivesX+i*(life.W+hudLifeGap)), ly, false)
 	}
 
-	sw := config.Project.ScreenWidth
+	sw := ctx.Preset.ScreenWidth
 	barX := sw - config.FieldMargin - timeBarW
 	barY := (config.HUDHeight - timeBarH) / 2
 	label := "TIME"

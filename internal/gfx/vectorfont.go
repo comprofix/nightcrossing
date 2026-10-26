@@ -8,8 +8,6 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"golang.org/x/image/font/gofont/gomonobold"
-
-	"github.com/comprofix/nightcrossing/internal/config"
 )
 
 // VectorFont is a Font drawn from an outline font, smooth at any size: Go
@@ -88,7 +86,7 @@ func (f *VectorFont) DrawShadowed(dst *ebiten.Image, s string, x, y, c, shadow i
 	f.Draw(dst, s, x, y, c)
 }
 
-// CentreX is the x that centres s on the screen.
-func (f *VectorFont) CentreX(s string) int {
-	return (config.Project.ScreenWidth - f.Width(s)) / 2
+// CentreX is the x that centres s across dst.
+func (f *VectorFont) CentreX(dst *ebiten.Image, s string) int {
+	return (dst.Bounds().Dx() - f.Width(s)) / 2
 }

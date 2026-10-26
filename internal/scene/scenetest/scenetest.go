@@ -36,8 +36,8 @@ type Harness struct {
 }
 
 // New returns a harness with a fresh context: the given seed, scripted
-// input, default settings, empty high scores and no sound. Set more of
-// Ctx (e.g. NewPlay or Audio) before calling Start.
+// input, the game's preset and default settings, empty high scores and no
+// sound. Set more of Ctx (e.g. NewPlay or Audio) before calling Start.
 func New(t testing.TB, seed uint64) *Harness {
 	set := config.DefaultSettings(config.Project)
 	script := &input.Script{}
@@ -47,6 +47,7 @@ func New(t testing.TB, seed uint64) *Harness {
 		Ctx: &scene.Context{
 			Input:    input.New(script),
 			RNG:      scene.NewRNG(seed),
+			Preset:   config.Project,
 			Settings: &set,
 			Scores:   score.New(),
 		},

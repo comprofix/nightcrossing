@@ -63,14 +63,15 @@ func (m *Menu) Place(font gfx.Font, x, y int) {
 	m.font, m.at = font, image.Pt(x, y)
 }
 
-// PlaceCentred is Place for a menu drawn by DrawCentred.
-func (m *Menu) PlaceCentred(font gfx.Font, y int) {
+// PlaceCentred is Place for a menu drawn by DrawCentred on a screen
+// screenW wide.
+func (m *Menu) PlaceCentred(font gfx.Font, screenW, y int) {
 	if font == nil {
 		m.font = nil
 		return
 	}
 	w, _ := m.Size(font)
-	m.Place(font, centredX(w), y)
+	m.Place(font, centredX(screenW, w), y)
 }
 
 // Update handles one tick of input.

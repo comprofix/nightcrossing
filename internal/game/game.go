@@ -54,8 +54,7 @@ var content Content
 
 // Game is the top-level ebiten.Game.
 type Game struct {
-	preset   config.Preset
-	screen   *ebiten.Image // the internal screen
+	screen   *ebiten.Image // the internal screen, the size of ctx.Preset's
 	prescale *ebiten.Image // whole-number upscale used for CRT presentation and the CRT option
 	crt      fx.CRT
 	outW     int
@@ -93,7 +92,6 @@ func New(seed uint64, saved Saved, synth *audio.Synth) (*Game, error) {
 		sheets[name] = sh
 	}
 	g := &Game{
-		preset:   p,
 		screen:   ebiten.NewImage(p.ScreenWidth, p.ScreenHeight),
 		pixels:   image.NewRGBA(image.Rect(0, 0, p.ScreenWidth, p.ScreenHeight)),
 		dir:      saved.Dir,
@@ -102,6 +100,7 @@ func New(seed uint64, saved Saved, synth *audio.Synth) (*Game, error) {
 	g.ctx = &scene.Context{
 		Input:      input.New(&input.Ebiten{}),
 		RNG:        scene.NewRNG(seed),
+		Preset:     p,
 		Fonts:      fonts,
 		Scheme:     gfx.SchemeFor(p.Palette),
 		Sheets:     sheets,
@@ -128,7 +127,8 @@ func (g *Game) Update() error {
 	in := g.ctx.Input
 	// The pointer is turned into screen pixels through where present will
 	// show the screen.
-	sw, sh := g.preset.ScreenWidth, g.preset.ScreenHeight
+	p := g.ctx.Preset
+	sw, sh := p.ScreenWidth, p.ScreenHeight
 	r := gfx.Fit(g.settings.ScaleMode, sw, sh, g.outW, g.outH)
 	in.SetView(input.View{X: r.X, Y: r.Y, W: r.W, H: r.H, Width: sw, Height: sh})
 	in.Update()
@@ -144,7 +144,7 @@ func (g *Game) Update() error {
 		g.ctx.SettingsChanged()
 	}
 	if in.JustPressed(input.ScaleMode) {
-		s.ScaleMode = g.preset.NextMode(s.ScaleMode)
+		s.ScaleMode = p.NextMode(s.ScaleMode)
 		g.ctx.SettingsChanged()
 	}
 	if in.JustPressed(input.Sound) {
@@ -219,7 +219,7 @@ func (g *Game) saveScores() {
 // Draw renders the internal screen and presents it.
 func (g *Game) Draw(out *ebiten.Image) {
 	if g.showPattern {
-		drawTestPattern(g.pixels, g.preset, g.ctx.Tick)
+		drawTestPattern(g.pixels, g.ctx.Preset, g.ctx.Tick)
 		g.screen.WritePixels(g.pixels.Pix)
 	} else {
 		g.scenes.Draw(g.ctx, g.screen)
@@ -248,8 +248,9 @@ func (g *Game) drawOverlay() {
 	}
 	lh := f.LineHeight() + 2
 	h := len(lines) * lh
-	y := g.preset.ScreenHeight - h - 2
-	ui.Panel(g.screen, image.Rect(0, y-2, w+4, g.preset.ScreenHeight), sc.Panel, sc.Border)
+	sh := g.ctx.Preset.ScreenHeight
+	y := sh - h - 2
+	ui.Panel(g.screen, image.Rect(0, y-2, w+4, sh), sc.Panel, sc.Border)
 	for i, l := range lines {
 		f.Draw(g.screen, l, 2, y+i*lh, sc.Highlight)
 	}
@@ -258,7 +259,7 @@ func (g *Game) drawOverlay() {
 // present scales the internal screen onto the output surface in the
 // current scale mode.
 func (g *Game) present(out *ebiten.Image) {
-	sw, sh := g.preset.ScreenWidth, g.preset.ScreenHeight
+	sw, sh := g.ctx.Preset.ScreenWidth, g.ctx.Preset.ScreenHeight
 	out.Fill(color.Black)
 	r := gfx.Fit(g.settings.ScaleMode, sw, sh, g.outW, g.outH)
 	crt := g.settings.CRT && !g.ctx.NoShaders

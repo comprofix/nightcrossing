@@ -31,8 +31,12 @@ func NewRNG(seed uint64) *rand.Rand {
 
 // Context is the shared state handed to scenes. Games add their own fields.
 type Context struct {
-	Input    *input.Input
-	RNG      *rand.Rand
+	Input *input.Input
+	RNG   *rand.Rand
+	// Preset is the look being shown: its screen size, scale modes and art.
+	// The game sets it; scenes read the screen's size here, never from
+	// config.Project.
+	Preset   config.Preset
 	Fonts    gfx.Fonts
 	Scheme   gfx.Scheme
 	Sheets   map[string]*gfx.Sheet

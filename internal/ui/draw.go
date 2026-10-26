@@ -8,7 +8,6 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 
-	"github.com/comprofix/nightcrossing/internal/config"
 	"github.com/comprofix/nightcrossing/internal/gfx"
 )
 
@@ -111,14 +110,15 @@ func percent(v float64) string {
 	return strconv.Itoa(int(math.Round(v*100))) + "%"
 }
 
-// DrawCentred draws the menu centred across the screen with its top at y.
+// DrawCentred draws the menu centred across dst with its top at y.
 func (m *Menu) DrawCentred(dst *ebiten.Image, font gfx.Font, y int, sc gfx.Scheme) {
 	w, _ := m.Size(font)
-	m.Draw(dst, font, centredX(w), y, sc)
+	m.Draw(dst, font, centredX(dst.Bounds().Dx(), w), y, sc)
 }
 
-// centredX is the x that centres something w pixels wide on the screen.
-func centredX(w int) int { return (config.Project.ScreenWidth - w) / 2 }
+// centredX is the x that centres something w pixels wide across a screen
+// screenW wide.
+func centredX(screenW, w int) int { return (screenW - w) / 2 }
 
 // Panel fills r with palette colour fill inside a one-pixel border.
 func Panel(dst *ebiten.Image, r image.Rectangle, fill, border int) {
@@ -129,15 +129,15 @@ func Panel(dst *ebiten.Image, r image.Rectangle, fill, border int) {
 }
 
 // PanelAround is the rectangle of a panel with pad pixels of margin around
-// a w×h block centred across the screen with its top at y.
-func PanelAround(w, h, y, pad int) image.Rectangle {
-	x := (config.Project.ScreenWidth - w) / 2
+// a w×h block centred across a screen screenW wide with its top at y.
+func PanelAround(screenW, w, h, y, pad int) image.Rectangle {
+	x := centredX(screenW, w)
 	return image.Rect(x-pad, y-pad, x+w+pad, y+h+pad)
 }
 
-// TextCentred draws s with a shadow, centred across the screen.
+// TextCentred draws s with a shadow, centred across dst.
 func TextCentred(dst *ebiten.Image, font gfx.Font, s string, y, c, shadow int) {
-	font.DrawShadowed(dst, s, font.CentreX(s), y, c, shadow)
+	font.DrawShadowed(dst, s, font.CentreX(dst, s), y, c, shadow)
 }
 
 // Blink is true for the first half of every period ticks, for blinking

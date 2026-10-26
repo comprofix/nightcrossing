@@ -6,7 +6,6 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 
-	"github.com/comprofix/nightcrossing/internal/config"
 	"github.com/comprofix/nightcrossing/internal/gfx"
 	"github.com/comprofix/nightcrossing/internal/input"
 	"github.com/comprofix/nightcrossing/internal/ui"
@@ -61,7 +60,7 @@ func (s *Intro) Draw(ctx *Context, dst *ebiten.Image) {
 	for _, a := range m.Also {
 		w = max(w, 2*f.Small.CellWidth()+f.Small.Width(a))
 	}
-	x := (config.Project.ScreenWidth - w) / 2
+	x := (ctx.Preset.ScreenWidth - w) / 2
 
 	f.Small.DrawShadowed(dst, "NEW IN THIS MODE", x, y, sc.Title, sc.Shadow)
 	y += line
@@ -92,5 +91,5 @@ func (s *Intro) Draw(ctx *Context, dst *ebiten.Image) {
 		f.Small.DrawShadowed(dst, c, x+w-f.Small.Width(c), y, sc.Highlight, sc.Shadow)
 	}
 
-	ui.TextCentred(dst, f.Small, "ENTER: PLAY   ESC: BACK", config.Project.ScreenHeight-2*f.Small.LineHeight(), sc.Dim, sc.Shadow)
+	ui.TextCentred(dst, f.Small, "ENTER: PLAY   ESC: BACK", ctx.Preset.ScreenHeight-2*f.Small.LineHeight(), sc.Dim, sc.Shadow)
 }

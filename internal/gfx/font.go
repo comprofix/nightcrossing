@@ -9,7 +9,6 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 
 	"github.com/comprofix/nightcrossing/internal/bitfont"
-	"github.com/comprofix/nightcrossing/internal/config"
 )
 
 // Font draws text in any palette colour. Every character is CellWidth
@@ -26,8 +25,8 @@ type Font interface {
 	Draw(dst *ebiten.Image, s string, x, y, c int)
 	// DrawShadowed renders s with a drop shadow in palette colour shadow.
 	DrawShadowed(dst *ebiten.Image, s string, x, y, c, shadow int)
-	// CentreX is the x that centres s on the screen.
-	CentreX(s string) int
+	// CentreX is the x that centres s across dst.
+	CentreX(dst *ebiten.Image, s string) int
 }
 
 // Fonts are the game's two fonts.
@@ -110,7 +109,7 @@ func (f *BitmapFont) DrawShadowed(dst *ebiten.Image, s string, x, y, c, shadow i
 	f.Draw(dst, s, x, y, c)
 }
 
-// CentreX is the x that centres s on the screen.
-func (f *BitmapFont) CentreX(s string) int {
-	return (config.Project.ScreenWidth - f.Width(s)) / 2
+// CentreX is the x that centres s across dst.
+func (f *BitmapFont) CentreX(dst *ebiten.Image, s string) int {
+	return (dst.Bounds().Dx() - f.Width(s)) / 2
 }

@@ -49,7 +49,7 @@ func (m *Mastered) Update(ctx *scene.Context) error {
 		return nil // the choice has to be made
 	}
 	if f := ctx.Fonts; f.Small != nil && f.Large != nil { // headless tests have no fonts
-		m.menu.PlaceCentred(f.Small, masteredMenuTop(f))
+		m.menu.PlaceCentred(f.Small, ctx.Preset.ScreenWidth, masteredMenuTop(ctx))
 	}
 	m.menu.Update(ctx.Input)
 	return nil
@@ -57,9 +57,12 @@ func (m *Mastered) Update(ctx *scene.Context) error {
 
 // masteredTop is the top of the MASTERED screen's first heading, and
 // masteredMenuTop of its menu, below the headings and the next mode's line.
-func masteredTop(f gfx.Fonts) int { return config.Project.ScreenHeight/4 - f.Large.LineHeight() }
-func masteredMenuTop(f gfx.Fonts) int {
-	return masteredTop(f) + 2*f.Large.LineHeight() + ui.LineGap + 5*f.Small.LineHeight()
+func masteredTop(ctx *scene.Context) int {
+	return ctx.Preset.ScreenHeight/4 - ctx.Fonts.Large.LineHeight()
+}
+func masteredMenuTop(ctx *scene.Context) int {
+	f := ctx.Fonts
+	return masteredTop(ctx) + 2*f.Large.LineHeight() + ui.LineGap + 5*f.Small.LineHeight()
 }
 
 // finish adds the life bonus, counted up on its own tally, then goes on
@@ -104,9 +107,9 @@ func entry(s *session.Session) score.Entry {
 // Draw implements scene.Scene.
 func (m *Mastered) Draw(ctx *scene.Context, dst *ebiten.Image) {
 	sc, f := ctx.Scheme, ctx.Fonts
-	h := config.Project.ScreenHeight
+	h := ctx.Preset.ScreenHeight
 	dst.Fill(gfx.RGBA(sc.Backdrop))
-	y := masteredTop(f)
+	y := masteredTop(ctx)
 	ui.TextCentred(dst, f.Large, "YOU'VE MASTERED", y, sc.Text, sc.Shadow)
 	y += f.Large.LineHeight() + ui.LineGap
 	ui.TextCentred(dst, f.Large, strings.ToUpper(ctx.Session.Mode.Name), y, sc.Title, sc.Shadow)
@@ -116,10 +119,10 @@ func (m *Mastered) Draw(ctx *scene.Context, dst *ebiten.Image) {
 		next = strings.ToUpper(ctx.ModeList()[i].Name) + " AWAITS"
 	}
 	ui.TextCentred(dst, f.Small, next, y, sc.Highlight, sc.Shadow)
-	y = masteredMenuTop(f)
+	y = masteredMenuTop(ctx)
 
 	mw, mh := m.menu.Size(f.Small)
-	ui.Panel(dst, ui.PanelAround(mw, mh, y, panelPad), sc.Panel, sc.Border)
+	ui.Panel(dst, ui.PanelAround(ctx.Preset.ScreenWidth, mw, mh, y, panelPad), sc.Panel, sc.Border)
 	m.menu.DrawCentred(dst, f.Small, y, sc)
 	ui.TextCentred(dst, f.Small, "Finish banks your lives; carry on risks them for more", h-2*f.Small.LineHeight(), sc.Dim, sc.Shadow)
 }

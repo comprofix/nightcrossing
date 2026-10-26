@@ -50,7 +50,7 @@ func (t *Title) Update(ctx *Context) error {
 // Draw implements Scene.
 func (t *Title) Draw(ctx *Context, dst *ebiten.Image) {
 	sc, f := ctx.Scheme, ctx.Fonts
-	h := config.Project.ScreenHeight
+	w, h := ctx.Preset.ScreenWidth, ctx.Preset.ScreenHeight
 	if t.demo != nil {
 		t.demo.Draw(ctx, dst)
 		Dim(dst, sc.Shadow, TitleDim)
@@ -63,7 +63,7 @@ func (t *Title) Draw(ctx *Context, dst *ebiten.Image) {
 	body := f.Large.LineHeight() + pad + f.Small.LineHeight()
 	y := (h - body) / 2
 	if t.demo != nil {
-		ui.Panel(dst, ui.PanelAround(f.Large.Width(config.Title)+2*pad, body, y, pad), sc.Panel, sc.Border)
+		ui.Panel(dst, ui.PanelAround(w, f.Large.Width(config.Title)+2*pad, body, y, pad), sc.Panel, sc.Border)
 	}
 	ui.TextCentred(dst, f.Large, config.Title, y, sc.Title, sc.Shadow)
 	if ui.Blink(t.shown, BlinkTicks) {
