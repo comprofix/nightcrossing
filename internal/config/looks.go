@@ -25,11 +25,22 @@ func (l Looks) Named(name string) Preset {
 	return l.First
 }
 
+// Pixel is the pixel look of two, or nil in a game with one look.
+func (l Looks) Pixel() *Preset {
+	switch {
+	case l.Second == nil:
+		return nil
+	case l.Second.Art == ArtPixel:
+		return l.Second
+	}
+	return &l.First
+}
+
 // scaled is the look whose scale modes the saved scale mode is one of: the
 // pixel look of two, or the only one.
 func (l Looks) scaled() Preset {
-	if l.Second != nil && l.Second.Art == ArtPixel {
-		return *l.Second
+	if p := l.Pixel(); p != nil {
+		return *p
 	}
 	return l.First
 }

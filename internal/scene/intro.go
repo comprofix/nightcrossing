@@ -29,7 +29,8 @@ func (s *Intro) Update(ctx *Context) error {
 		ctx.Switch(NewModeSelectAt(s.mode))
 	case ctx.Input.JustPressed(input.Confirm), ctx.Input.Clicked():
 		ctx.Audio.PlayEffect(MenuConfirm)
-		ctx.Switch(ctx.NewPlay(ctx, ctx.ModeList()[s.mode]))
+		m := ctx.ModeList()[s.mode]
+		ctx.Switch(ctx.makeGame(func(c *Context) Scene { return c.NewPlay(c, m) }))
 	}
 	return nil
 }

@@ -42,7 +42,7 @@ func (m *Manager) Update(ctx *Context) error {
 	ctx.Shake.update(ctx.Settings != nil && ctx.Settings.ReducedMotion)
 	switch m.phase {
 	case idle:
-		if err := m.cur.Update(ctx); err != nil {
+		if err := updateScene(ctx, m.cur); err != nil {
 			return err
 		}
 		if ctx.next != nil {
@@ -93,13 +93,13 @@ func (m *Manager) Draw(ctx *Context, dst *ebiten.Image) {
 			m.buf = ebiten.NewImage(w, h)
 		}
 		m.buf.Clear()
-		m.cur.Draw(ctx, m.buf)
+		drawScene(ctx, m.cur, m.buf)
 		dst.Fill(gfx.RGBA(ctx.Scheme.Shadow))
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Translate(float64(dx), float64(dy))
 		dst.DrawImage(m.buf, op)
 	} else {
-		m.cur.Draw(ctx, dst)
+		drawScene(ctx, m.cur, dst)
 	}
 	if d := m.Darkness(); d > 0 {
 		Dim(dst, ctx.Scheme.Shadow, d)

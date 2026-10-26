@@ -33,10 +33,10 @@ func (t *Title) Update(ctx *Context) error {
 	t.shown++
 	playTitleTune(ctx)
 	if t.demo == nil && ctx.NewDemo != nil {
-		t.demo = ctx.NewDemo(ctx)
+		t.demo = ctx.makeGame(ctx.NewDemo)
 	}
 	if t.demo != nil {
-		if err := t.demo.Update(ctx); err != nil {
+		if err := updateScene(ctx, t.demo); err != nil {
 			return err
 		}
 	}
@@ -52,7 +52,7 @@ func (t *Title) Draw(ctx *Context, dst *ebiten.Image) {
 	sc, f := ctx.Scheme, ctx.Fonts
 	w, h := ctx.Preset.ScreenWidth, ctx.Preset.ScreenHeight
 	if t.demo != nil {
-		t.demo.Draw(ctx, dst)
+		drawScene(ctx, t.demo, dst)
 		Dim(dst, sc.Shadow, TitleDim)
 	} else {
 		dst.Fill(gfx.RGBA(sc.Backdrop))

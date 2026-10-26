@@ -138,17 +138,32 @@ func TestCarryOn(t *testing.T) {
 	}
 }
 
-// TestCarryOnByMouse: the MASTERED screen's menu works by mouse, a click
-// on Carry on going to level 9 (D81).
+// TestCarryOnByMouse: the MASTERED screen's menu works by mouse in either
+// look, a click on Carry on going to level 9 (D81). It lives in the pixel
+// look, so under the smooth look the pointer is taken there.
 func TestCarryOnByMouse(t *testing.T) {
-	h := bonusHarness(t, unbuilt(config.SchoolRun))
-	f := gfx.SmoothFonts(h.Ctx.Preset.ScreenHeight) // the mouse needs the menu measured
-	h.Ctx.Fonts = f
-	y := masteredMenuTop(h.Ctx) + f.Small.LineHeight() + ui.LineGap + f.Small.LineHeight()/2
-	h.Run(input.Click(h.Ctx.Preset.ScreenWidth/2, y), input.Idle(1))
-	h.Ticks(2 * scene.FadeTicks)
-	if p := scenetest.Current[*Play](h); p.World().Level.Number != 9 {
-		t.Errorf("a click on Carry on went to level %d, want 9", p.World().Level.Number)
+	modern := config.Modern
+	for _, shown := range []config.Preset{config.Modern, config.Smooth} {
+		h := bonusHarness(t, unbuilt(config.SchoolRun))
+		pixel := gfx.SmoothFonts(modern.ScreenHeight) // the mouse needs the menu measured
+		h.Ctx.Looks = config.Looks{First: config.Smooth, Second: &modern}
+		h.Ctx.Preset, h.Ctx.PixelFonts, h.Ctx.Fonts = shown, pixel, gfx.SmoothFonts(shown.ScreenHeight)
+		if shown.Art == config.ArtPixel {
+			h.Ctx.Fonts = pixel
+		}
+		// The window is the shown screen's size.
+		w, ht := shown.ScreenWidth, shown.ScreenHeight
+		h.Ctx.Input.SetView(input.View{W: float64(w), H: float64(ht), Width: w, Height: ht})
+
+		pc := *h.Ctx // where the menu is in the pixel look
+		pc.Preset, pc.Fonts = modern, pixel
+		y := masteredMenuTop(&pc) + pixel.Small.LineHeight() + ui.LineGap + pixel.Small.LineHeight()/2
+		k := shown.ScreenWidth / modern.ScreenWidth
+		h.Run(input.Click(k*modern.ScreenWidth/2, k*y), input.Idle(1))
+		h.Ticks(2 * scene.FadeTicks)
+		if p := scenetest.Current[*Play](h); p.World().Level.Number != 9 {
+			t.Errorf("%s: a click on Carry on went to level %d, want 9", shown.Name, p.World().Level.Number)
+		}
 	}
 }
 

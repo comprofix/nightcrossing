@@ -53,7 +53,6 @@ func main() {
 	}
 
 	// The settings and scores live beside the game.
-	p := config.Project
 	dir := config.SaveDir()
 	saved := game.Saved{
 		Settings: config.LoadSettings(filepath.Join(dir, config.SettingsFile), looks),
@@ -68,8 +67,6 @@ func main() {
 	}
 	ebiten.SetWindowIcon(icons)
 	ebiten.SetWindowSize(saved.Settings.WindowW, saved.Settings.WindowH)
-	minW, minH := p.MinWindow()
-	ebiten.SetWindowSizeLimits(minW, minH, config.MaxWindowW, config.MaxWindowH)
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 	ebiten.SetFullscreen(saved.Settings.Fullscreen)
 	ebiten.SetWindowClosingHandled(true) // to save the window size on close
@@ -77,7 +74,7 @@ func main() {
 
 	// Sound is made in code. With no sound device the game
 	// still runs, silently.
-	synth := audio.NewSynth(p.Audio)
+	synth := audio.NewSynth(config.Project.Audio) // the same in both looks
 	player, err := audio.Start(synth)
 	if err != nil {
 		log.Printf("sound: %v", err)

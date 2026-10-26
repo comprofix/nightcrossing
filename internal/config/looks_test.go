@@ -53,6 +53,17 @@ func TestLooksCheck(t *testing.T) {
 	}
 }
 
+func TestPixelLook(t *testing.T) {
+	if p := one(Modern).Pixel(); p != nil {
+		t.Errorf("one look: pixel look %s, want none", p.Name)
+	}
+	for _, l := range []Looks{two(Smooth, Modern), two(Modern, Smooth)} {
+		if p := l.Pixel(); p == nil || p.Name != Modern.Name {
+			t.Errorf("%s and %s: pixel look %v, want Modern", l.First.Name, l.Second.Name, p)
+		}
+	}
+}
+
 func TestTwoLookSettings(t *testing.T) {
 	l := two(Smooth, Modern)
 	d := DefaultSettings(l)

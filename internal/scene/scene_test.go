@@ -467,6 +467,73 @@ func TestModesInProgressInTheMenus(t *testing.T) {
 	}
 }
 
+// lookPlay is a play scene that notes the screen width it is made and
+// updated at.
+type lookPlay struct {
+	stubPlay
+	made, updated int
+}
+
+func (p *lookPlay) Update(ctx *Context) error {
+	p.updated = ctx.Preset.ScreenWidth
+	return p.stubPlay.Update(ctx)
+}
+
+// nativePlay is a lookPlay redrawn for the smooth look.
+type nativePlay struct{ lookPlay }
+
+func (*nativePlay) Native() {}
+
+// TestPixelLookPlay checks that while the smooth look of two is shown, a
+// play scene that is not Native is made and updated in the pixel look, the
+// shared scenes stay in the smooth look, and what the play scene asks of
+// the context (here a pause) is kept.
+func TestPixelLookPlay(t *testing.T) {
+	modern := config.Modern
+	h := newHarness(t, NewModeSelect())
+	h.ctx.Looks = config.Looks{First: config.Smooth, Second: &modern}
+	h.ctx.Preset = config.Smooth
+	var play *lookPlay
+	h.ctx.NewPlay = func(ctx *Context, _ config.Mode) Scene {
+		play = &lookPlay{made: ctx.Preset.ScreenWidth}
+		return play
+	}
+	h.press(ebiten.KeyEnter) // the first mode
+	current[*Intro](t, h)
+	h.press(ebiten.KeyEnter) // play it
+	if play == nil || play.made != modern.ScreenWidth || play.updated != modern.ScreenWidth {
+		t.Fatalf("play made and updated at %+v, want the pixel look's width %d", play, modern.ScreenWidth)
+	}
+	if h.ctx.Preset.Name != config.Smooth.Name {
+		t.Errorf("the context was left in %s", h.ctx.Preset.Name)
+	}
+	h.in.Steps = append(h.in.Steps, input.Press(ebiten.KeyP), input.Idle(1))
+	h.ticks(2)
+	current[*Pause](t, h)
+
+	// A Native play scene is made in the smooth look, and must be said to be.
+	h = newHarness(t, NewIntro(0))
+	h.ctx.Looks = config.Looks{First: config.Smooth, Second: &modern}
+	h.ctx.Preset = config.Smooth
+	var native *nativePlay
+	h.ctx.NewPlay = func(ctx *Context, _ config.Mode) Scene {
+		native = &nativePlay{lookPlay{made: ctx.Preset.ScreenWidth}}
+		return native
+	}
+	h.ctx.NativePlay = true
+	h.press(ebiten.KeyEnter)
+	if native == nil || native.made != config.Smooth.ScreenWidth || native.updated != config.Smooth.ScreenWidth {
+		t.Errorf("native play made and updated at %+v, want the smooth look's width", native)
+	}
+	h.ctx.NativePlay = false
+	defer func() {
+		if recover() == nil {
+			t.Error("a Native play scene without NativePlay did not panic")
+		}
+	}()
+	h.ctx.makeGame(func(c *Context) Scene { return c.NewPlay(c, config.Modes[0]) })
+}
+
 // click clicks the middle of item i of a menu screen's menu, lets go, and
 // waits out any fade.
 func (h *harness) click(i int, top func(*Context) int) {

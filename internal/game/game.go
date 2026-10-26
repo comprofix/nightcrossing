@@ -41,8 +41,11 @@ type Content struct {
 	NewPlay func(ctx *scene.Context, mode config.Mode) scene.Scene
 	// NewDemo, if set, runs behind the title (see scene.Context).
 	NewDemo func(ctx *scene.Context) scene.Scene
-	Sounds  audio.Bank
-	Sheets  []string
+	// NativePlay says the play and demo scenes draw in either look (see
+	// scene.Context).
+	NativePlay bool
+	Sounds     audio.Bank
+	Sheets     []string
 	// The game's title and high score tunes, if it has its own (see
 	// scene.Context).
 	TitleTune, ScoresTune *audio.Tune
@@ -54,6 +57,8 @@ var content Content
 
 // Game is the top-level ebiten.Game.
 type Game struct {
+	looks    config.Looks
+	bitmap   gfx.Fonts     // the 8×8 and 16×16 fonts, for pixel looks
 	screen   *ebiten.Image // the internal screen, the size of ctx.Preset's
 	prescale *ebiten.Image // whole-number upscale used for CRT presentation and the CRT option
 	crt      fx.CRT
@@ -75,13 +80,9 @@ type Game struct {
 // New loads the assets and starts at the title screen with the given
 // random seed and saved files, playing sound through synth (nil for none).
 func New(seed uint64, saved Saved, synth *audio.Synth) (*Game, error) {
-	p := config.Project
-	fonts, err := gfx.LoadFonts(assets.FS, "font/font8x8.txt")
+	bitmap, err := gfx.LoadFonts(assets.FS, "font/font8x8.txt")
 	if err != nil {
 		return nil, fmt.Errorf("fonts: %w", err)
-	}
-	if p.Art == config.ArtSmooth {
-		fonts = gfx.SmoothFonts(p.ScreenHeight)
 	}
 	sheets := map[string]*gfx.Sheet{}
 	for _, name := range content.Sheets {
@@ -92,20 +93,20 @@ func New(seed uint64, saved Saved, synth *audio.Synth) (*Game, error) {
 		sheets[name] = sh
 	}
 	g := &Game{
-		screen:   ebiten.NewImage(p.ScreenWidth, p.ScreenHeight),
-		pixels:   image.NewRGBA(image.Rect(0, 0, p.ScreenWidth, p.ScreenHeight)),
+		looks:    config.ProjectLooks(),
+		bitmap:   bitmap,
 		dir:      saved.Dir,
 		settings: saved.Settings,
 	}
 	g.ctx = &scene.Context{
 		Input:      input.New(&input.Ebiten{}),
 		RNG:        scene.NewRNG(seed),
-		Preset:     p,
-		Fonts:      fonts,
-		Scheme:     gfx.SchemeFor(p.Palette),
+		Looks:      g.looks,
+		PixelFonts: bitmap,
 		Sheets:     sheets,
 		NewPlay:    content.NewPlay,
 		NewDemo:    content.NewDemo,
+		NativePlay: content.NativePlay,
 		Audio:      synth,
 		Sounds:     audio.Join(scene.Sounds, content.Sounds),
 		TitleTune:  content.TitleTune,
@@ -117,6 +118,7 @@ func New(seed uint64, saved Saved, synth *audio.Synth) (*Game, error) {
 	if g.ctx.Scores == nil {
 		g.ctx.Scores = score.New()
 	}
+	g.applyLook()
 	g.applySound()
 	g.scenes = scene.NewManager(scene.NewTitle())
 	return g, nil
@@ -129,7 +131,7 @@ func (g *Game) Update() error {
 	// show the screen.
 	p := g.ctx.Preset
 	sw, sh := p.ScreenWidth, p.ScreenHeight
-	r := gfx.Fit(g.settings.ScaleMode, sw, sh, g.outW, g.outH)
+	r := gfx.Fit(g.settings.Mode(g.looks), sw, sh, g.outW, g.outH)
 	in.SetView(input.View{X: r.X, Y: r.Y, W: r.W, H: r.H, Width: sw, Height: sh})
 	in.Update()
 	g.ctx.Audio.Now(g.ctx.Tick)
@@ -143,7 +145,7 @@ func (g *Game) Update() error {
 		s.Fullscreen = !s.Fullscreen
 		g.ctx.SettingsChanged()
 	}
-	if in.JustPressed(input.ScaleMode) {
+	if in.JustPressed(input.ScaleMode) && len(p.ScaleModes) > 1 {
 		s.ScaleMode = p.NextMode(s.ScaleMode)
 		g.ctx.SettingsChanged()
 	}
@@ -173,12 +175,35 @@ func (g *Game) Update() error {
 	return nil
 }
 
-// applySettings makes the window and sound match the settings.
+// applySettings makes the look, window and sound match the settings.
 func (g *Game) applySettings() {
+	g.applyLook()
 	g.applySound()
 	if ebiten.IsFullscreen() != g.settings.Fullscreen {
 		ebiten.SetFullscreen(g.settings.Fullscreen)
 	}
+}
+
+// applyLook shows the look the settings choose: the screen at its size,
+// its fonts and colours, and the window's smallest size. Nothing changes if
+// the look has not.
+func (g *Game) applyLook() {
+	p := g.settings.Shown(g.looks)
+	if g.screen != nil && p.Name == g.ctx.Preset.Name {
+		return
+	}
+	if g.screen != nil {
+		g.screen.Deallocate()
+	}
+	g.screen = ebiten.NewImage(p.ScreenWidth, p.ScreenHeight)
+	g.pixels = image.NewRGBA(image.Rect(0, 0, p.ScreenWidth, p.ScreenHeight))
+	g.ctx.Preset, g.ctx.Scheme = p, gfx.SchemeFor(p.Palette)
+	g.ctx.Fonts = g.bitmap
+	if p.Art == config.ArtSmooth {
+		g.ctx.Fonts = gfx.SmoothFonts(p.ScreenHeight)
+	}
+	minW, minH := p.MinWindow()
+	ebiten.SetWindowSizeLimits(minW, minH, config.MaxWindowW, config.MaxWindowH)
 }
 
 // applySound sets the synth from the sound settings.
@@ -261,14 +286,16 @@ func (g *Game) drawOverlay() {
 func (g *Game) present(out *ebiten.Image) {
 	sw, sh := g.ctx.Preset.ScreenWidth, g.ctx.Preset.ScreenHeight
 	out.Fill(color.Black)
-	r := gfx.Fit(g.settings.ScaleMode, sw, sh, g.outW, g.outH)
-	crt := g.settings.CRT && !g.ctx.NoShaders
-	if g.settings.ScaleMode != config.ScaleCRT && !crt {
+	mode := g.settings.Mode(g.looks)
+	r := gfx.Fit(mode, sw, sh, g.outW, g.outH)
+	// The CRT shader is the pixel look's alone (D80).
+	crt := g.settings.CRT && !g.ctx.NoShaders && g.ctx.Preset.Art == config.ArtPixel
+	if mode != config.ScaleCRT && !crt {
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Scale(r.W/float64(sw), r.H/float64(sh))
 		op.GeoM.Translate(r.X, r.Y)
 		op.Filter = ebiten.FilterNearest
-		if g.settings.ScaleMode == config.ScaleSmooth {
+		if mode == config.ScaleSmooth {
 			op.Filter = ebiten.FilterLinear
 		}
 		out.DrawImage(g.screen, op)

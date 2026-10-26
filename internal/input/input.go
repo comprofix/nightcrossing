@@ -253,6 +253,9 @@ func (in *Input) Repeat(a Action) bool {
 // before Update whenever the window or scale mode may have changed.
 func (in *Input) SetView(v View) { in.view = v }
 
+// View is where the screen is shown, as SetView last set it.
+func (in *Input) View() View { return in.view }
+
 // Pointer is the mouse pointer in screen pixels, and whether it is over the
 // screen (not the letterbox around it).
 func (in *Input) Pointer() (p image.Point, ok bool) {
