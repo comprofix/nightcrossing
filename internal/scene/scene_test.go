@@ -700,3 +700,66 @@ func TestMenusByMouse(t *testing.T) {
 		t.Error("Resume did not return to the game")
 	}
 }
+
+// TestLookByMouse switches the look by clicks alone, both ways from the
+// main menu's Options and to the smooth look from a paused game's, which
+// resumes still in the pixel look.
+func TestLookByMouse(t *testing.T) {
+	modern := config.Modern
+	looks := config.Looks{First: config.Smooth, Second: &modern}
+	set := config.DefaultSettings(looks)
+	set.Look = modern.Name
+	h := newHarness(t, NewMainMenu())
+	h.ctx.Looks, h.ctx.Settings = looks, &set
+	var play *lookPlay
+	h.ctx.NewPlay = func(ctx *Context, _ config.Mode) Scene {
+		play = &lookPlay{made: ctx.Preset.ScreenWidth}
+		return play
+	}
+	// show shows the look the settings choose, as the game does, with fonts
+	// to measure the menus by.
+	show := func() {
+		h.ctx.TakeSettingsChanged()
+		h.ctx.Preset = set.Shown(looks)
+		h.ctx.Fonts = gfx.SmoothFonts(h.ctx.Preset.ScreenHeight)
+	}
+	clickLook := func(want config.Preset) {
+		t.Helper()
+		h.click(0, menuTop) // Look, the first item
+		if set.Look != want.Name {
+			t.Fatalf("a click on Look left it on %q, want %s", set.Look, want.Name)
+		}
+		show()
+	}
+	show()
+	h.click(1, menuTop) // Options
+	current[*Options](t, h)
+	clickLook(config.Smooth)
+	clickLook(modern)
+	h.rightClick() // back
+	current[*MainMenu](t, h)
+
+	h.click(0, menuTop) // Play
+	h.click(0, menuTop) // the first mode
+	h.click(0, menuTop) // anywhere on the intro plays it
+	if play == nil || play.made != modern.ScreenWidth {
+		t.Fatalf("play made at %+v, want the pixel look's width %d", play, modern.ScreenWidth)
+	}
+	h.rightClick() // pause
+	current[*Pause](t, h)
+	h.click(1, pauseMenuTop) // Options
+	current[*Options](t, h)
+	clickLook(config.Smooth)
+	h.rightClick() // back
+	current[*Pause](t, h)
+	h.click(0, pauseMenuTop) // Resume
+	play.updated = 0
+	h.ticks(1)
+	if current[*lookPlay](t, h) != play {
+		t.Fatal("the game resumed is not the one paused")
+	}
+	if play.updated != modern.ScreenWidth || h.ctx.Preset.Name != config.Smooth.Name {
+		t.Errorf("play updated at width %d with the context in %s, want %d in Smooth",
+			play.updated, h.ctx.Preset.Name, modern.ScreenWidth)
+	}
+}
