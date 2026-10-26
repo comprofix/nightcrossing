@@ -34,6 +34,7 @@ func newHarness(t *testing.T, first Scene) *harness {
 			Input:    input.New(script),
 			RNG:      rand.New(rand.NewPCG(1, 2)),
 			Preset:   config.Project,
+			Looks:    config.ProjectLooks(),
 			Settings: &set,
 			NewPlay:  func(*Context, config.Mode) Scene { return &stubPlay{} },
 			Scores:   score.New(),
@@ -467,6 +468,65 @@ func TestModesInProgressInTheMenus(t *testing.T) {
 	}
 }
 
+// TestOptionsLook checks Look comes first in Options only in a game with two
+// looks, switches between them, and that Scale is dimmed while the shown
+// look has one mode, and Light and CRT under the smooth look (D80).
+func TestOptionsLook(t *testing.T) {
+	one := config.Looks{First: config.Modern}
+	set := config.DefaultSettings(one)
+	h := newHarness(t, NewOptions(func() Scene { return NewMainMenu() }))
+	h.ctx.Looks, h.ctx.Settings = one, &set
+	h.ticks(1)
+	if l := current[*Options](t, h).menu.Items[0].Label; l == "Look" {
+		t.Error("a game with one look offers Look")
+	}
+
+	modern := config.Modern // given CRT, so Scale has two modes in it
+	modern.ScaleModes = []config.ScaleMode{config.ScaleInteger, config.ScaleCRT}
+	looks := config.Looks{First: config.Smooth, Second: &modern}
+	set = config.DefaultSettings(looks)
+	set.CRT = true
+	h = newHarness(t, NewOptions(func() Scene { return NewMainMenu() }))
+	h.ctx.Looks, h.ctx.Settings = looks, &set
+	h.ticks(1)
+	m := &current[*Options](t, h).menu
+	if m.Items[0].Label != "Look" || m.Text(0) != "Look: Smooth" {
+		t.Fatalf("first item %q, want Look on Smooth", m.Text(0))
+	}
+	item := func(label string) (ui.Item, string) {
+		for i, it := range m.Items {
+			if it.Label == label {
+				return it, m.Text(i)
+			}
+		}
+		t.Fatalf("no %s in Options", label)
+		return ui.Item{}, ""
+	}
+	pixelOnly := func(look string, dimmed bool, light, crt string) {
+		t.Helper()
+		for _, c := range []struct{ label, want string }{{"Scale", ""}, {"Light", light}, {"CRT", crt}} {
+			it, text := item(c.label)
+			if it.IsDisabled() != dimmed {
+				t.Errorf("%s look: %s dimmed %v, want %v", look, c.label, it.IsDisabled(), dimmed)
+			}
+			if c.want != "" && text != c.label+": "+c.want {
+				t.Errorf("%s look: %q, want %s: %s", look, text, c.label, c.want)
+			}
+		}
+	}
+	pixelOnly("smooth", true, "Smooth", "Off")
+	h.press(ebiten.KeyEnter)
+	if set.Look != modern.Name || !h.ctx.TakeSettingsChanged() {
+		t.Fatalf("Enter on Look left it on %q", set.Look)
+	}
+	set.SmoothLight = false
+	pixelOnly("pixel", false, "Pixel", "On")
+	h.press(ebiten.KeyArrowRight)
+	if set.Look != config.Smooth.Name {
+		t.Errorf("Right on Look left it on %q, want back to Smooth", set.Look)
+	}
+}
+
 // lookPlay is a play scene that notes the screen width it is made and
 // updated at.
 type lookPlay struct {
@@ -476,7 +536,11 @@ type lookPlay struct {
 
 func (p *lookPlay) Update(ctx *Context) error {
 	p.updated = ctx.Preset.ScreenWidth
-	return p.stubPlay.Update(ctx)
+	p.updates++
+	if ctx.Input.JustPressed(input.Pause) {
+		ctx.Cut(NewPause(p)) // itself, so it is what resumes
+	}
+	return nil
 }
 
 // nativePlay is a lookPlay redrawn for the smooth look.
@@ -532,6 +596,54 @@ func TestPixelLookPlay(t *testing.T) {
 		}
 	}()
 	h.ctx.makeGame(func(c *Context) Scene { return c.NewPlay(c, config.Modes[0]) })
+}
+
+// TestLookDuringPlay switches the look from Options on the pause screen,
+// both ways, and checks the game resumed under it is still updated in the
+// pixel look while the context is left in the look chosen.
+func TestLookDuringPlay(t *testing.T) {
+	modern := config.Modern
+	looks := config.Looks{First: config.Smooth, Second: &modern}
+	set := config.DefaultSettings(looks)
+	set.Look = modern.Name
+	h := newHarness(t, NewModeSelect())
+	h.ctx.Looks, h.ctx.Settings, h.ctx.Preset = looks, &set, modern
+	var play *lookPlay
+	h.ctx.NewPlay = func(ctx *Context, _ config.Mode) Scene {
+		play = &lookPlay{made: ctx.Preset.ScreenWidth}
+		return play
+	}
+	h.press(ebiten.KeyEnter) // the first mode
+	h.press(ebiten.KeyEnter) // play it
+	if play == nil || play.made != modern.ScreenWidth {
+		t.Fatalf("play made at %+v, want the pixel look's width %d", play, modern.ScreenWidth)
+	}
+
+	for _, look := range []config.Preset{config.Smooth, modern} {
+		h.press(ebiten.KeyP)
+		current[*Pause](t, h)
+		h.press(ebiten.KeyArrowDown)
+		h.press(ebiten.KeyEnter) // Options
+		h.press(ebiten.KeyEnter) // Look, the first item
+		if set.Look != look.Name || !h.ctx.TakeSettingsChanged() {
+			t.Fatalf("Look in Options from the pause screen left it on %q, want %s", set.Look, look.Name)
+		}
+		h.ctx.Preset = set.Shown(looks) // as the game shows the look chosen
+		h.press(ebiten.KeyEscape)
+		current[*Pause](t, h)
+		h.press(ebiten.KeyP)
+		play.updated = 0
+		h.ticks(1)
+		if current[*lookPlay](t, h) != play {
+			t.Fatal("the game resumed is not the one paused")
+		}
+		if play.updated != modern.ScreenWidth {
+			t.Errorf("under %s, play updated at width %d, want the pixel look's %d", look.Name, play.updated, modern.ScreenWidth)
+		}
+		if h.ctx.Preset.Name != look.Name {
+			t.Errorf("the context was left in %s, want %s", h.ctx.Preset.Name, look.Name)
+		}
+	}
 }
 
 // click clicks the middle of item i of a menu screen's menu, lets go, and

@@ -245,17 +245,49 @@ func (s *Options) items(ctx *Context) []ui.Item {
 		}
 		return ui.Item{Label: label, Value: value, Adjust: toggle(v)}
 	}
-	modes := ctx.Preset.ScaleModes
-	return []ui.Item{
-		{Label: "Scale", Value: func() string { return ScaleModeName(set.ScaleMode) }, Disabled: len(modes) < 2,
+	looks := ctx.Looks
+	// pixelOnly is it, an option of the pixel look's alone: dimmed under the
+	// smooth look, where it shows what that look does instead (D80).
+	pixelOnly := func(it ui.Item, smooth string) ui.Item {
+		if it.Disabled {
+			return it
+		}
+		value := it.Value
+		pixel := func() bool { return set.Shown(looks).Art == config.ArtPixel }
+		it.Value = func() string {
+			if pixel() {
+				return value()
+			}
+			return smooth
+		}
+		it.DisabledIf = func() bool { return !pixel() }
+		return it
+	}
+	// Scale is the shown look's, dimmed while it has one mode, as F9 is.
+	modes := func() []config.ScaleMode { return set.Shown(looks).ScaleModes }
+	var items []ui.Item
+	if looks.Two() {
+		items = append(items, ui.Item{Label: "Look", Value: func() string { return set.Shown(looks).Name },
+			Adjust: func(int) {
+				l := looks.Second.Name
+				if set.Shown(looks).Name == l {
+					l = looks.First.Name
+				}
+				set.Look = l
+				ctx.SettingsChanged()
+			}})
+	}
+	return append(items, []ui.Item{
+		{Label: "Scale", Value: func() string { return ScaleModeName(set.Mode(looks)) },
+			DisabledIf: func() bool { return len(modes()) < 2 },
 			Adjust: func(d int) {
-				i := 0
-				for j, m := range modes {
+				ms, i := modes(), 0
+				for j, m := range ms {
 					if m == set.ScaleMode {
 						i = j
 					}
 				}
-				set.ScaleMode = modes[(i+d+len(modes))%len(modes)]
+				set.ScaleMode = ms[(i+d+len(ms))%len(ms)]
 				ctx.SettingsChanged()
 			}},
 		{Label: "Fullscreen", Value: ui.OnOff(&set.Fullscreen), Adjust: toggle(&set.Fullscreen)},
@@ -269,12 +301,12 @@ func (s *Options) items(ctx *Context) []ui.Item {
 			ctx.Switch(NewSoundTest(func() Scene { return NewOptions(s.back) }))
 		}},
 		{Label: "Reduced motion", Value: ui.OnOff(&set.ReducedMotion), Adjust: toggle(&set.ReducedMotion)},
-		shaded("Light", func() string { return LightName(set.SmoothLight) }, LightName(true), &set.SmoothLight),
+		pixelOnly(shaded("Light", func() string { return LightName(set.SmoothLight) }, LightName(true), &set.SmoothLight), LightName(true)),
 		shaded("Glow", ui.OnOff(&set.Glow), "Off", &set.Glow),
-		shaded("CRT", ui.OnOff(&set.CRT), "Off", &set.CRT),
+		pixelOnly(shaded("CRT", ui.OnOff(&set.CRT), "Off", &set.CRT), "Off"),
 		{Label: "High contrast", Value: ui.OnOff(&set.HighContrast), Adjust: toggle(&set.HighContrast)},
 		{Label: "Back", Confirm: func() { ctx.Switch(s.back()) }},
-	}
+	}...)
 }
 
 // LightName is the light setting as the options menu shows it: Pixel

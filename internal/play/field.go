@@ -79,8 +79,8 @@ func (p *Play) drawField(ctx *scene.Context, dst *ebiten.Image) {
 	bounds := image.Rect(config.FieldX, config.FieldY,
 		config.FieldX+w.Cols*config.Cell, config.FieldY+w.Rows*config.Cell)
 	look := p.look() // Stroll's night, or Last Train's day and night (D39)
-	if ctx.Settings.SmoothLight {
-		look.Bands = 0 // the Light option (Options: Light: Smooth)
+	if ctx.Settings.SmoothLight || ctx.Settings.Shown(ctx.Looks).Art == config.ArtSmooth {
+		look.Bands = 0 // the Light option (Options: Light: Smooth); the smooth look's light is always smooth (D80)
 	}
 	if !ctx.Settings.Glow {
 		look.Glow = 0

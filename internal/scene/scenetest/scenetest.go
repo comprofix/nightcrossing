@@ -48,6 +48,7 @@ func New(t testing.TB, seed uint64) *Harness {
 			Input:    input.New(script),
 			RNG:      scene.NewRNG(seed),
 			Preset:   config.Project,
+			Looks:    config.ProjectLooks(),
 			Settings: &set,
 			Scores:   score.New(),
 		},
