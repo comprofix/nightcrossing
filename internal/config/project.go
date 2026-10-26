@@ -10,5 +10,12 @@ const Title = "Night Crossing"
 const TPS = 60
 
 // Project is the preset this game uses: its resolution, scale modes and
-// palette. This is the only place they are chosen.
+// palette. This is the only place they are chosen. In a game with two
+// looks it is the first, which players start on.
 var Project = Modern
+
+// Second is the game's other look, or nil for a game with one. The pair
+// must pass Looks.Check: a pixel look and a smooth one, with the same
+// palette and audio style, the smooth screen a whole multiple of the pixel
+// one.
+var Second *Preset

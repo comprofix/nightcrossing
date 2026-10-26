@@ -39,7 +39,7 @@ type Harness struct {
 // input, the game's preset and default settings, empty high scores and no
 // sound. Set more of Ctx (e.g. NewPlay or Audio) before calling Start.
 func New(t testing.TB, seed uint64) *Harness {
-	set := config.DefaultSettings(config.Project)
+	set := config.DefaultSettings(config.ProjectLooks())
 	script := &input.Script{}
 	return &Harness{
 		T:      t,

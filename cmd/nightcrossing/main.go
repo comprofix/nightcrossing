@@ -47,11 +47,16 @@ func main() {
 		*seed = uint64(time.Now().UnixNano())
 	}
 
+	looks := config.ProjectLooks()
+	if err := looks.Check(); err != nil {
+		log.Fatal(err)
+	}
+
 	// The settings and scores live beside the game.
 	p := config.Project
 	dir := config.SaveDir()
 	saved := game.Saved{
-		Settings: config.LoadSettings(filepath.Join(dir, config.SettingsFile), p),
+		Settings: config.LoadSettings(filepath.Join(dir, config.SettingsFile), looks),
 		Scores:   score.Load(filepath.Join(dir, config.ScoresFile), modes),
 		Dir:      dir,
 	}

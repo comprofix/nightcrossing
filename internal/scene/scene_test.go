@@ -24,7 +24,7 @@ type harness struct {
 }
 
 func newHarness(t *testing.T, first Scene) *harness {
-	set := config.DefaultSettings(config.Project)
+	set := config.DefaultSettings(config.ProjectLooks())
 	script := &input.Script{}
 	h := &harness{
 		t:   t,
@@ -280,7 +280,7 @@ func TestFadeDarkness(t *testing.T) {
 	if m.Darkness() != 1 {
 		t.Errorf("starts at %v, want fully dark", m.Darkness())
 	}
-	set := config.DefaultSettings(config.Project)
+	set := config.DefaultSettings(config.ProjectLooks())
 	ctx := &Context{Input: input.New(&input.Script{}), Settings: &set}
 	for range FadeTicks {
 		ctx.Input.Update()

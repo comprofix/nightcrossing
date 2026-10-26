@@ -71,12 +71,12 @@ func TestNextMode(t *testing.T) {
 func TestLoadSettingsMissingOrCorrupt(t *testing.T) {
 	dir := t.TempDir()
 	for _, p := range presets {
-		if got := LoadSettings(filepath.Join(dir, "missing.json"), p); got != DefaultSettings(p) {
+		if got := LoadSettings(filepath.Join(dir, "missing.json"), one(p)); got != DefaultSettings(one(p)) {
 			t.Errorf("%s missing file: %+v", p.Name, got)
 		}
 		bad := filepath.Join(dir, "bad.json")
 		os.WriteFile(bad, []byte("{not json"), 0o644)
-		if got := LoadSettings(bad, p); got != DefaultSettings(p) {
+		if got := LoadSettings(bad, one(p)); got != DefaultSettings(one(p)) {
 			t.Errorf("%s corrupt file: %+v", p.Name, got)
 		}
 	}
@@ -85,8 +85,8 @@ func TestLoadSettingsMissingOrCorrupt(t *testing.T) {
 func TestLoadSettingsKeepsDefaultsForMissingFields(t *testing.T) {
 	path := filepath.Join(t.TempDir(), SettingsFile)
 	os.WriteFile(path, []byte(`{"fullscreen": true}`), 0o644)
-	got := LoadSettings(path, Modern)
-	want := DefaultSettings(Modern)
+	got := LoadSettings(path, one(Modern))
+	want := DefaultSettings(one(Modern))
 	want.Fullscreen = true
 	if got != want {
 		t.Errorf("got %+v, want %+v", got, want)
@@ -98,7 +98,7 @@ func TestClamped(t *testing.T) {
 		ScaleMode: ScaleCRT, // Modern doesn't offer CRT
 		WindowW:   10, WindowH: 99999,
 		MasterVolume: -1, MusicVolume: 2, SFXVolume: math.NaN(),
-	}.Clamped(Modern)
+	}.Clamped(one(Modern))
 	if s.ScaleMode != ScaleInteger {
 		t.Errorf("scale mode %q, want integer", s.ScaleMode)
 	}
@@ -108,7 +108,7 @@ func TestClamped(t *testing.T) {
 	if s.MasterVolume != 0 || s.MusicVolume != 1 || s.SFXVolume != 0 {
 		t.Errorf("volumes %v %v %v, want 0 1 0", s.MasterVolume, s.MusicVolume, s.SFXVolume)
 	}
-	if got := (Settings{ScaleMode: ScaleCRT, WindowW: 640, WindowH: 400}).Clamped(Classic); got.ScaleMode != ScaleCRT {
+	if got := (Settings{ScaleMode: ScaleCRT, WindowW: 640, WindowH: 400}).Clamped(one(Classic)); got.ScaleMode != ScaleCRT {
 		t.Errorf("Classic should keep CRT, got %q", got.ScaleMode)
 	}
 }
@@ -116,7 +116,7 @@ func TestClamped(t *testing.T) {
 func TestSaveAndLoadSettings(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, SettingsFile)
-	want := DefaultSettings(Classic)
+	want := DefaultSettings(one(Classic))
 	want.ScaleMode = ScaleCRT
 	want.Fullscreen = true
 	want.WindowW, want.WindowH = 1600, 1000
@@ -127,7 +127,7 @@ func TestSaveAndLoadSettings(t *testing.T) {
 	if err := SaveSettings(path, want); err != nil {
 		t.Fatal(err)
 	}
-	if got := LoadSettings(path, Classic); got != want {
+	if got := LoadSettings(path, one(Classic)); got != want {
 		t.Errorf("got %+v, want %+v", got, want)
 	}
 	// Saving again replaces the file and leaves no temporary files behind.
@@ -135,7 +135,7 @@ func TestSaveAndLoadSettings(t *testing.T) {
 	if err := SaveSettings(path, want); err != nil {
 		t.Fatal(err)
 	}
-	if got := LoadSettings(path, Classic); got != want {
+	if got := LoadSettings(path, one(Classic)); got != want {
 		t.Errorf("after resave got %+v, want %+v", got, want)
 	}
 	entries, _ := os.ReadDir(dir)
@@ -155,7 +155,7 @@ func TestInGoBuild(t *testing.T) {
 }
 
 func TestAudioLevels(t *testing.T) {
-	s := DefaultSettings(Modern)
+	s := DefaultSettings(one(Modern))
 	s.MasterVolume, s.MusicVolume, s.SFXVolume = 0.9, 0.6, 0.3
 	type levels struct{ master, music, sfx float64 }
 	get := func(s Settings) levels {
