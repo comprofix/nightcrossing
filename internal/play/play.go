@@ -72,6 +72,7 @@ type Play struct {
 	nookGlow  [len(config.Nooks)]int // ticks left of each nook's flare as a toad arrives
 	outline   *ebiten.Image          // a drawing buffer for high contrast's outlines
 	art       *ebiten.Image          // a drawing buffer for pixel art enlarged in the smooth look
+	ground    groundCache            // the smooth look's still ground
 	pops      []pop                  // points popping up over the toad (D38)
 	sky       int                    // where the day and night cycle is (D39; see sky.go)
 	overcast  int                    // how far fog or rain has dimmed the light, in ticks (D44)
@@ -347,7 +348,11 @@ func (p *Play) Draw(ctx *scene.Context, dst *ebiten.Image) {
 	k := p.scale(ctx)
 	dst.Fill(gfx.RGBA(ctx.Scheme.Backdrop))
 	p.drawField(ctx, dst)
-	p.inPixels(dst, k, func(img *ebiten.Image) { p.drawTrafficLights(ctx, img) })
+	if k == 1 {
+		p.drawTrafficLights(ctx, dst)
+	} else {
+		p.drawSmoothTrafficLights(dst, k)
+	}
 	p.drawPops(ctx, dst, k)
 	p.drawHUD(ctx, dst, k)
 	p.drawHint(ctx, dst, k)

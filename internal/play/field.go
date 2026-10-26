@@ -94,9 +94,22 @@ func (p *Play) drawField(ctx *scene.Context, dst *ebiten.Image) {
 	}
 	p.light.SetScale(k)
 	lit := p.light.Begin(look)
-	p.inPixels(lit, k, func(art *ebiten.Image) {
-		p.drawArt(ctx, art.SubImage(bounds).(*ebiten.Image))
-	})
+	if k == 1 {
+		field := lit.SubImage(bounds).(*ebiten.Image)
+		p.drawGround(ctx, field)
+		p.drawThings(ctx, field)
+	} else {
+		p.drawSmoothGround(ctx, lit.SubImage(image.Rectangle{Min: bounds.Min.Mul(k), Max: bounds.Max.Mul(k)}).(*ebiten.Image), k)
+		p.inPixels(lit, k, func(art *ebiten.Image) { // what has no smooth art yet
+			field := art.SubImage(bounds).(*ebiten.Image)
+			for r := range w.Lanes {
+				if w.Lanes[r].Kind == config.Bank {
+					p.drawNookThings(ctx, field, r)
+				}
+			}
+			p.drawThings(ctx, field)
+		})
+	}
 
 	p.addLights(ctx, p.light)
 	p.light.Draw(dst, 0, 0)
@@ -116,9 +129,9 @@ func (p *Play) drawField(ctx *scene.Context, dst *ebiten.Image) {
 	}
 }
 
-// drawArt draws the field's art, in the game's coordinates, before it is
-// lit: the rows, the lamps, what moves along them, and the hero.
-func (p *Play) drawArt(ctx *scene.Context, field *ebiten.Image) {
+// drawGround draws the field's ground in the pixel look, before it is lit:
+// the rows, the lamps and signals, and the water's currents and wakes.
+func (p *Play) drawGround(ctx *scene.Context, field *ebiten.Image) {
 	w := p.world
 	sheet := ctx.Sheet(Sheet)
 	for r := range w.Lanes {
@@ -150,6 +163,13 @@ func (p *Play) drawArt(ctx *scene.Context, field *ebiten.Image) {
 			p.drawWakes(field, r)
 		}
 	}
+}
+
+// drawThings draws what is on the ground, in the pixel art in either look,
+// before it is lit: what moves along the rows, the fog and mist, and the
+// hero.
+func (p *Play) drawThings(ctx *scene.Context, field *ebiten.Image) {
+	w := p.world
 	for r := range w.Lanes {
 		p.drawEntities(ctx, field, r)
 		p.drawHerons(ctx, field, r)
@@ -418,10 +438,19 @@ func cellY(r int) float64 { return float64(config.FieldY + r*config.Cell) }
 func (p *Play) drawBank(ctx *scene.Context, dst *ebiten.Image, r int) {
 	sheet := ctx.Sheet(Sheet)
 	p.drawTiles(dst, sheet.Sprite("bank"), r)
-	nook, toad := sheet.Sprite("nook"), sheet.Sprite(p.hero.Sprite)
-	sign := sheet.Sprite("schoolsign")
-	for i, c := range config.Nooks {
+	nook := sheet.Sprite("nook")
+	for _, c := range config.Nooks {
 		nook.Draw(dst, 0, cellX(c), cellY(r), false)
+	}
+	p.drawNookThings(ctx, dst, r)
+}
+
+// drawNookThings draws what is in and by the nooks of bank row r: the
+// school signs, the toads home, the fruit and the fox.
+func (p *Play) drawNookThings(ctx *scene.Context, dst *ebiten.Image, r int) {
+	sheet := ctx.Sheet(Sheet)
+	toad, sign := sheet.Sprite(p.hero.Sprite), sheet.Sprite("schoolsign")
+	for i, c := range config.Nooks {
 		if b := p.world.Level.Bonus; b != nil && b.Gates { // a school sign by each nook (DESIGN §6.7)
 			sign.Draw(dst, 0, cellX(c)-float64(sign.W+1), cellY(r)+float64(config.Cell-sign.H), false)
 		}
