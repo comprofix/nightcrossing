@@ -63,8 +63,8 @@ func (p *Play) updatePops() {
 func (p *Play) drawPops(ctx *scene.Context, dst *ebiten.Image) {
 	sc, f := ctx.Scheme, ctx.Fonts
 	for _, pp := range p.pops {
-		x := pp.x - len(pp.text)*f.Small.Size()/2
-		f.Small.DrawShadowed(dst, pp.text, x, pp.y-f.Small.Size()-pp.ticks/popRiseTick, sc.Highlight, sc.Shadow)
+		x := pp.x - len(pp.text)*f.Small.CellWidth()/2
+		f.Small.DrawShadowed(dst, pp.text, x, pp.y-f.Small.LineHeight()-pp.ticks/popRiseTick, sc.Highlight, sc.Shadow)
 	}
 }
 
@@ -78,7 +78,7 @@ func (p *Play) drawCombo(ctx *scene.Context, dst *ebiten.Image, ty int) {
 	sc, f := ctx.Scheme, ctx.Fonts
 	label := fmt.Sprintf("x%d", c.Mult())
 	f.Small.DrawShadowed(dst, label, hudComboX, ty, sc.Highlight, sc.Shadow)
-	bx := hudComboX + len(label)*f.Small.Size() + hudLifeGap*2
+	bx := hudComboX + len(label)*f.Small.CellWidth() + hudLifeGap*2
 	by := (config.HUDHeight - comboBarH) / 2
 	vector.FillRect(dst, float32(bx), float32(by), comboBarW, comboBarH, gfx.RGBA(sc.Panel), false)
 	vector.FillRect(dst, float32(bx), float32(by), float32(comboBarW*c.Left/config.ComboTicks), comboBarH,

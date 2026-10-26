@@ -59,15 +59,15 @@ func (t *Title) Draw(ctx *Context, dst *ebiten.Image) {
 	}
 
 	// The name and the prompt sit on a panel, so they read over the demo.
-	pad := 2 * f.Small.Size()
-	body := f.Large.Size() + pad + f.Small.Size()
+	pad := 2 * f.Small.LineHeight()
+	body := f.Large.LineHeight() + pad + f.Small.LineHeight()
 	y := (h - body) / 2
 	if t.demo != nil {
 		ui.Panel(dst, ui.PanelAround(f.Large.Width(config.Title)+2*pad, body, y, pad), sc.Panel, sc.Border)
 	}
 	ui.TextCentred(dst, f.Large, config.Title, y, sc.Title, sc.Shadow)
 	if ui.Blink(t.shown, BlinkTicks) {
-		ui.TextCentred(dst, f.Small, "PRESS ANY KEY", y+f.Large.Size()+pad, sc.Text, sc.Shadow)
+		ui.TextCentred(dst, f.Small, "PRESS ANY KEY", y+f.Large.LineHeight()+pad, sc.Text, sc.Shadow)
 	}
-	ui.TextCentred(dst, f.Small, "F11 fullscreen   F10 quit", h-2*f.Small.Size(), sc.Dim, sc.Shadow)
+	ui.TextCentred(dst, f.Small, "F11 fullscreen   F10 quit", h-2*f.Small.LineHeight(), sc.Dim, sc.Shadow)
 }

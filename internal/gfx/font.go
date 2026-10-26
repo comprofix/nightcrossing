@@ -12,11 +12,14 @@ import (
 	"github.com/comprofix/nightcrossing/internal/config"
 )
 
-// Font draws text in any palette colour. Every character is Size pixels
-// wide and each line Size pixels tall, so text lays out in character cells.
+// Font draws text in any palette colour. Every character is CellWidth
+// pixels wide and each line LineHeight pixels tall, so text lays out in
+// character cells.
 type Font interface {
-	// Size is the width and height of one character cell, in pixels.
-	Size() int
+	// CellWidth is how far each character moves the next one on, in pixels.
+	CellWidth() int
+	// LineHeight is the height of one line of text, in pixels.
+	LineHeight() int
 	// Width is the width of s in pixels.
 	Width(s string) int
 	// Draw renders s with its top-left corner at (x, y) in palette colour c.
@@ -69,8 +72,11 @@ func NewFont(bf *bitfont.Font) *BitmapFont {
 	return f
 }
 
-// Size is the font's cell size: 8 or 16.
-func (f *BitmapFont) Size() int { return f.bf.Size }
+// CellWidth is the font's cell size: 8 or 16, as its cells are square.
+func (f *BitmapFont) CellWidth() int { return f.bf.Size }
+
+// LineHeight is the font's cell size: 8 or 16, as its cells are square.
+func (f *BitmapFont) LineHeight() int { return f.bf.Size }
 
 // Width is the width of s in pixels.
 func (f *BitmapFont) Width(s string) int { return f.bf.Width(s) }

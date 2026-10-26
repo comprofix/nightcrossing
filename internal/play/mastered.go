@@ -96,22 +96,22 @@ func (m *Mastered) Draw(ctx *scene.Context, dst *ebiten.Image) {
 	sc, f := ctx.Scheme, ctx.Fonts
 	h := config.Project.ScreenHeight
 	dst.Fill(gfx.RGBA(sc.Backdrop))
-	y := h/4 - f.Large.Size()
+	y := h/4 - f.Large.LineHeight()
 	ui.TextCentred(dst, f.Large, "YOU'VE MASTERED", y, sc.Text, sc.Shadow)
-	y += f.Large.Size() + ui.LineGap
+	y += f.Large.LineHeight() + ui.LineGap
 	ui.TextCentred(dst, f.Large, strings.ToUpper(ctx.Session.Mode.Name), y, sc.Title, sc.Shadow)
-	y += f.Large.Size() + 2*f.Small.Size()
+	y += f.Large.LineHeight() + 2*f.Small.LineHeight()
 	next := "EVERY MODE IS OPEN"
 	if i, ok := nextMode(ctx); ok {
 		next = strings.ToUpper(ctx.ModeList()[i].Name) + " AWAITS"
 	}
 	ui.TextCentred(dst, f.Small, next, y, sc.Highlight, sc.Shadow)
-	y += 3 * f.Small.Size()
+	y += 3 * f.Small.LineHeight()
 
 	mw, mh := m.menu.Size(f.Small)
 	ui.Panel(dst, ui.PanelAround(mw, mh, y, panelPad), sc.Panel, sc.Border)
 	m.menu.DrawCentred(dst, f.Small, y, sc)
-	ui.TextCentred(dst, f.Small, "Finish banks your lives; carry on risks them for more", h-2*f.Small.Size(), sc.Dim, sc.Shadow)
+	ui.TextCentred(dst, f.Small, "Finish banks your lives; carry on risks them for more", h-2*f.Small.LineHeight(), sc.Dim, sc.Shadow)
 }
 
 // panelPad is the margin inside the MASTERED screen's panel.

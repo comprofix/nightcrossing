@@ -238,7 +238,7 @@ func (g *Game) drawOverlay() {
 	for _, l := range lines {
 		w = max(w, f.Width(l))
 	}
-	lh := f.Size() + 2
+	lh := f.LineHeight() + 2
 	h := len(lines) * lh
 	y := g.preset.ScreenHeight - h - 2
 	ui.Panel(g.screen, image.Rect(0, y-2, w+4, g.preset.ScreenHeight), sc.Panel, sc.Border)

@@ -319,7 +319,7 @@ func (e *Ended) Draw(ctx *scene.Context, dst *ebiten.Image) {
 	sc, f := ctx.Scheme, ctx.Fonts
 	e.play.Draw(ctx, dst)
 	scene.Dim(dst, sc.Shadow, 0.5)
-	ui.TextCentred(dst, f.Large, "GAME OVER", (config.Project.ScreenHeight-f.Large.Size())/2, sc.Title, sc.Shadow)
+	ui.TextCentred(dst, f.Large, "GAME OVER", (config.Project.ScreenHeight-f.Large.LineHeight())/2, sc.Title, sc.Shadow)
 }
 
 // pressed is the direction pressed this tick: the first of up, down, left
@@ -354,7 +354,7 @@ func (p *Play) Draw(ctx *scene.Context, dst *ebiten.Image) {
 func (p *Play) drawHUD(ctx *scene.Context, dst *ebiten.Image) {
 	sc, f := ctx.Scheme, ctx.Fonts
 	s := ctx.Session
-	ty := (config.HUDHeight - f.Small.Size()) / 2
+	ty := (config.HUDHeight - f.Small.LineHeight()) / 2
 
 	f.Small.DrawShadowed(dst, fmt.Sprintf("SCORE %06d", s.Score), config.FieldMargin, ty, sc.Text, sc.Shadow)
 	f.Small.DrawShadowed(dst, fmt.Sprintf("HI %06d", max(best(ctx), s.Score)), hudHiX, ty, sc.Text, sc.Shadow)
@@ -374,7 +374,7 @@ func (p *Play) drawHUD(ctx *scene.Context, dst *ebiten.Image) {
 	barX := sw - config.FieldMargin - timeBarW
 	barY := (config.HUDHeight - timeBarH) / 2
 	label := "TIME"
-	f.Small.DrawShadowed(dst, label, barX-labelGap-len(label)*f.Small.Size(), ty, sc.Text, sc.Shadow)
+	f.Small.DrawShadowed(dst, label, barX-labelGap-len(label)*f.Small.CellWidth(), ty, sc.Text, sc.Shadow)
 	w := p.world
 	filled := timeBarW * max(w.TicksLeft, 0) / w.Level.TimerTicks
 	bar := resurrect64.Emerald
@@ -412,7 +412,7 @@ func (p *Play) drawCaught(ctx *scene.Context, dst *ebiten.Image, ty int) {
 	f.Small.DrawShadowed(dst, count, x, ty, sc.Highlight, sc.Shadow)
 	if m := p.world.RunMult(); m > 1 { // what the next catch in the run is worth, before the icon (DESIGN §6.7)
 		label := fmt.Sprintf("x%d", m)
-		f.Small.DrawShadowed(dst, label, hudComboX-(len(label)+1)*f.Small.Size(), ty, sc.Title, sc.Shadow)
+		f.Small.DrawShadowed(dst, label, hudComboX-(len(label)+1)*f.Small.CellWidth(), ty, sc.Title, sc.Shadow)
 	}
 }
 
@@ -463,7 +463,7 @@ func (p *Play) drawHint(ctx *scene.Context, dst *ebiten.Image) {
 	if m := p.eventMessage(); m != "" {
 		text, c = m, sc.Highlight // an event is announced (DESIGN §6.1)
 	}
-	ui.TextCentred(dst, f.Small, text, top+(config.HintHeight-f.Small.Size())/2, c, sc.Shadow)
+	ui.TextCentred(dst, f.Small, text, top+(config.HintHeight-f.Small.LineHeight())/2, c, sc.Shadow)
 }
 
 // drawBanner shows the level number as the level starts, and LEVEL CLEAR
@@ -486,7 +486,7 @@ func (p *Play) drawBanner(ctx *scene.Context, dst *ebiten.Image) {
 		return
 	}
 	const vergeRow = 6
-	y := config.FieldY + vergeRow*config.Cell + (config.Cell-f.Large.Size())/2
+	y := config.FieldY + vergeRow*config.Cell + (config.Cell-f.Large.LineHeight())/2
 	ui.TextCentred(dst, f.Large, text, y, sc.Title, sc.Shadow)
 }
 

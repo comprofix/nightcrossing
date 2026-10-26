@@ -24,16 +24,16 @@ func (m *Menu) Size(font gfx.Font) (w, h int) {
 	col := m.sliderColumn(font)
 	for i, it := range m.Items {
 		if it.Slider != nil {
-			w = max(w, col+(SliderCells+1)*font.Size()+font.Width("100%"))
+			w = max(w, col+(SliderCells+1)*font.CellWidth()+font.Width("100%"))
 		} else {
 			w = max(w, font.Width(m.Text(i)))
 		}
 	}
-	w += 2 * font.Size() // the "> " cursor
+	w += 2 * font.CellWidth() // the "> " cursor
 	if m.Scrolls() {
-		w += 2 * font.Size() // the " ^" marks
+		w += 2 * font.CellWidth() // the " ^" marks
 	}
-	return w, m.Shown()*(font.Size()+LineGap) - LineGap
+	return w, m.Shown()*(font.LineHeight()+LineGap) - LineGap
 }
 
 // Draw draws the menu with its top-left corner at (x, y): disabled items in
@@ -47,7 +47,7 @@ func (m *Menu) Draw(dst *ebiten.Image, font gfx.Font, x, y int, sc gfx.Scheme) {
 	first, n := m.First(), m.Shown()
 	if m.Scrolls() {
 		w, _ := m.Size(font)
-		mx, line := x+w-font.Size(), font.Size()+LineGap
+		mx, line := x+w-font.CellWidth(), font.LineHeight()+LineGap
 		if first > 0 {
 			font.DrawShadowed(dst, "^", mx, y, sc.Dim, sc.Shadow)
 		}
@@ -64,17 +64,17 @@ func (m *Menu) Draw(dst *ebiten.Image, font gfx.Font, x, y int, sc gfx.Scheme) {
 			c = sc.Highlight
 			font.DrawShadowed(dst, ">", x, y, c, sc.Shadow)
 		}
-		tx := x + 2*font.Size()
+		tx := x + 2*font.CellWidth()
 		if s := m.Items[i].Slider; s != nil {
 			v := min(max(s(), 0), 1)
 			font.DrawShadowed(dst, m.Items[i].Label, tx, y, c, sc.Shadow)
 			bx := tx + col
-			drawSlider(dst, bx, y, SliderCells*font.Size(), font.Size(), v, c, sc)
-			font.DrawShadowed(dst, percent(v), bx+(SliderCells+1)*font.Size(), y, c, sc.Shadow)
+			drawSlider(dst, bx, y, SliderCells*font.CellWidth(), font.LineHeight(), v, c, sc)
+			font.DrawShadowed(dst, percent(v), bx+(SliderCells+1)*font.CellWidth(), y, c, sc.Shadow)
 		} else {
 			font.DrawShadowed(dst, m.Text(i), tx, y, c, sc.Shadow)
 		}
-		y += font.Size() + LineGap
+		y += font.LineHeight() + LineGap
 	}
 }
 
@@ -84,7 +84,7 @@ func (m *Menu) sliderColumn(font gfx.Font) int {
 	col := 0
 	for _, it := range m.Items {
 		if it.Slider != nil {
-			col = max(col, font.Width(it.Label)+font.Size())
+			col = max(col, font.Width(it.Label)+font.CellWidth())
 		}
 	}
 	return col

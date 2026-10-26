@@ -22,13 +22,13 @@ const menuPad = 8
 func drawMenuScreen(ctx *Context, dst *ebiten.Image, heading string, m *ui.Menu, help string) {
 	sc, f := ctx.Scheme, ctx.Fonts
 	dst.Fill(gfx.RGBA(sc.Backdrop))
-	y := f.Large.Size()
+	y := f.Large.LineHeight()
 	ui.TextCentred(dst, f.Large, heading, y, sc.Title, sc.Shadow)
 	// The panel's border sits a line gap below the heading, so long menus
 	// still fit on a 200-pixel screen.
-	drawMenuPanel(ctx, dst, m, y+f.Large.Size()+ui.LineGap+menuPad)
+	drawMenuPanel(ctx, dst, m, y+f.Large.LineHeight()+ui.LineGap+menuPad)
 	if help != "" {
-		ui.TextCentred(dst, f.Small, help, config.Project.ScreenHeight-2*f.Small.Size(), sc.Dim, sc.Shadow)
+		ui.TextCentred(dst, f.Small, help, config.Project.ScreenHeight-2*f.Small.LineHeight(), sc.Dim, sc.Shadow)
 	}
 }
 
@@ -41,9 +41,9 @@ func menuRows(ctx *Context) int {
 	if f.Small == nil || f.Large == nil {
 		return 0
 	}
-	top := 2*f.Large.Size() + ui.LineGap + menuPad
-	bottom := config.Project.ScreenHeight - 2*f.Small.Size() - ui.LineGap - menuPad
-	return (bottom - top + ui.LineGap) / (f.Small.Size() + ui.LineGap)
+	top := 2*f.Large.LineHeight() + ui.LineGap + menuPad
+	bottom := config.Project.ScreenHeight - 2*f.Small.LineHeight() - ui.LineGap - menuPad
+	return (bottom - top + ui.LineGap) / (f.Small.LineHeight() + ui.LineGap)
 }
 
 // drawMenuPanel draws m in a panel centred across the screen, its top at y.
@@ -303,7 +303,7 @@ func (p *Pause) Draw(ctx *Context, dst *ebiten.Image) {
 	sc, f := ctx.Scheme, ctx.Fonts
 	p.under.Draw(ctx, dst)
 	Dim(dst, sc.Shadow, 0.6)
-	y := config.Project.ScreenHeight/2 - 3*f.Large.Size()/2
+	y := config.Project.ScreenHeight/2 - 3*f.Large.LineHeight()/2
 	ui.TextCentred(dst, f.Large, "PAUSED", y, sc.Title, sc.Shadow)
-	drawMenuPanel(ctx, dst, &p.menu, y+2*f.Large.Size())
+	drawMenuPanel(ctx, dst, &p.menu, y+2*f.Large.LineHeight())
 }
