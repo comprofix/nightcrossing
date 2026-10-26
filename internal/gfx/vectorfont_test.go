@@ -13,6 +13,16 @@ var (
 	_ Font = (*VectorFont)(nil)
 )
 
+func TestSmoothFonts(t *testing.T) {
+	f := SmoothFonts(720)
+	if f.Small.CellWidth() != 12 || f.Small.LineHeight() != 24 {
+		t.Errorf("small font at 720: cells %d×%d, want 12×24", f.Small.CellWidth(), f.Small.LineHeight())
+	}
+	if f.Large.CellWidth() != 24 {
+		t.Errorf("large font at 720: cells %d wide, want 24", f.Large.CellWidth())
+	}
+}
+
 // TestVectorFontCells checks the cells against Go Mono's metrics: a
 // character advances 0.6 em, and a line is 1.156 em tall. Each character is
 // drawn at the start of its own cell, so it may be up to half a pixel wider

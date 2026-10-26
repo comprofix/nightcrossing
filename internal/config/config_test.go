@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-var presets = []Preset{Modern, Classic}
+var presets = []Preset{Modern, Classic, Smooth}
 
 func TestPresets(t *testing.T) {
 	cases := []struct {
@@ -18,6 +18,7 @@ func TestPresets(t *testing.T) {
 	}{
 		{Modern, 640, 360, 1280, 720, 64},
 		{Classic, 320, 200, 1280, 800, 16},
+		{Smooth, 1280, 720, 1280, 720, 64},
 	}
 	for _, c := range cases {
 		t.Run(c.p.Name, func(t *testing.T) {
@@ -30,10 +31,25 @@ func TestPresets(t *testing.T) {
 			if c.p.Palette.Len() != c.colours {
 				t.Errorf("%d colours, want %d", c.p.Palette.Len(), c.colours)
 			}
-			if len(c.p.ScaleModes) == 0 || c.p.ScaleModes[0] != ScaleInteger {
-				t.Errorf("scale modes %v: want whole-number first", c.p.ScaleModes)
+			first := ScaleInteger
+			if c.p.Art == ArtSmooth {
+				first = ScaleSmooth
+			}
+			if len(c.p.ScaleModes) == 0 || c.p.ScaleModes[0] != first {
+				t.Errorf("scale modes %v: want %q first", c.p.ScaleModes, first)
 			}
 		})
+	}
+}
+
+func TestMinWindow(t *testing.T) {
+	for _, c := range []struct {
+		p    Preset
+		w, h int
+	}{{Modern, 640, 360}, {Classic, 320, 200}, {Smooth, 640, 360}} {
+		if w, h := c.p.MinWindow(); w != c.w || h != c.h {
+			t.Errorf("%s: min window %d×%d, want %d×%d", c.p.Name, w, h, c.w, c.h)
+		}
 	}
 }
 

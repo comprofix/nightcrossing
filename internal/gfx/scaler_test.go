@@ -30,6 +30,25 @@ func TestFitInteger(t *testing.T) {
 	}
 }
 
+func TestFitSmooth(t *testing.T) {
+	cases := []struct {
+		name       string
+		outW, outH int
+		want       Rect
+	}{
+		{"720p", 1280, 720, Rect{0, 0, 1280, 720}},
+		{"1080p", 1920, 1080, Rect{0, 0, 1920, 1080}},
+		{"1366x768, a fraction", 1366, 768, Rect{0, 0, 1365.3333333333333, 768}},
+		{"1920x1200 letterboxed", 1920, 1200, Rect{0, 60, 1920, 1080}},
+		{"a small window", 800, 600, Rect{0, 75, 800, 450}},
+	}
+	for _, c := range cases {
+		if got := Fit(config.ScaleSmooth, 1280, 720, c.outW, c.outH); got != c.want {
+			t.Errorf("%s: got %+v, want %+v", c.name, got, c.want)
+		}
+	}
+}
+
 func TestFitCRT(t *testing.T) {
 	got := Fit(config.ScaleCRT, 320, 200, 1920, 1080)
 	want := Rect{240, 0, 1440, 1080}

@@ -46,6 +46,15 @@ func NewVectorFont(size int) *VectorFont {
 	}
 }
 
+// SmoothFonts are the smooth art style's two fonts for a screen
+// screenHeight pixels tall: the small one has a size of a thirty-sixth of
+// the height (20 at 720, cells 12 wide and 24 tall), the large one twice
+// that.
+func SmoothFonts(screenHeight int) Fonts {
+	small := screenHeight / 36
+	return Fonts{Small: NewVectorFont(small), Large: NewVectorFont(2 * small)}
+}
+
 // CellWidth is how far each character moves the next one on, in pixels.
 func (f *VectorFont) CellWidth() int { return f.cell }
 

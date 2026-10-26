@@ -23,6 +23,9 @@ func Fit(mode config.ScaleMode, sw, sh, outW, outH int) Rect {
 		// The largest 4:3 rectangle that fits.
 		w = math.Min(ow, oh*4/3)
 		h = w * 3 / 4
+	case config.ScaleSmooth:
+		s := math.Min(ow/fw, oh/fh)
+		w, h = fw*s, fh*s
 	default:
 		s := math.Floor(math.Min(ow/fw, oh/fh))
 		if s < 1 {

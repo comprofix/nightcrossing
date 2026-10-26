@@ -81,6 +81,9 @@ func New(seed uint64, saved Saved, synth *audio.Synth) (*Game, error) {
 	if err != nil {
 		return nil, fmt.Errorf("fonts: %w", err)
 	}
+	if p.Art == config.ArtSmooth {
+		fonts = gfx.SmoothFonts(p.ScreenHeight)
+	}
 	sheets := map[string]*gfx.Sheet{}
 	for _, name := range content.Sheets {
 		sh, err := gfx.LoadSheet(assets.FS, "gen/"+name)
@@ -259,6 +262,9 @@ func (g *Game) present(out *ebiten.Image) {
 		op.GeoM.Scale(r.W/float64(sw), r.H/float64(sh))
 		op.GeoM.Translate(r.X, r.Y)
 		op.Filter = ebiten.FilterNearest
+		if g.settings.ScaleMode == config.ScaleSmooth {
+			op.Filter = ebiten.FilterLinear
+		}
 		out.DrawImage(g.screen, op)
 		return
 	}
