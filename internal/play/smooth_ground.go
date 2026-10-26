@@ -2,7 +2,6 @@ package play
 
 import (
 	"fmt"
-	"image"
 	"math"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -42,10 +41,7 @@ func (p *Play) drawSmoothGround(ctx *scene.Context, field *ebiten.Image, k int) 
 	}
 	p.smoothFlood(field, k)
 	p.smoothSheen(newPen(field, k))
-	if p.rainbow() { // enlarged until it has its smooth art
-		bounds := image.Rect(config.FieldX, config.FieldY, config.FieldX+w.Cols*config.Cell, config.FieldY+w.Rows*config.Cell)
-		p.inPixels(field, k, func(art *ebiten.Image) { p.drawRainbow(art.SubImage(bounds).(*ebiten.Image)) })
-	}
+	p.drawRainbow(field, k)
 	lampImg := p.stamp("lamp", k, config.Cell, config.Cell, func(pn pen) { smoothLamp(pn, 0, 0) })
 	for _, lp := range p.streetLamps() {
 		lay(field, lampImg, k, cellX(lp.col), cellY(lp.row), 1)

@@ -129,13 +129,21 @@ func (p *Play) drawWind(dst *ebiten.Image, s int) {
 			x += w
 		}
 		head := float32(float64(config.FieldX) + x - windLen/2)
+		sf := float32(s)
+		if s > 1 { // smoothed along its own line, as thick, since it is a cue (D47)
+			y0 := sf * float32(float64(config.FieldY)+y)
+			for j, col := range cols {
+				x0 := head - float32(dir*j*part)
+				vector.StrokeLine(dst, sf*x0, y0, sf*(x0-float32(dir*part)), y0, sf, col, true)
+			}
+			continue
+		}
 		y0 := float32(float64(config.FieldY) + math.Floor(y))
 		for j, col := range cols {
 			x0 := head - float32(dir*j*part)
 			if dir > 0 {
 				x0 -= part
 			}
-			sf := float32(s)
 			vector.FillRect(dst, sf*x0, sf*y0, sf*part, sf, col, false)
 		}
 	}

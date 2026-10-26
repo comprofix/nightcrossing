@@ -127,7 +127,11 @@ func (p *Play) drawField(ctx *scene.Context, dst *ebiten.Image) {
 	}
 	p.drawRain(out, k)
 	p.drawWind(out, k)
-	p.parts.Draw(out, 0, 0, float64(k))
+	if k == 1 {
+		p.parts.Draw(out, 0, 0, 1)
+	} else {
+		p.parts.DrawSmooth(out, 0, 0, float64(k))
+	}
 	if debug.Enabled {
 		p.inPixels(out, k, func(img *ebiten.Image) { p.drawHitBoxes(ctx, img.SubImage(bounds).(*ebiten.Image)) })
 	}
@@ -155,7 +159,7 @@ func (p *Play) drawGround(ctx *scene.Context, field *ebiten.Image) {
 	}
 	p.drawFlood(field)
 	p.drawRoadSheen(field)
-	p.drawRainbow(field) // after the storm, over the water (DESIGN §6.7)
+	p.drawRainbow(field, 1) // after the storm, over the water (DESIGN §6.7)
 	lamp := sheet.Sprite("lamp")
 	for _, lp := range p.streetLamps() {
 		lamp.Draw(field, 0, cellX(lp.col), cellY(lp.row), false)
@@ -197,11 +201,8 @@ func (p *Play) drawSmoothMoving(ctx *scene.Context, lit, field *ebiten.Image, bo
 	p.inPixels(lit, k, func(art *ebiten.Image) { p.drawSweepers(ctx, art.SubImage(bounds).(*ebiten.Image)) })
 	p.eachSiren(ctx, draw)
 	p.eachTrainPiece(ctx, draw)
-	p.inPixels(lit, k, func(art *ebiten.Image) {
-		field := art.SubImage(bounds).(*ebiten.Image)
-		p.drawFog(field)
-		p.drawMist(field)
-	})
+	p.drawFog(field, k)
+	p.drawMist(field, k)
 }
 
 // drawMoving draws what is on the ground but the hero and its young, in the
@@ -221,8 +222,8 @@ func (p *Play) drawMoving(ctx *scene.Context, field *ebiten.Image) {
 	p.drawSweepers(ctx, field)
 	p.drawSiren(ctx, field) // an emergency vehicle coming through (DESIGN §6.9)
 	p.drawTrain(ctx, field)
-	p.drawFog(field)
-	p.drawMist(field)
+	p.drawFog(field, 1)
+	p.drawMist(field, 1)
 }
 
 // drawRoad draws row r as asphalt, with dashes where it meets another road

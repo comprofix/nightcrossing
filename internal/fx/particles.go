@@ -21,6 +21,7 @@ type Burst struct {
 	Life    int          // ticks each lasts, give or take a quarter
 	Size    int          // pixels square
 	Colours []color.RGBA // each particle takes one at random
+	Streak  bool         // drawn smooth, a streak along its path, as a spark is
 }
 
 // particle is one moving dot.
@@ -30,6 +31,7 @@ type particle struct {
 	age, life     int
 	size          int
 	colour        color.RGBA
+	streak        bool
 }
 
 // Particles is a set of moving dots. Update moves them each tick and Draw
@@ -62,6 +64,7 @@ func (ps *Particles) Emit(b Burst) {
 			gravity: b.Gravity, drag: drag,
 			life: max(life, 1), size: max(b.Size, 1),
 			colour: b.Colours[ps.rng.IntN(len(b.Colours))],
+			streak: b.Streak,
 		})
 	}
 }
@@ -99,5 +102,28 @@ func (ps *Particles) Draw(dst *ebiten.Image, ox, oy, k float64) {
 		y := float32(math.Floor(oy + k*(p.y-float64(size)/2)))
 		s := float32(k * float64(size))
 		vector.FillRect(dst, x, y, s, s, p.colour, false)
+	}
+}
+
+// streakBack is how many ticks of its path a streak shows behind it.
+const streakBack = 1.5
+
+// DrawSmooth draws the particles as Draw does, smoothed at dst's own
+// pixels: round drops and motes, sparks as streaks along their paths. A
+// particle shrinks to half its size over the last part of its life.
+func (ps *Particles) DrawSmooth(dst *ebiten.Image, ox, oy, k float64) {
+	for _, p := range ps.list {
+		size := float64(p.size)
+		if late := float64(p.age)/float64(p.life) - 0.75; late > 0 {
+			size *= 1 - 2*late
+		}
+		x, y := float32(ox+k*p.x), float32(oy+k*p.y)
+		if p.streak {
+			bx, by := float32(k*p.vx*streakBack), float32(k*p.vy*streakBack)
+			vector.StrokeLine(dst, x-bx, y-by, x, y, float32(k*size*0.8), p.colour, true)
+			vector.FillCircle(dst, x, y, float32(k*size*0.4), p.colour, true)
+			continue
+		}
+		vector.FillCircle(dst, x, y, float32(k*size/2), p.colour, true)
 	}
 }

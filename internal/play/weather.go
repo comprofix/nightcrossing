@@ -33,6 +33,7 @@ const (
 	rainSlant  = 2   // how far it leans
 	rainFall   = 7   // pixels a tick
 	rainAlpha  = 0.5
+	rainFine   = 0.6  // a streak's width in the smooth look, in the game's pixels
 	rainSheen  = 0.18 // the wet road's sheen
 	sheenColor = resurrect64.Blue
 )
@@ -133,33 +134,43 @@ func (p *Play) fogPatch(i int) (x, y float64) {
 }
 
 // drawFog draws the fog patches over the road, faded in and out with the
-// fog. It is drawn before the light, so headlights still shine through it
-// (D29).
-func (p *Play) drawFog(dst *ebiten.Image) {
+// fog, s times the size. It is drawn before the light, so headlights still
+// shine through it (D29).
+func (p *Play) drawFog(dst *ebiten.Image, s int) {
 	k := p.fogK()
 	if k <= 0 {
 		return
 	}
-	if p.fogImg == nil {
-		p.fogImg = fogTexture()
-	}
 	for i := range fogPatches {
 		x, y := p.fogPatch(i)
-		var op ebiten.DrawImageOptions
-		op.GeoM.Translate(x, y)
-		op.ColorScale.ScaleAlpha(float32(fogAlpha * k))
-		dst.DrawImage(p.fogImg, &op)
+		p.layPatch(dst, s, x, y, fogAlpha*k)
 	}
 }
 
-// fogTexture is one fog patch: a soft grey oval, thickest in the middle.
-func fogTexture() *ebiten.Image {
-	img := image.NewRGBA(image.Rect(0, 0, fogPatchW, fogPatchH))
+// layPatch draws a fog patch with its top-left at x, y in the game's
+// coordinates, s times the size, a times as opaque: its texture drawn at
+// that size, so its edges stay soft.
+func (p *Play) layPatch(dst *ebiten.Image, s int, x, y, a float64) {
+	if p.fogImg == nil || p.fogImg.Bounds().Dx() != fogPatchW*s {
+		p.fogImg = fogTexture(s)
+	}
+	var op ebiten.DrawImageOptions
+	op.GeoM.Translate(x, y)
+	op.GeoM.Scale(float64(s), float64(s))
+	op.ColorScale.ScaleAlpha(float32(a))
+	dst.DrawImage(p.fogImg, &op)
+}
+
+// fogTexture is one fog patch s times the size: a soft grey oval,
+// thickest in the middle.
+func fogTexture(s int) *ebiten.Image {
+	w, h := fogPatchW*s, fogPatchH*s
+	img := image.NewRGBA(image.Rect(0, 0, w, h))
 	c := gfx.RGBA(fogGrey)
-	for y := range fogPatchH {
-		for x := range fogPatchW {
-			dx := (float64(x)+0.5)/fogPatchW*2 - 1
-			dy := (float64(y)+0.5)/fogPatchH*2 - 1
+	for y := range h {
+		for x := range w {
+			dx := (float64(x)+0.5)/float64(w)*2 - 1
+			dy := (float64(y)+0.5)/float64(h)*2 - 1
 			d := math.Sqrt(dx*dx + dy*dy)
 			a := math.Max(0, math.Min(1, (1-d)*2.2))
 			img.SetRGBA(x, y, color.RGBA{uint8(float64(c.R) * a), uint8(float64(c.G) * a), uint8(float64(c.B) * a), uint8(255 * a)})
@@ -189,8 +200,8 @@ func (p *Play) drawRoadSheen(dst *ebiten.Image) {
 
 // drawRain draws the rain falling over the field, on top of the light so
 // it shows at any time of day. Each streak falls at a steady pace from its
-// own place, the same every game. It is drawn s times the size, smoothed
-// when larger than the game's own pixels.
+// own place, the same every game. It is drawn s times the size, finer and
+// smoothed when larger than the game's own pixels.
 func (p *Play) drawRain(dst *ebiten.Image, s int) {
 	k := p.rainK()
 	if k <= 0 {
@@ -200,11 +211,15 @@ func (p *Play) drawRain(dst *ebiten.Image, s int) {
 	c := gfx.RGBA(resurrect64.Mist)
 	a := rainAlpha * k
 	col := color.RGBA{uint8(float64(c.R) * a), uint8(float64(c.G) * a), uint8(float64(c.B) * a), uint8(255 * a)}
+	width := float32(s)
+	if s > 1 {
+		width *= rainFine
+	}
 	for i := range rainDrops {
 		x := float64(noise(int64(i), 1, 0)%1000) / 1000 * w
 		y := math.Mod(float64(noise(int64(i), 2, 0)%1000)/1000*h+float64(p.ticks*rainFall), h)
 		sf := float32(s)
 		x0, y0 := sf*float32(float64(config.FieldX)+x), sf*float32(float64(config.FieldY)+y)
-		vector.StrokeLine(dst, x0, y0, x0-sf*rainSlant, y0+sf*rainLen, sf, col, s > 1)
+		vector.StrokeLine(dst, x0, y0, x0-sf*rainSlant, y0+sf*rainLen, width, col, s > 1)
 	}
 }

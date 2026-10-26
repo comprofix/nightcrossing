@@ -36,9 +36,9 @@ func (p *Play) rainbow() bool {
 	return b != nil && b.Rainbow
 }
 
-// drawRainbow draws the rainbow over the river: an arc of a circle whose
-// centre is far below the field, so only its top shows.
-func (p *Play) drawRainbow(dst *ebiten.Image) {
+// drawRainbow draws the rainbow over the river, s times the size: an arc
+// of a circle whose centre is far below the field, so only its top shows.
+func (p *Play) drawRainbow(dst *ebiten.Image, s int) {
 	if !p.rainbow() {
 		return
 	}
@@ -47,9 +47,10 @@ func (p *Play) drawRainbow(dst *ebiten.Image) {
 	r := (half*half + d*d) / (2 * d) // the circle through the top and both edges
 	cx := float64(config.FieldX) + half
 	cy := float64(config.FieldY+rainbowTop) + r
+	sf := float32(s)
 	for i, c := range rainbowBands {
 		rr := r - float64(i*rainbowBand) - rainbowBand/2.0
-		vector.StrokeCircle(dst, float32(cx), float32(cy), float32(rr), rainbowBand, faded(c, rainbowAlpha), true)
+		vector.StrokeCircle(dst, sf*float32(cx), sf*float32(cy), sf*float32(rr), sf*rainbowBand, faded(c, rainbowAlpha), true)
 	}
 }
 
@@ -78,19 +79,13 @@ func (p *Play) mistPatch(i int) (x, y float64) {
 }
 
 // drawMist draws the mist on the water, thinner than fog, before the
-// light.
-func (p *Play) drawMist(dst *ebiten.Image) {
+// light, s times the size.
+func (p *Play) drawMist(dst *ebiten.Image, s int) {
 	if !p.rainbow() {
 		return
 	}
-	if p.fogImg == nil {
-		p.fogImg = fogTexture()
-	}
 	for i := range mistPatches {
 		x, y := p.mistPatch(i)
-		var op ebiten.DrawImageOptions
-		op.GeoM.Translate(x, y)
-		op.ColorScale.ScaleAlpha(mistAlpha)
-		dst.DrawImage(p.fogImg, &op)
+		p.layPatch(dst, s, x, y, mistAlpha)
 	}
 }
