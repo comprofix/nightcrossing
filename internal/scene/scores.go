@@ -280,7 +280,7 @@ func (t *HighScoreTable) Draw(ctx *Context, dst *ebiten.Image) {
 	dst.Fill(gfx.RGBA(sc.Backdrop))
 	y := f.Large.LineHeight()
 	ui.TextCentred(dst, f.Large, "HIGH SCORES", y, sc.Title, sc.Shadow)
-	y += f.Large.LineHeight() + ui.LineGap + menuPad
+	y += f.Large.LineHeight() + ui.LineGap + menuPad(f)
 	modes := ctx.ModeList()
 	mode := modes[modeIndex(modes, t.mode)]
 	name := mode.Name

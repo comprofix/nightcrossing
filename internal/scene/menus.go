@@ -14,8 +14,9 @@ import (
 	"github.com/comprofix/nightcrossing/internal/ui"
 )
 
-// menuPad is the margin inside menu panels.
-const menuPad = 8
+// menuPad is the margin inside menu panels: one line of the small font, so
+// it grows with the font (8 pixels for pixel art).
+func menuPad(f gfx.Fonts) int { return f.Small.LineHeight() }
 
 // drawMenuScreen draws a full-screen menu: a heading in the large font and
 // the menu in a panel below it, with an optional line of help under that.
@@ -26,7 +27,7 @@ func drawMenuScreen(ctx *Context, dst *ebiten.Image, heading string, m *ui.Menu,
 	ui.TextCentred(dst, f.Large, heading, y, sc.Title, sc.Shadow)
 	// The panel's border sits a line gap below the heading, so long menus
 	// still fit on a 200-pixel screen.
-	drawMenuPanel(ctx, dst, m, y+f.Large.LineHeight()+ui.LineGap+menuPad)
+	drawMenuPanel(ctx, dst, m, y+f.Large.LineHeight()+ui.LineGap+menuPad(f))
 	if help != "" {
 		ui.TextCentred(dst, f.Small, help, config.Project.ScreenHeight-2*f.Small.LineHeight(), sc.Dim, sc.Shadow)
 	}
@@ -41,8 +42,8 @@ func menuRows(ctx *Context) int {
 	if f.Small == nil || f.Large == nil {
 		return 0
 	}
-	top := 2*f.Large.LineHeight() + ui.LineGap + menuPad
-	bottom := config.Project.ScreenHeight - 2*f.Small.LineHeight() - ui.LineGap - menuPad
+	top := 2*f.Large.LineHeight() + ui.LineGap + menuPad(f)
+	bottom := config.Project.ScreenHeight - 2*f.Small.LineHeight() - ui.LineGap - menuPad(f)
 	return (bottom - top + ui.LineGap) / (f.Small.LineHeight() + ui.LineGap)
 }
 
@@ -50,7 +51,7 @@ func menuRows(ctx *Context) int {
 func drawMenuPanel(ctx *Context, dst *ebiten.Image, m *ui.Menu, y int) {
 	sc, f := ctx.Scheme, ctx.Fonts
 	w, h := m.Size(f.Small)
-	ui.Panel(dst, ui.PanelAround(w, h, y, menuPad), sc.Panel, sc.Border)
+	ui.Panel(dst, ui.PanelAround(w, h, y, menuPad(f)), sc.Panel, sc.Border)
 	m.DrawCentred(dst, f.Small, y, sc)
 }
 
