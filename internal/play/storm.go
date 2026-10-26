@@ -106,8 +106,9 @@ func (p *Play) windK() (k float64, dir int) {
 
 // drawWind draws the streaks of a dry storm's wind blowing across the field,
 // over the light so they show at any time of day. Each streak runs at a
-// steady pace from its own place, the same every game.
-func (p *Play) drawWind(dst *ebiten.Image) {
+// steady pace from its own place, the same every game. They are drawn s
+// times the size.
+func (p *Play) drawWind(dst *ebiten.Image, s int) {
 	k, dir := p.windK()
 	if k <= 0 {
 		return
@@ -134,7 +135,8 @@ func (p *Play) drawWind(dst *ebiten.Image) {
 			if dir > 0 {
 				x0 -= part
 			}
-			vector.FillRect(dst, x0, y0, part, 1, col, false)
+			sf := float32(s)
+			vector.FillRect(dst, sf*x0, sf*y0, sf*part, sf, col, false)
 		}
 	}
 }

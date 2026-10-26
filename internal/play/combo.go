@@ -59,28 +59,29 @@ func (p *Play) updatePops() {
 }
 
 // drawPops draws the pop-ups, rising as they age, centred on where they
-// started.
-func (p *Play) drawPops(ctx *scene.Context, dst *ebiten.Image) {
+// started, k times the size.
+func (p *Play) drawPops(ctx *scene.Context, dst *ebiten.Image, k int) {
 	sc, f := ctx.Scheme, ctx.Fonts
 	for _, pp := range p.pops {
-		x := pp.x - len(pp.text)*f.Small.CellWidth()/2
-		f.Small.DrawShadowed(dst, pp.text, x, pp.y-f.Small.LineHeight()-pp.ticks/popRiseTick, sc.Highlight, sc.Shadow)
+		x := k*pp.x - f.Small.Width(pp.text)/2
+		f.Small.DrawShadowed(dst, pp.text, x, k*(pp.y-pp.ticks/popRiseTick)-f.Small.LineHeight(), sc.Highlight, sc.Shadow)
 	}
 }
 
 // drawCombo draws the combo's multiplier, from x2, with a bar showing how
-// long is left to keep it going.
-func (p *Play) drawCombo(ctx *scene.Context, dst *ebiten.Image, ty int) {
+// long is left to keep it going, k times the size.
+func (p *Play) drawCombo(ctx *scene.Context, dst *ebiten.Image, ty, k int) {
 	c := p.world.Combo
 	if c.Mult() < 2 {
 		return
 	}
 	sc, f := ctx.Scheme, ctx.Fonts
 	label := fmt.Sprintf("x%d", c.Mult())
-	f.Small.DrawShadowed(dst, label, hudComboX, ty, sc.Highlight, sc.Shadow)
-	bx := hudComboX + len(label)*f.Small.CellWidth() + hudLifeGap*2
-	by := (config.HUDHeight - comboBarH) / 2
-	vector.FillRect(dst, float32(bx), float32(by), comboBarW, comboBarH, gfx.RGBA(sc.Panel), false)
-	vector.FillRect(dst, float32(bx), float32(by), float32(comboBarW*c.Left/config.ComboTicks), comboBarH,
+	f.Small.DrawShadowed(dst, label, k*hudComboX, ty, sc.Highlight, sc.Shadow)
+	kf := float32(k)
+	bx := kf*hudComboX + float32(f.Small.Width(label)) + kf*hudLifeGap*2
+	by := kf * (config.HUDHeight - comboBarH) / 2
+	vector.FillRect(dst, bx, by, kf*comboBarW, kf*comboBarH, gfx.RGBA(sc.Panel), false)
+	vector.FillRect(dst, bx, by, kf*float32(comboBarW*c.Left/config.ComboTicks), kf*comboBarH,
 		gfx.RGBA(sc.Highlight), false)
 }

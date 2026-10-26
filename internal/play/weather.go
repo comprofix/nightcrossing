@@ -189,8 +189,9 @@ func (p *Play) drawRoadSheen(dst *ebiten.Image) {
 
 // drawRain draws the rain falling over the field, on top of the light so
 // it shows at any time of day. Each streak falls at a steady pace from its
-// own place, the same every game.
-func (p *Play) drawRain(dst *ebiten.Image) {
+// own place, the same every game. It is drawn s times the size, smoothed
+// when larger than the game's own pixels.
+func (p *Play) drawRain(dst *ebiten.Image, s int) {
 	k := p.rainK()
 	if k <= 0 {
 		return
@@ -202,7 +203,8 @@ func (p *Play) drawRain(dst *ebiten.Image) {
 	for i := range rainDrops {
 		x := float64(noise(int64(i), 1, 0)%1000) / 1000 * w
 		y := math.Mod(float64(noise(int64(i), 2, 0)%1000)/1000*h+float64(p.ticks*rainFall), h)
-		x0, y0 := float32(float64(config.FieldX)+x), float32(float64(config.FieldY)+y)
-		vector.StrokeLine(dst, x0, y0, x0-rainSlant, y0+rainLen, 1, col, false)
+		sf := float32(s)
+		x0, y0 := sf*float32(float64(config.FieldX)+x), sf*float32(float64(config.FieldY)+y)
+		vector.StrokeLine(dst, x0, y0, x0-sf*rainSlant, y0+sf*rainLen, sf, col, s > 1)
 	}
 }

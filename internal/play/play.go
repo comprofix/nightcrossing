@@ -5,6 +5,7 @@ package play
 
 import (
 	"fmt"
+	"image"
 	"math/rand/v2"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -65,10 +66,12 @@ type Play struct {
 	// is cut off until it has gone (D71).
 	sirenCut bool
 
+	size      image.Point // the screen in the game's coordinates, the pixel look's
 	light     *fx.Lighting
 	parts     *fx.Particles
 	nookGlow  [len(config.Nooks)]int // ticks left of each nook's flare as a toad arrives
 	outline   *ebiten.Image          // a drawing buffer for high contrast's outlines
+	art       *ebiten.Image          // a drawing buffer for pixel art enlarged in the smooth look
 	pops      []pop                  // points popping up over the toad (D38)
 	sky       int                    // where the day and night cycle is (D39; see sky.go)
 	overcast  int                    // how far fog or rain has dimmed the light, in ticks (D44)
@@ -109,17 +112,18 @@ func newLevel(ctx *scene.Context, levels config.ModeLevels, n int) *Play {
 // levels of their own.
 func newPlay(ctx *scene.Context, levels config.ModeLevels, level config.Level) *Play {
 	level.Storms = ctx.Storms // -storm, for testing (D52)
-	return build(ctx.Preset, ctx.Session, levels, level, ctx.RNG, !ctx.NoShaders)
+	return build(gamePreset(ctx), ctx.Session, levels, level, ctx.RNG, !ctx.NoShaders)
 }
 
-// build is a level of the game in s, shown in preset pr, its random choices
-// from rng, lit by shaders if shaders is true.
+// build is a level of the game in s, in the coordinates of preset pr, its
+// random choices from rng, lit by shaders if shaders is true.
 func build(pr config.Preset, s *session.Session, levels config.ModeLevels, level config.Level, rng *rand.Rand, shaders bool) *Play {
 	w := world.New(s, level, rng)
 	p := &Play{
 		world:  w,
 		hero:   Toad,
 		levels: levels,
+		size:   image.Pt(pr.ScreenWidth, pr.ScreenHeight),
 		light:  fx.NewLighting(pr.ScreenWidth, pr.ScreenHeight, shaders),
 		parts:  fx.NewParticles(rand.New(rand.NewPCG(rng.Uint64(), rng.Uint64()))),
 		sky:    skyStart(level),
@@ -340,56 +344,59 @@ func pressed(in *input.Input) world.Dir {
 
 // Draw implements scene.Scene.
 func (p *Play) Draw(ctx *scene.Context, dst *ebiten.Image) {
+	k := p.scale(ctx)
 	dst.Fill(gfx.RGBA(ctx.Scheme.Backdrop))
 	p.drawField(ctx, dst)
-	p.drawTrafficLights(ctx, dst)
-	p.drawPops(ctx, dst)
-	p.drawHUD(ctx, dst)
-	p.drawHint(ctx, dst)
-	p.drawBanner(ctx, dst)
+	p.inPixels(dst, k, func(img *ebiten.Image) { p.drawTrafficLights(ctx, img) })
+	p.drawPops(ctx, dst, k)
+	p.drawHUD(ctx, dst, k)
+	p.drawHint(ctx, dst, k)
+	p.drawBanner(ctx, dst, k)
 }
 
 // drawHUD draws the status bar: score, best score, level, lives and time.
-func (p *Play) drawHUD(ctx *scene.Context, dst *ebiten.Image) {
+// Its places are in the game's coordinates, shown k times the size; the
+// text is in the shown look's font.
+func (p *Play) drawHUD(ctx *scene.Context, dst *ebiten.Image, k int) {
 	sc, f := ctx.Scheme, ctx.Fonts
 	s := ctx.Session
-	ty := (config.HUDHeight - f.Small.LineHeight()) / 2
+	ty := (k*config.HUDHeight - f.Small.LineHeight()) / 2
 
-	f.Small.DrawShadowed(dst, fmt.Sprintf("SCORE %06d", s.Score), config.FieldMargin, ty, sc.Text, sc.Shadow)
-	f.Small.DrawShadowed(dst, fmt.Sprintf("HI %06d", max(best(ctx), s.Score)), hudHiX, ty, sc.Text, sc.Shadow)
+	f.Small.DrawShadowed(dst, fmt.Sprintf("SCORE %06d", s.Score), k*config.FieldMargin, ty, sc.Text, sc.Shadow)
+	f.Small.DrawShadowed(dst, fmt.Sprintf("HI %06d", max(best(ctx), s.Score)), k*hudHiX, ty, sc.Text, sc.Shadow)
 	level := fmt.Sprintf("LV %d", p.world.Level.Number)
 	if p.world.Bonus() {
 		level = "BONUS"
 	}
-	f.Small.DrawShadowed(dst, level, hudLevelX, ty, sc.Text, sc.Shadow)
+	f.Small.DrawShadowed(dst, level, k*hudLevelX, ty, sc.Text, sc.Shadow)
 
 	life := ctx.Sheet(Sheet).Sprite("life")
 	ly := float64((config.HUDHeight - life.H) / 2)
 	for i := range min(s.Lives, config.MaxLives) {
-		life.Draw(dst, 0, float64(hudLivesX+i*(life.W+hudLifeGap)), ly, false)
+		drawSprite(dst, life, 0, float64(hudLivesX+i*(life.W+hudLifeGap)), ly, k)
 	}
 
-	sw := ctx.Preset.ScreenWidth
-	barX := sw - config.FieldMargin - timeBarW
+	barX := p.size.X - config.FieldMargin - timeBarW
 	barY := (config.HUDHeight - timeBarH) / 2
 	label := "TIME"
-	f.Small.DrawShadowed(dst, label, barX-labelGap-len(label)*f.Small.CellWidth(), ty, sc.Text, sc.Shadow)
+	f.Small.DrawShadowed(dst, label, k*(barX-labelGap)-f.Small.Width(label), ty, sc.Text, sc.Shadow)
 	w := p.world
 	filled := timeBarW * max(w.TicksLeft, 0) / w.Level.TimerTicks
 	bar := resurrect64.Emerald
 	if w.TicksLeft <= config.LowTimeSecs*config.TPS {
 		bar = resurrect64.Red // time is low (DESIGN §5.4)
 	}
-	vector.FillRect(dst, float32(barX), float32(barY), timeBarW, timeBarH, gfx.RGBA(sc.Panel), false)
-	vector.FillRect(dst, float32(barX), float32(barY), float32(filled), timeBarH, gfx.RGBA(bar), false)
-	p.drawCombo(ctx, dst, ty)
-	p.drawCaught(ctx, dst, ty)
+	kf := float32(k)
+	vector.FillRect(dst, kf*float32(barX), kf*float32(barY), kf*timeBarW, kf*timeBarH, gfx.RGBA(sc.Panel), false)
+	vector.FillRect(dst, kf*float32(barX), kf*float32(barY), kf*float32(filled), kf*timeBarH, gfx.RGBA(bar), false)
+	p.drawCombo(ctx, dst, ty, k)
+	p.drawCaught(ctx, dst, ty, k)
 }
 
 // drawCaught draws, on a bonus level, how much of its set the toad has
 // collected, with a firefly or a fruit, in the combo's place: there are
 // no hop points to combo (D61, DESIGN §6.7).
-func (p *Play) drawCaught(ctx *scene.Context, dst *ebiten.Image, ty int) {
+func (p *Play) drawCaught(ctx *scene.Context, dst *ebiten.Image, ty, k int) {
 	b := p.world.Level.Bonus
 	if b == nil {
 		return
@@ -405,13 +412,13 @@ func (p *Play) drawCaught(ctx *scene.Context, dst *ebiten.Image, ty int) {
 	case b.Dawn:
 		sp = ctx.Sheet(Sheet).Sprite(p.hero.DayPickup)
 	}
-	sp.Draw(dst, frame, hudComboX, float64((config.HUDHeight-sp.H)/2), false)
+	drawSprite(dst, sp, frame, hudComboX, float64((config.HUDHeight-sp.H)/2), k)
 	count := fmt.Sprintf("%d/%d", p.world.Collected(), b.Size())
-	x := hudComboX + sp.W + hudLifeGap
+	x := k * (hudComboX + sp.W + hudLifeGap)
 	f.Small.DrawShadowed(dst, count, x, ty, sc.Highlight, sc.Shadow)
 	if m := p.world.RunMult(); m > 1 { // what the next catch in the run is worth, before the icon (DESIGN §6.7)
 		label := fmt.Sprintf("x%d", m)
-		f.Small.DrawShadowed(dst, label, hudComboX-(len(label)+1)*f.Small.CellWidth(), ty, sc.Title, sc.Shadow)
+		f.Small.DrawShadowed(dst, label, k*hudComboX-(len(label)+1)*f.Small.CellWidth(), ty, sc.Title, sc.Shadow)
 	}
 }
 
@@ -452,9 +459,9 @@ func (p *Play) levelHints() []string {
 // drawHint draws the strip below the playfield: the controls, or for a
 // while at the start of a level that brings in something new, its hint
 // (DESIGN §7).
-func (p *Play) drawHint(ctx *scene.Context, dst *ebiten.Image) {
+func (p *Play) drawHint(ctx *scene.Context, dst *ebiten.Image, k int) {
 	sc, f := ctx.Scheme, ctx.Fonts
-	top := config.FieldY + config.Rows*config.Cell
+	top := k * (config.FieldY + config.Rows*config.Cell)
 	text, c := hint, sc.Dim
 	if hs := p.levelHints(); len(hs) > 0 && p.ticks < levelHintTicks {
 		text, c = hs[p.ticks*len(hs)/levelHintTicks], sc.Highlight // in turn, sharing the time (D66)
@@ -462,12 +469,12 @@ func (p *Play) drawHint(ctx *scene.Context, dst *ebiten.Image) {
 	if m := p.eventMessage(); m != "" {
 		text, c = m, sc.Highlight // an event is announced (DESIGN §6.1)
 	}
-	ui.TextCentred(dst, f.Small, text, top+(config.HintHeight-f.Small.LineHeight())/2, c, sc.Shadow)
+	ui.TextCentred(dst, f.Small, text, top+(k*config.HintHeight-f.Small.LineHeight())/2, c, sc.Shadow)
 }
 
 // drawBanner shows the level number as the level starts, and LEVEL CLEAR
 // once it is cleared, on the verge between the river and the road.
-func (p *Play) drawBanner(ctx *scene.Context, dst *ebiten.Image) {
+func (p *Play) drawBanner(ctx *scene.Context, dst *ebiten.Image, k int) {
 	sc, f := ctx.Scheme, ctx.Fonts
 	var text string
 	switch {
@@ -485,7 +492,7 @@ func (p *Play) drawBanner(ctx *scene.Context, dst *ebiten.Image) {
 		return
 	}
 	const vergeRow = 6
-	y := config.FieldY + vergeRow*config.Cell + (config.Cell-f.Large.LineHeight())/2
+	y := k*(config.FieldY+vergeRow*config.Cell) + (k*config.Cell-f.Large.LineHeight())/2
 	ui.TextCentred(dst, f.Large, text, y, sc.Title, sc.Shadow)
 }
 

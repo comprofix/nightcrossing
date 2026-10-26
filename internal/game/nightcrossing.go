@@ -12,5 +12,6 @@ func init() {
 		Sheets:     []string{play.Sheet},
 		TitleTune:  play.NightTitle,
 		ScoresTune: play.HighScores,
+		NativePlay: true, // play and the demo draw in either look (DESIGN §3.6)
 	}
 }

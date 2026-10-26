@@ -73,9 +73,12 @@ func stageFrame(s world.Stage, phase int) int {
 // water), the lamps, what moves along them, and the hero, then lights it
 // all for the night and draws the particles on top, so sparks and drops
 // stay bright (DESIGN §3.3). Everything on the field is clipped to it, so
-// vehicles and platforms slide in and out at its edges.
+// vehicles and platforms slide in and out at its edges. In the smooth look
+// the field's pixel art is enlarged, and lit, rained on and sparked at the
+// screen's own size (DESIGN §3.6).
 func (p *Play) drawField(ctx *scene.Context, dst *ebiten.Image) {
 	w := p.world
+	k := p.scale(ctx)
 	bounds := image.Rect(config.FieldX, config.FieldY,
 		config.FieldX+w.Cols*config.Cell, config.FieldY+w.Rows*config.Cell)
 	look := p.look() // Stroll's night, or Last Train's day and night (D39)
@@ -89,8 +92,34 @@ func (p *Play) drawField(ctx *scene.Context, dst *ebiten.Image) {
 	if ctx.Settings.HighContrast {
 		look.Level = max(look.Level, highContrastLevel)
 	}
-	field := p.light.Begin(look).SubImage(bounds).(*ebiten.Image)
+	p.light.SetScale(k)
+	lit := p.light.Begin(look)
+	p.inPixels(lit, k, func(art *ebiten.Image) {
+		p.drawArt(ctx, art.SubImage(bounds).(*ebiten.Image))
+	})
 
+	p.addLights(ctx, p.light)
+	p.light.Draw(dst, 0, 0)
+	out := dst.SubImage(image.Rectangle{Min: bounds.Min.Mul(k), Max: bounds.Max.Mul(k)}).(*ebiten.Image)
+	p.inPixels(out, k, func(img *ebiten.Image) {
+		over := img.SubImage(bounds).(*ebiten.Image)
+		p.drawFlyer(ctx, over)
+		if ctx.Settings.HighContrast {
+			p.drawOutlines(ctx, over)
+		}
+	})
+	p.drawRain(out, k)
+	p.drawWind(out, k)
+	p.parts.Draw(out, 0, 0, float64(k))
+	if debug.Enabled {
+		p.inPixels(out, k, func(img *ebiten.Image) { p.drawHitBoxes(ctx, img.SubImage(bounds).(*ebiten.Image)) })
+	}
+}
+
+// drawArt draws the field's art, in the game's coordinates, before it is
+// lit: the rows, the lamps, what moves along them, and the hero.
+func (p *Play) drawArt(ctx *scene.Context, field *ebiten.Image) {
+	w := p.world
 	sheet := ctx.Sheet(Sheet)
 	for r := range w.Lanes {
 		switch w.Lanes[r].Kind {
@@ -135,20 +164,6 @@ func (p *Play) drawField(ctx *scene.Context, dst *ebiten.Image) {
 	p.drawFog(field)
 	p.drawMist(field)
 	p.drawHero(ctx, field)
-
-	p.addLights(ctx, p.light)
-	p.light.Draw(dst, 0, 0)
-	out := dst.SubImage(bounds).(*ebiten.Image)
-	p.drawFlyer(ctx, out)
-	if ctx.Settings.HighContrast {
-		p.drawOutlines(ctx, out)
-	}
-	p.drawRain(out)
-	p.drawWind(out)
-	p.parts.Draw(out, 0, 0)
-	if debug.Enabled {
-		p.drawHitBoxes(ctx, out)
-	}
 }
 
 // drawRoad draws row r as asphalt, with dashes where it meets another road

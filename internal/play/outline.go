@@ -20,8 +20,7 @@ const outlineColour = resurrect64.White
 // so night does not dim the line.
 func (p *Play) drawOutlines(ctx *scene.Context, dst *ebiten.Image) {
 	if p.outline == nil {
-		pr := ctx.Preset
-		p.outline = ebiten.NewImage(pr.ScreenWidth, pr.ScreenHeight)
+		p.outline = ebiten.NewImage(p.size.X, p.size.Y) // in the game's coordinates, as the sprites are
 	}
 	p.outline.Clear()
 	var solid colorm.ColorM

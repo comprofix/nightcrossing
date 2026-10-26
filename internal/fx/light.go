@@ -28,7 +28,7 @@ const (
 	Beam              // a cone from X, Y facing right (or left with Flip), like a headlight
 )
 
-// Light is one light source, in the lit image's pixels.
+// Light is one light source, in the scene's own coordinates.
 type Light struct {
 	Shape    Shape
 	X, Y     float64
@@ -53,9 +53,12 @@ type Look struct {
 // the lit result. With shaders it combines them in a Kage shader; without,
 // it multiplies the light map onto the scene with a blend, which gives the
 // same picture but can't band the light or lift colours above their own
-// value (PLAN §3).
+// value (PLAN §3). The scene can be shown at a whole multiple of its size:
+// the images are then that much larger, and lights are placed and sized to
+// match, so the light fades smoothly at the larger size (DESIGN §3.6).
 type Lighting struct {
-	w, h      int
+	w, h      int // the scene's size in its own coordinates
+	k         int // how many screen pixels each of them is across
 	useShader bool
 
 	// Made on first use, since images can only be made once the game is
@@ -71,10 +74,30 @@ type Lighting struct {
 	look         Look
 }
 
-// NewLighting lights scenes w×h pixels. useShader false always takes the
+// NewLighting lights scenes w×h in their own coordinates, shown at their
+// own size until SetScale says otherwise. useShader false always takes the
 // fallback; a shader that fails to compile does too.
 func NewLighting(w, h int, useShader bool) *Lighting {
-	return &Lighting{w: w, h: h, useShader: useShader}
+	return &Lighting{w: w, h: h, k: 1, useShader: useShader}
+}
+
+// SetScale shows the scene k times its own size from the next Begin on:
+// the image Begin returns, and the one Draw draws, are k times as wide
+// and as tall.
+func (l *Lighting) SetScale(k int) {
+	k = max(k, 1)
+	if k == l.k {
+		return
+	}
+	l.k = k
+	if l.scene != nil { // made again at the new size
+		for _, img := range append([]*ebiten.Image{l.scene, l.lights, l.out, l.bright}, l.blur[:]...) {
+			if img != nil {
+				img.Deallocate()
+			}
+		}
+		l.scene, l.lights, l.out, l.bright, l.blur = nil, nil, nil, nil, [3]*ebiten.Image{}
+	}
 }
 
 // Size of the light textures, in pixels.
@@ -88,23 +111,30 @@ func (l *Lighting) ensure() {
 	if l.scene != nil {
 		return
 	}
-	l.scene = ebiten.NewImage(l.w, l.h)
-	l.lights = ebiten.NewImage(l.w, l.h)
-	l.out = ebiten.NewImage(l.w, l.h)
-	l.glow = texture(glowSize, glowSize, glowAt)
-	l.beam = texture(beamLen, beamH, beamAt)
+	w, h := l.w*l.k, l.h*l.k
+	l.scene = ebiten.NewImage(w, h)
+	l.lights = ebiten.NewImage(w, h)
+	l.out = ebiten.NewImage(w, h)
+	if l.glow == nil {
+		l.glow = texture(glowSize, glowSize, glowAt)
+		l.beam = texture(beamLen, beamH, beamAt)
+	}
 	if l.useShader {
-		s, err := ebiten.NewShader(lightKage)
-		if err != nil {
-			log.Printf("lighting shader: %v; using the fallback", err)
+		if l.shader == nil {
+			s, err := ebiten.NewShader(lightKage)
+			if err != nil {
+				log.Printf("lighting shader: %v; using the fallback", err)
+			}
+			l.shader = s
+			if b, err := ebiten.NewShader(brightKage); err == nil {
+				l.brightShader = b
+			} else {
+				log.Printf("glow shader: %v; no glow", err)
+			}
 		}
-		l.shader = s
-		if b, err := ebiten.NewShader(brightKage); err == nil {
-			l.brightShader = b
-		} else {
-			log.Printf("glow shader: %v; no glow", err)
-		}
-		l.bright = ebiten.NewImage(l.w, l.h)
+		l.bright = ebiten.NewImage(w, h)
+		// The blurs are sized from the scene's own size, not the screen's,
+		// so the glow spreads as far over the scene at any scale.
 		for i := range l.blur {
 			l.blur[i] = ebiten.NewImage(max(l.w>>(i+1), 1), max(l.h>>(i+1), 1))
 		}
@@ -133,6 +163,8 @@ func (l *Lighting) Add(li Light) {
 	if li.Strength <= 0 || li.Radius <= 0 {
 		return
 	}
+	s := float64(l.k)
+	li.X, li.Y, li.Radius = li.X*s, li.Y*s, li.Radius*s
 	var op ebiten.DrawImageOptions
 	op.Blend = ebiten.BlendLighter
 	op.Filter = ebiten.FilterLinear
@@ -157,7 +189,7 @@ func (l *Lighting) Add(li Light) {
 	}
 }
 
-// Draw draws the lit scene onto dst at x, y.
+// Draw draws the lit scene onto dst at x, y, in dst's pixels.
 func (l *Lighting) Draw(dst *ebiten.Image, x, y float64) {
 	var op ebiten.DrawImageOptions
 	op.GeoM.Translate(x, y)
@@ -176,7 +208,7 @@ func (l *Lighting) Draw(dst *ebiten.Image, x, y float64) {
 			"Bands": float32(l.look.Bands),
 		}
 		l.out.Clear()
-		l.out.DrawRectShader(l.w, l.h, l.shader, sop)
+		l.out.DrawRectShader(l.w*l.k, l.h*l.k, l.shader, sop)
 		if l.look.Glow > 0 && l.brightShader != nil {
 			l.addGlow()
 		}
@@ -252,7 +284,7 @@ func (l *Lighting) addGlow() {
 	sop.Images[0] = l.out
 	sop.Uniforms = map[string]any{"From": float32(l.look.GlowFrom)}
 	l.bright.Clear()
-	l.bright.DrawRectShader(l.w, l.h, l.brightShader, sop)
+	l.bright.DrawRectShader(l.w*l.k, l.h*l.k, l.brightShader, sop)
 	src := l.bright
 	for _, b := range l.blur {
 		b.Clear()

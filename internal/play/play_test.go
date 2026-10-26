@@ -203,7 +203,7 @@ func TestFacingKeepsTheSpriteInItsBox(t *testing.T) {
 // not run while paused.
 func TestMenuToPlayAndPause(t *testing.T) {
 	h := scenetest.New(t, 42)
-	h.Ctx.NewPlay = New
+	h.Ctx.NewPlay, h.Ctx.NativePlay = New, true
 	h.Start(scene.NewMainMenu())
 	h.Ticks(scene.FadeTicks)
 
@@ -365,7 +365,7 @@ func TestTitleDemo(t *testing.T) {
 	run := func(demo bool) (uint64, *Demo) {
 		h := scenetest.New(t, 42)
 		if demo {
-			h.Ctx.NewDemo = NewDemo
+			h.Ctx.NewDemo, h.Ctx.NativePlay = NewDemo, true
 		}
 		title := scene.NewTitle()
 		h.Start(title)
@@ -399,7 +399,7 @@ func TestTitleDemo(t *testing.T) {
 // scores.
 func TestGamepadOnly(t *testing.T) {
 	h := scenetest.New(t, 42)
-	h.Ctx.NewPlay, h.Ctx.NewDemo = New, NewDemo
+	h.Ctx.NewPlay, h.Ctx.NewDemo, h.Ctx.NativePlay = New, NewDemo, true
 	h.Start(scene.NewTitle())
 	h.Ticks(scene.FadeTicks)
 	pad := func(b input.Button) {

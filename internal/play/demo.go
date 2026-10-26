@@ -18,7 +18,7 @@ import (
 // progress and the scores alone, and plays the same every time.
 type Demo struct {
 	play    *Play
-	preset  config.Preset // the look it is shown in
+	preset  config.Preset // the look its coordinates are in
 	level   int           // the level being played
 	shaders bool          // whether to light it with shaders
 	ended   int           // ticks since the level was cleared or lost; 0 until then
@@ -27,7 +27,7 @@ type Demo struct {
 
 // NewDemo starts the demo on level 1.
 func NewDemo(ctx *scene.Context) scene.Scene {
-	d := &Demo{preset: ctx.Preset, shaders: !ctx.NoShaders}
+	d := &Demo{preset: gamePreset(ctx), shaders: !ctx.NoShaders}
 	d.start(1)
 	return d
 }

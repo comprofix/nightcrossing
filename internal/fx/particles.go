@@ -86,16 +86,18 @@ func (ps *Particles) Update() {
 // Clear removes every particle.
 func (ps *Particles) Clear() { ps.list = ps.list[:0] }
 
-// Draw draws the particles onto dst, offset by ox, oy, on whole pixels.
-// A particle shrinks by a pixel over the last part of its life.
-func (ps *Particles) Draw(dst *ebiten.Image, ox, oy float64) {
+// Draw draws the particles onto dst k times their own size, offset by ox,
+// oy in dst's pixels, on whole pixels of dst. A particle shrinks by one of
+// its own pixels over the last part of its life.
+func (ps *Particles) Draw(dst *ebiten.Image, ox, oy, k float64) {
 	for _, p := range ps.list {
 		size := p.size
 		if size > 1 && p.age*4 >= p.life*3 {
 			size--
 		}
-		x := float32(math.Floor(ox + p.x - float64(size)/2))
-		y := float32(math.Floor(oy + p.y - float64(size)/2))
-		vector.FillRect(dst, x, y, float32(size), float32(size), p.colour, false)
+		x := float32(math.Floor(ox + k*(p.x-float64(size)/2)))
+		y := float32(math.Floor(oy + k*(p.y-float64(size)/2)))
+		s := float32(k * float64(size))
+		vector.FillRect(dst, x, y, s, s, p.colour, false)
 	}
 }
