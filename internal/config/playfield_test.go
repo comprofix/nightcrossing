@@ -6,7 +6,7 @@ import (
 )
 
 func TestPlayfieldFillsTheScreen(t *testing.T) {
-	p := Project
+	p := *ProjectLooks().Pixel() // the field is in the pixel look's coordinates in either look (D77)
 	if w := 2*FieldMargin + Cols*Cell; w != p.ScreenWidth {
 		t.Errorf("margins and grid are %d wide, screen is %d", w, p.ScreenWidth)
 	}

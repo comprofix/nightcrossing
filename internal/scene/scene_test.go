@@ -365,9 +365,11 @@ func TestSoundTest(t *testing.T) {
 }
 
 // TestLightOption checks the Light option starts at Smooth, switches to
-// Pixel and back, and reports the change for saving.
+// Pixel and back, and reports the change for saving. It is the pixel
+// look's (D80).
 func TestLightOption(t *testing.T) {
 	h := newHarness(t, NewOptions(func() Scene { return NewMainMenu() }))
+	h.ctx.Settings.Look = config.Modern.Name
 	h.ticks(1)
 	opts := current[*Options](t, h)
 	for range len(opts.menu.Items) {

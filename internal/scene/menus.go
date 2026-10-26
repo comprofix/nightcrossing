@@ -267,7 +267,7 @@ func (s *Options) items(ctx *Context) []ui.Item {
 	modes := func() []config.ScaleMode { return set.Shown(looks).ScaleModes }
 	var items []ui.Item
 	if looks.Two() {
-		items = append(items, ui.Item{Label: "Look", Value: func() string { return set.Shown(looks).Name },
+		items = append(items, ui.Item{Label: "Look", Value: func() string { return LookName(set.Shown(looks)) },
 			Adjust: func(int) {
 				l := looks.Second.Name
 				if set.Shown(looks).Name == l {
@@ -307,6 +307,15 @@ func (s *Options) items(ctx *Context) []ui.Item {
 		{Label: "High contrast", Value: ui.OnOff(&set.HighContrast), Adjust: toggle(&set.HighContrast)},
 		{Label: "Back", Confirm: func() { ctx.Switch(s.back()) }},
 	}...)
+}
+
+// LookName is a look as the options menu shows it, by its kind of art:
+// Smooth or Pixel (DESIGN §3.6). The settings keep the preset's own name.
+func LookName(p config.Preset) string {
+	if p.Art == config.ArtPixel {
+		return "Pixel"
+	}
+	return "Smooth"
 }
 
 // LightName is the light setting as the options menu shows it: Pixel
