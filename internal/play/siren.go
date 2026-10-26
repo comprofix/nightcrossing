@@ -49,23 +49,20 @@ const (
 // same as its sprite's frame.
 func (p *Play) sirenLit() int { return int(p.world.Tick/sirenFlashTicks) % 2 }
 
-// eachSiren calls draw with the emergency vehicle's frame, place and
-// facing, while it comes through its lane.
-func (p *Play) eachSiren(ctx *scene.Context, draw func(img *ebiten.Image, x, y float64, flip bool)) {
+// eachSiren calls draw with the emergency vehicle, while it comes through
+// its lane.
+func (p *Play) eachSiren(_ *scene.Context, draw func(pc piece)) {
 	s := p.world.Siren
 	if s.Phase != world.SirenRun {
 		return
 	}
-	sp := ctx.Sheet(Sheet).Sprite(s.Responder().ID)
 	x := float64(config.FieldX) + math.Floor(float64(s.X)/config.SubPx)
-	draw(sp.Frame(p.sirenLit()), x, cellY(s.Row), p.world.Lanes[s.Row].Dir < 0)
+	draw(piece{name: s.Responder().ID, frame: p.sirenLit(), x: x, y: cellY(s.Row), flip: p.world.Lanes[s.Row].Dir < 0})
 }
 
 // drawSiren draws the emergency vehicle coming through.
 func (p *Play) drawSiren(ctx *scene.Context, dst *ebiten.Image) {
-	p.eachSiren(ctx, func(img *ebiten.Image, x, y float64, flip bool) {
-		dst.DrawImage(img, &ebiten.DrawImageOptions{GeoM: spriteGeoM(img, x, y, flip)})
-	})
+	p.eachSiren(ctx, func(pc piece) { drawPiece(ctx, dst, pc) })
 }
 
 // addSirenLights adds the emergency's lights (D72): through the warning

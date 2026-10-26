@@ -97,18 +97,18 @@ func (p *Play) drawField(ctx *scene.Context, dst *ebiten.Image) {
 	if k == 1 {
 		field := lit.SubImage(bounds).(*ebiten.Image)
 		p.drawGround(ctx, field)
-		p.drawThings(ctx, field)
+		p.drawMoving(ctx, field)
+		p.drawHero(ctx, field)
 	} else {
-		p.drawSmoothGround(ctx, lit.SubImage(image.Rectangle{Min: bounds.Min.Mul(k), Max: bounds.Max.Mul(k)}).(*ebiten.Image), k)
-		p.inPixels(lit, k, func(art *ebiten.Image) { // what has no smooth art yet
-			field := art.SubImage(bounds).(*ebiten.Image)
-			for r := range w.Lanes {
-				if w.Lanes[r].Kind == config.Bank {
-					p.drawNookThings(ctx, field, r)
-				}
+		field := lit.SubImage(image.Rectangle{Min: bounds.Min.Mul(k), Max: bounds.Max.Mul(k)}).(*ebiten.Image)
+		p.drawSmoothGround(ctx, field, k)
+		for r := range w.Lanes {
+			if w.Lanes[r].Kind == config.Bank {
+				p.drawSmoothNookToads(ctx, field, k, r)
 			}
-			p.drawThings(ctx, field)
-		})
+		}
+		p.drawSmoothMoving(ctx, lit, field, bounds, k)
+		p.eachToad(func(pl *world.Player, name string, dx float64) { p.drawSmoothToad(ctx, field, k, pl, name, dx) })
 	}
 
 	p.addLights(ctx, p.light)
@@ -117,10 +117,13 @@ func (p *Play) drawField(ctx *scene.Context, dst *ebiten.Image) {
 	p.inPixels(out, k, func(img *ebiten.Image) {
 		over := img.SubImage(bounds).(*ebiten.Image)
 		p.drawFlyer(ctx, over)
-		if ctx.Settings.HighContrast {
+		if ctx.Settings.HighContrast && k == 1 {
 			p.drawOutlines(ctx, over)
 		}
 	})
+	if ctx.Settings.HighContrast && k > 1 {
+		p.drawSmoothOutlines(ctx, out, k)
+	}
 	p.drawRain(out, k)
 	p.drawWind(out, k)
 	p.parts.Draw(out, 0, 0, float64(k))
@@ -165,10 +168,43 @@ func (p *Play) drawGround(ctx *scene.Context, field *ebiten.Image) {
 	}
 }
 
-// drawThings draws what is on the ground, in the pixel art in either look,
-// before it is lit: what moves along the rows, the fog and mist, and the
-// hero.
-func (p *Play) drawThings(ctx *scene.Context, field *ebiten.Image) {
+// drawSmoothMoving draws what drawMoving does, and the nooks' other things,
+// in the smooth look on field, lit's field at scale k: the vehicles,
+// platforms, the emergency vehicle and the train in their smooth art, and
+// between them, in the same order, what is still pixel art, enlarged.
+func (p *Play) drawSmoothMoving(ctx *scene.Context, lit, field *ebiten.Image, bounds image.Rectangle, k int) {
+	w := p.world
+	draw := func(pc piece) { p.drawSmoothPiece(ctx, field, pc, k) }
+	for r := range w.Lanes {
+		p.eachEntityPiece(ctx, r, draw)
+	}
+	p.inPixels(lit, k, func(art *ebiten.Image) {
+		field := art.SubImage(bounds).(*ebiten.Image)
+		for r := range w.Lanes {
+			if w.Lanes[r].Kind == config.Bank {
+				p.drawNookThings(ctx, field, r)
+			}
+			p.drawHerons(ctx, field, r)
+		}
+		p.drawProwl(ctx, field)
+		p.drawParked(ctx, field)
+		p.drawYard(ctx, field)
+		p.drawPicks(ctx, field)
+		p.drawSweepers(ctx, field)
+	})
+	p.eachSiren(ctx, draw)
+	p.eachTrainPiece(ctx, draw)
+	p.inPixels(lit, k, func(art *ebiten.Image) {
+		field := art.SubImage(bounds).(*ebiten.Image)
+		p.drawFog(field)
+		p.drawMist(field)
+	})
+}
+
+// drawMoving draws what is on the ground but the hero and its young, in the
+// pixel art, before it is lit: what moves along the rows, and the fog and
+// mist.
+func (p *Play) drawMoving(ctx *scene.Context, field *ebiten.Image) {
 	w := p.world
 	for r := range w.Lanes {
 		p.drawEntities(ctx, field, r)
@@ -183,7 +219,6 @@ func (p *Play) drawThings(ctx *scene.Context, field *ebiten.Image) {
 	p.drawTrain(ctx, field)
 	p.drawFog(field)
 	p.drawMist(field)
-	p.drawHero(ctx, field)
 }
 
 // drawRoad draws row r as asphalt, with dashes where it meets another road
@@ -217,9 +252,40 @@ func (p *Play) drawTiles(dst *ebiten.Image, tile *gfx.Sprite, r int) {
 	}
 }
 
-// drawEntities draws row r's vehicles or platforms, mirrored when the lane
-// moves left. Diving platforms show where they are in their dive.
+// A piece is a frame of a sprite placed on the field, its top-left at x, y,
+// mirrored if flip. Its img is set in place of a name for the things that
+// have no smooth art yet but are drawn with the pieces.
+type piece struct {
+	name  string
+	frame int
+	x, y  float64
+	flip  bool
+	img   *ebiten.Image
+}
+
+// image is the piece's frame in the pixel art.
+func (pc piece) image(ctx *scene.Context) *ebiten.Image {
+	if pc.img != nil {
+		return pc.img
+	}
+	return ctx.Sheet(Sheet).Sprite(pc.name).Frame(pc.frame)
+}
+
+// drawPiece draws pc in the pixel art.
+func drawPiece(ctx *scene.Context, dst *ebiten.Image, pc piece) {
+	img := pc.image(ctx)
+	dst.DrawImage(img, &ebiten.DrawImageOptions{GeoM: spriteGeoM(img, pc.x, pc.y, pc.flip)})
+}
+
+// drawEntities draws row r's vehicles or platforms.
 func (p *Play) drawEntities(ctx *scene.Context, dst *ebiten.Image, r int) {
+	p.eachEntityPiece(ctx, r, func(pc piece) { drawPiece(ctx, dst, pc) })
+}
+
+// eachEntityPiece calls draw with each piece of row r's vehicles or
+// platforms, mirrored when the lane moves left. Diving platforms show where
+// they are in their dive.
+func (p *Play) eachEntityPiece(ctx *scene.Context, r int, draw func(pc piece)) {
 	lane := &p.world.Lanes[r]
 	sheet := ctx.Sheet(Sheet)
 	flip := lane.Dir < 0
@@ -243,24 +309,27 @@ func (p *Play) drawEntities(ctx *scene.Context, dst *ebiten.Image, r int) {
 				if flip {
 					fromBow = i
 				}
-				p.drawShipPiece(ctx, dst, e, name, fromBow, n, x+float64(i*config.Cell), y, flip)
+				if pc, ok := shipPiece(e, name, fromBow, n, x+float64(i*config.Cell), y, flip); ok {
+					draw(pc)
+				}
 				continue
 			}
 			f := frame
 			if lane.Kind == config.Road {
 				f = wheelFrame(e) // the wheels turn as it goes (DESIGN §3.3)
 			}
-			sp.Draw(dst, min(f, sp.Frames()-1), x, y, flip)
+			draw(piece{name: name, frame: min(f, sp.Frames()-1), x: x, y: y, flip: flip})
 			x += float64(sp.W)
 		}
 	}
 }
 
-// drawShipPiece draws piece fromBow of a ship that sinks, at x, y, as it
-// sinks (DESIGN §5.2, D33): flashing as a warning, then low in the water
-// and drifting apart from the other pieces as it breaks up, then darker as
-// each piece goes under, bow first. A piece that has gone is not drawn.
-func (p *Play) drawShipPiece(ctx *scene.Context, dst *ebiten.Image, e world.Entity, name string, fromBow, n int, x, y float64, flip bool) {
+// shipPiece is piece fromBow of a ship that sinks, at x, y, as it sinks
+// (DESIGN §5.2, D33): flashing as a warning, then low in the water and
+// drifting apart from the other pieces as it breaks up, then darker as each
+// piece goes under, bow first. A piece that has gone is not drawn: ok is
+// false.
+func shipPiece(e world.Entity, name string, fromBow, n int, x, y float64, flip bool) (pc piece, ok bool) {
 	switch e.Stage() {
 	case world.Breaking, world.Sinking:
 		// Spread the pieces about the middle of the ship.
@@ -280,37 +349,42 @@ func (p *Play) drawShipPiece(ctx *scene.Context, dst *ebiten.Image, e world.Enti
 	case world.Sinking:
 		name += "_deep"
 	case world.Under, world.Sunk:
-		return
+		return piece{}, false
 	}
-	ctx.Sheet(Sheet).Sprite(name).Draw(dst, 0, x, y, flip)
+	return piece{name: name, x: x, y: y, flip: flip}, true
 }
 
-// drawHero draws the hero, and its line of toadlets (D53), each turned to
-// face its way, on its leap frame while hopping, rising and falling over
-// the hop, then squashed for a moment on landing (DESIGN §3.3). A dead one
-// lies flat where it was hit, or splashes where it went in the water. The
-// line on land is drawn under the hero; riders on its back over it, side
-// by side, and they go with a dead hero (D56).
+// drawHero draws the hero, its line of toadlets and any stragglers, as
+// eachToad gives them.
 func (p *Play) drawHero(ctx *scene.Context, dst *ebiten.Image) {
+	p.eachToad(func(pl *world.Player, name string, dx float64) { p.drawToad(ctx, dst, pl, name, dx) })
+}
+
+// eachToad calls draw, in the order they are drawn, for the stragglers
+// waiting at the gates, the hero, and its line of toadlets (D53), each with
+// its sprite and how far across its cell it sits. The line on land is
+// drawn under the hero; riders on its back over it, side by side, and they
+// go with a dead hero (D56).
+func (p *Play) eachToad(draw func(pl *world.Player, name string, dx float64)) {
 	w := p.world
-	p.drawStragglers(ctx, dst)
+	p.eachStraggler(func(pl *world.Player) { draw(pl, p.young(), 0) })
 	if w.Home > 0 {
 		return // it is in its nook, drawn with the bank
 	}
 	young := p.young()
 	for i := range w.Line {
 		if !p.onBack(i) {
-			p.drawToad(ctx, dst, &w.Line[i].Player, young, 0)
+			draw(&w.Line[i].Player, young, 0)
 		}
 	}
-	p.drawToad(ctx, dst, &w.Player, p.hero.Sprite, 0)
+	draw(&w.Player, p.hero.Sprite, 0)
 	if w.Player.Death != 0 {
 		return
 	}
 	n := float64(len(w.Line))
 	for i := range w.Line {
 		if p.onBack(i) {
-			p.drawToad(ctx, dst, &w.Line[i].Player, young, (float64(i)-(n-1)/2)*riderGapPx)
+			draw(&w.Line[i].Player, young, (float64(i)-(n-1)/2)*riderGapPx)
 		}
 	}
 }
@@ -326,37 +400,18 @@ func (p *Play) onBack(i int) bool {
 const riderGapPx = 6
 
 // drawToad draws the hero or a toadlet, pl, as the sprite name, in the
-// middle of its cell, dx pixels across from there. A smaller sprite leaps
-// lower, in step with its size.
+// middle of its cell, dx pixels across from there, as toadState gives it.
+// A smaller sprite leaps lower, in step with its size.
 func (p *Play) drawToad(ctx *scene.Context, dst *ebiten.Image, pl *world.Player, name string, dx float64) {
 	sheet := ctx.Sheet(Sheet)
 	sp := sheet.Sprite(name)
-	scale := float64(sp.W) / config.Cell
-
-	frame, lift := frameRest, 0.0
-	switch pl.Death {
-	case world.Splashed, world.Swept:
-		splash := sheet.Sprite(p.hero.Splash)
-		total := config.DeathTicks
-		if p.world.Bonus() {
-			total = config.SlipTicks // a slip plays the same splash (D61)
-		}
-		done := total - p.world.Dying
-		f := min(done*splash.Frames()/total, splash.Frames()-1)
-		splash.Draw(dst, f, float64(config.FieldX)+float64(pl.X)/config.SubPx, cellY(pl.LaneRow()), false)
+	splash := sheet.Sprite(p.hero.Splash)
+	frame, lift, sf := p.toadState(pl, splash.Frames())
+	if sf >= 0 {
+		splash.Draw(dst, sf, splashX(pl), cellY(pl.LaneRow()), false)
 		return
 	}
-	switch {
-	case pl.Death != 0:
-		frame = frameSquashed
-	case pl.Sliding, pl.Pushed:
-		frame = frameLand // a skid or a gust's push, feet down: no leap (D31, D47)
-	case pl.Hopping():
-		frame = hopFrames[max(pl.HopProgress()-1, 0)] // a queued hop can show at 0
-		lift = liftOf(pl) * scale
-	case pl.Still < config.LandTicks:
-		frame = frameLand
-	}
+	lift *= float64(sp.W) / config.Cell
 
 	x := float64(config.FieldX) + float64(pl.X)/config.SubPx + float64(config.Cell-sp.W)/2 + dx
 	y := float64(config.FieldY) + float64(pl.Y)/config.SubPx - lift + float64(config.Cell-sp.H)/2
@@ -364,6 +419,39 @@ func (p *Play) drawToad(ctx *scene.Context, dst *ebiten.Image, pl *world.Player,
 	op.GeoM = facing(pl.Facing, sp.W, sp.H)
 	op.GeoM.Translate(x, y)
 	dst.DrawImage(sp.Frame(frame), &op)
+}
+
+// toadState is how pl, the hero or a toadlet, is drawn: its frame, turned
+// to face its way, on its leap frames while hopping, lifted by lift at the
+// hero's size over the hop, then squashed for a moment on landing (DESIGN
+// §3.3). A dead one lies flat where it was hit. One that went in the water
+// is shown by frame sf of the splash's frames instead; sf is -1 otherwise.
+func (p *Play) toadState(pl *world.Player, frames int) (frame int, lift float64, sf int) {
+	switch pl.Death {
+	case world.Splashed, world.Swept:
+		total := config.DeathTicks
+		if p.world.Bonus() {
+			total = config.SlipTicks // a slip plays the same splash (D61)
+		}
+		done := total - p.world.Dying
+		return 0, 0, min(done*frames/total, frames-1)
+	}
+	switch {
+	case pl.Death != 0:
+		return frameSquashed, 0, -1
+	case pl.Sliding, pl.Pushed:
+		return frameLand, 0, -1 // a skid or a gust's push, feet down: no leap (D31, D47)
+	case pl.Hopping():
+		return hopFrames[max(pl.HopProgress()-1, 0)], liftOf(pl), -1 // a queued hop can show at 0
+	case pl.Still < config.LandTicks:
+		return frameLand, 0, -1
+	}
+	return frameRest, 0, -1
+}
+
+// splashX is where the splash of pl going in the water is drawn from.
+func splashX(pl *world.Player) float64 {
+	return float64(config.FieldX) + float64(pl.X)/config.SubPx
 }
 
 // drawHitBoxes outlines what the rules see, in debug builds: the hero's
@@ -442,21 +530,39 @@ func (p *Play) drawBank(ctx *scene.Context, dst *ebiten.Image, r int) {
 	for _, c := range config.Nooks {
 		nook.Draw(dst, 0, cellX(c), cellY(r), false)
 	}
+	p.drawNookToads(ctx, dst, r)
 	p.drawNookThings(ctx, dst, r)
 }
 
-// drawNookThings draws what is in and by the nooks of bank row r: the
-// school signs, the toads home, the fruit and the fox.
+// drawNookToads draws a toad sitting in each nook of bank row r that has
+// been filled.
+func (p *Play) drawNookToads(ctx *scene.Context, dst *ebiten.Image, r int) {
+	toad := ctx.Sheet(Sheet).Sprite(p.hero.Sprite)
+	for _, x := range p.homeToads(toad.W) {
+		toad.Draw(dst, frameRest, x, cellY(r), false)
+	}
+}
+
+// homeToads is where the left edge of each toad home in a nook is, for a
+// toad w wide.
+func (p *Play) homeToads(w int) []float64 {
+	var xs []float64
+	for i, c := range config.Nooks {
+		if p.world.Filled[i] || p.world.Bonus() && p.world.HomeNook() == i { // a bonus level's nooks never fill (D61)
+			xs = append(xs, cellX(c)+float64(config.NookWidth*config.Cell-w)/2)
+		}
+	}
+	return xs
+}
+
+// drawNookThings draws what else is in and by the nooks of bank row r: the
+// school signs, the fruit and the fox.
 func (p *Play) drawNookThings(ctx *scene.Context, dst *ebiten.Image, r int) {
 	sheet := ctx.Sheet(Sheet)
-	toad, sign := sheet.Sprite(p.hero.Sprite), sheet.Sprite("schoolsign")
-	for i, c := range config.Nooks {
+	sign := sheet.Sprite("schoolsign")
+	for _, c := range config.Nooks {
 		if b := p.world.Level.Bonus; b != nil && b.Gates { // a school sign by each nook (DESIGN §6.7)
 			sign.Draw(dst, 0, cellX(c)-float64(sign.W+1), cellY(r)+float64(config.Cell-sign.H), false)
-		}
-		if p.world.Filled[i] || p.world.Bonus() && p.world.HomeNook() == i { // a bonus level's nooks never fill (D61)
-			x := cellX(c) + float64(config.NookWidth*config.Cell-toad.W)/2
-			toad.Draw(dst, frameRest, x, cellY(r), false)
 		}
 	}
 	if n := p.world.FruitNook; n >= 0 {

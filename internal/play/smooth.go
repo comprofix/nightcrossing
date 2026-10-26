@@ -1,12 +1,14 @@
 package play
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 
 	"github.com/comprofix/nightcrossing/internal/gfx"
+	"github.com/comprofix/nightcrossing/internal/scene"
 )
 
 // The smooth look's art (DESIGN §3.6): drawn in code from shapes, in the
@@ -158,6 +160,49 @@ func (s *stamps) get(name string, k int, w, h float64, draw func(pen)) *ebiten.I
 	draw(pn)
 	s.imgs[name] = img
 	return img
+}
+
+// smoothArts draw the sprites that have smooth art, by name: frame f in a
+// box the sprite's size at the pen's origin, facing as the sprite does.
+var smoothArts = map[string]func(pn pen, f int){}
+
+// artStamp is frame f of sprite name's smooth art at scale k, for a sprite
+// w×h, or nil if it has none yet.
+func (p *Play) artStamp(name string, f, k, w, h int) *ebiten.Image {
+	art, ok := smoothArts[name]
+	if !ok {
+		return nil
+	}
+	return p.stamp(fmt.Sprint("art:", name, "/", f), k, float64(w), float64(h), func(pn pen) { art(pn, f) })
+}
+
+// smoothPiece is the image pc is drawn with in the smooth look and where:
+// its smooth art, or its sprite enlarged until it has some.
+func (p *Play) smoothPiece(ctx *scene.Context, pc piece, k int) (*ebiten.Image, ebiten.GeoM) {
+	kf := float64(k)
+	var g ebiten.GeoM
+	if pc.img == nil {
+		sp := ctx.Sheet(Sheet).Sprite(pc.name)
+		if img := p.artStamp(pc.name, pc.frame, k, sp.W, sp.H); img != nil {
+			g.Translate(-stampMargin*kf, -stampMargin*kf)
+			if pc.flip {
+				g.Scale(-1, 1)
+				g.Translate(float64(sp.W*k), 0)
+			}
+			g.Translate(math.Round(pc.x*kf), math.Round(pc.y*kf))
+			return img, g
+		}
+	}
+	img := pc.image(ctx)
+	g = spriteGeoM(img, pc.x, pc.y, pc.flip)
+	g.Scale(kf, kf)
+	return img, g
+}
+
+// drawSmoothPiece draws pc in the smooth look.
+func (p *Play) drawSmoothPiece(ctx *scene.Context, dst *ebiten.Image, pc piece, k int) {
+	img, g := p.smoothPiece(ctx, pc, k)
+	dst.DrawImage(img, &ebiten.DrawImageOptions{GeoM: g})
 }
 
 // lay draws stamp img on dst with its origin at x, y in the game's

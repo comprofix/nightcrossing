@@ -71,6 +71,7 @@ type Play struct {
 	parts     *fx.Particles
 	nookGlow  [len(config.Nooks)]int // ticks left of each nook's flare as a toad arrives
 	outline   *ebiten.Image          // a drawing buffer for high contrast's outlines
+	outlineK  *ebiten.Image          // and in the smooth look, at its size
 	art       *ebiten.Image          // a drawing buffer for pixel art enlarged in the smooth look
 	ground    groundCache            // the smooth look's still ground
 	pops      []pop                  // points popping up over the toad (D38)

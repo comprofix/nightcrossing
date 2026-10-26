@@ -1,8 +1,6 @@
 package play
 
 import (
-	"math"
-
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/colorm"
 
@@ -29,50 +27,62 @@ func (p *Play) drawOutlines(ctx *scene.Context, dst *ebiten.Image) {
 	solid.Translate(float64(c.R)/255, float64(c.G)/255, float64(c.B)/255, 0)
 	// Each hazard in the solid colour a pixel to each side, then cut its own
 	// shape out, which leaves the ring.
-	p.eachHazard(ctx, func(img *ebiten.Image, x, y float64, flip bool) {
+	p.eachHazard(ctx, func(pc piece) {
+		img := pc.image(ctx)
 		for _, d := range [...][2]float64{{-1, 0}, {1, 0}, {0, -1}, {0, 1}} {
-			op := &colorm.DrawImageOptions{GeoM: spriteGeoM(img, x+d[0], y+d[1], flip)}
+			op := &colorm.DrawImageOptions{GeoM: spriteGeoM(img, pc.x+d[0], pc.y+d[1], pc.flip)}
 			colorm.DrawImage(p.outline, img, solid, op)
 		}
 	})
-	p.eachHazard(ctx, func(img *ebiten.Image, x, y float64, flip bool) {
-		op := &ebiten.DrawImageOptions{GeoM: spriteGeoM(img, x, y, flip), Blend: ebiten.BlendDestinationOut}
+	p.eachHazard(ctx, func(pc piece) {
+		img := pc.image(ctx)
+		op := &ebiten.DrawImageOptions{GeoM: spriteGeoM(img, pc.x, pc.y, pc.flip), Blend: ebiten.BlendDestinationOut}
 		p.outline.DrawImage(img, op)
 	})
 	dst.DrawImage(p.outline, nil)
 }
 
-// eachHazard calls draw with the frame, place and facing of every sprite
-// that can kill the hero by touch: each piece of a vehicle and of the
-// train, each heron, and each water rat and snake.
-func (p *Play) eachHazard(ctx *scene.Context, draw func(img *ebiten.Image, x, y float64, flip bool)) {
+// drawSmoothOutlines rings the hazards as drawOutlines does, in the smooth
+// look: a game pixel wide, round each one's smooth art, or its sprite
+// enlarged until it has some.
+func (p *Play) drawSmoothOutlines(ctx *scene.Context, dst *ebiten.Image, k int) {
+	if p.outlineK == nil {
+		p.outlineK = ebiten.NewImage(p.size.X*k, p.size.Y*k)
+	}
+	p.outlineK.Clear()
+	var solid colorm.ColorM
+	c := gfx.RGBA(outlineColour)
+	solid.Scale(0, 0, 0, 1)
+	solid.Translate(float64(c.R)/255, float64(c.G)/255, float64(c.B)/255, 0)
+	p.eachHazard(ctx, func(pc piece) {
+		img, g := p.smoothPiece(ctx, pc, k)
+		for _, d := range [...][2]float64{{-1, 0}, {1, 0}, {0, -1}, {0, 1}} {
+			op := &colorm.DrawImageOptions{GeoM: g}
+			op.GeoM.Translate(d[0]*float64(k), d[1]*float64(k))
+			colorm.DrawImage(p.outlineK, img, solid, op)
+		}
+	})
+	p.eachHazard(ctx, func(pc piece) {
+		img, g := p.smoothPiece(ctx, pc, k)
+		p.outlineK.DrawImage(img, &ebiten.DrawImageOptions{GeoM: g, Blend: ebiten.BlendDestinationOut})
+	})
+	dst.DrawImage(p.outlineK, nil)
+}
+
+// eachHazard calls draw with every piece that can kill the hero by touch:
+// each piece of a vehicle and of the train, each heron, and each water rat
+// and snake.
+func (p *Play) eachHazard(ctx *scene.Context, draw func(pc piece)) {
+	sprite := func(img *ebiten.Image, x, y float64, flip bool) {
+		draw(piece{img: img, x: x, y: y, flip: flip})
+	}
 	p.eachTrainPiece(ctx, draw)
-	p.eachProwler(ctx, draw)
+	p.eachProwler(ctx, sprite)
 	p.eachSiren(ctx, draw)
-	sheet := ctx.Sheet(Sheet)
 	for r := range p.world.Lanes {
-		lane := &p.world.Lanes[r]
-		flip := lane.Dir < 0
-		p.eachHeron(ctx, r, draw)
-		for _, e := range lane.Entities {
-			if e.Hidden() {
-				continue
-			}
-			x := float64(config.FieldX) + math.Floor(float64(e.X())/config.SubPx)
-			if lane.Kind != config.Road {
-				continue
-			}
-			names := entitySprites(e.Kind)
-			n := len(names)
-			for i := range names {
-				name := names[i]
-				if flip {
-					name = names[n-1-i]
-				}
-				sp := sheet.Sprite(name)
-				draw(sp.Frame(min(wheelFrame(e), sp.Frames()-1)), x, cellY(r), flip)
-				x += float64(sp.W)
-			}
+		p.eachHeron(ctx, r, sprite)
+		if p.world.Lanes[r].Kind == config.Road {
+			p.eachEntityPiece(ctx, r, draw)
 		}
 	}
 }

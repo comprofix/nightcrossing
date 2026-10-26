@@ -133,12 +133,11 @@ func (p *Play) trainX() float64 {
 
 // eachTrainPiece calls draw with each of the passing train's pieces, left
 // to right on the screen, mirrored when it runs left.
-func (p *Play) eachTrainPiece(ctx *scene.Context, draw func(img *ebiten.Image, x, y float64, flip bool)) {
+func (p *Play) eachTrainPiece(_ *scene.Context, draw func(pc piece)) {
 	rl := &p.world.Rail
 	if rl.Phase != world.RailPassing {
 		return
 	}
-	sheet := ctx.Sheet(Sheet)
 	flip := rl.Dir < 0
 	x, y := p.trainX(), cellY(rl.Row)
 	n := len(trainPieces)
@@ -147,15 +146,13 @@ func (p *Play) eachTrainPiece(ctx *scene.Context, draw func(img *ebiten.Image, x
 		if flip {
 			name = trainPieces[n-1-i]
 		}
-		draw(sheet.Sprite(name).Frame(0), x+float64(i*config.Cell), y, flip)
+		draw(piece{name: name, x: x + float64(i*config.Cell), y: y, flip: flip})
 	}
 }
 
 // drawTrain draws the passing train, if there is one.
 func (p *Play) drawTrain(ctx *scene.Context, dst *ebiten.Image) {
-	p.eachTrainPiece(ctx, func(img *ebiten.Image, x, y float64, flip bool) {
-		dst.DrawImage(img, &ebiten.DrawImageOptions{GeoM: spriteGeoM(img, x, y, flip)})
-	})
+	p.eachTrainPiece(ctx, func(pc piece) { drawPiece(ctx, dst, pc) })
 }
 
 // addRailLights adds the signals' flashing lamps, and the train's
