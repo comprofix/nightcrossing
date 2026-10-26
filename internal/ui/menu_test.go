@@ -1,10 +1,12 @@
 package ui
 
 import (
+	"image"
 	"testing"
 
 	"github.com/hajimehoshi/ebiten/v2"
 
+	"github.com/comprofix/nightcrossing/internal/gfx"
 	"github.com/comprofix/nightcrossing/internal/input"
 )
 
@@ -160,5 +162,96 @@ func TestMenuScrolls(t *testing.T) {
 	short := &Menu{Rows: 8, Items: m.Items}
 	if short.Scrolls() || short.Shown() != 6 || short.First() != 0 {
 		t.Errorf("a menu shorter than Rows: scrolls %v, shows %d", short.Scrolls(), short.Shown())
+	}
+}
+
+// mouseFont is the font the mouse tests place menus in: cells 6 wide, lines
+// 12 tall, so rows are 16 apart.
+var mouseFont = gfx.NewVectorFont(10)
+
+// rowY is the middle of row r of a menu placed at y in mouseFont.
+func rowY(y, r int) int { return y + r*(mouseFont.LineHeight()+LineGap) + mouseFont.LineHeight()/2 }
+
+func TestMenuMouse(t *testing.T) {
+	chosen := ""
+	m := &Menu{Items: []Item{
+		{Label: "Apple", Confirm: func() { chosen = "Apple" }},
+		{Label: "Banana", Disabled: true},
+		{Label: "Cherry", Confirm: func() { chosen = "Cherry" }},
+	}}
+	moves, confirms := 0, 0
+	m.OnMove = func() { moves++ }
+	m.OnConfirm = func() { confirms++ }
+	const x, y = 100, 50
+	in := feed(
+		input.MoveTo(x+10, rowY(y, 2)), // hover moves the cursor
+		input.MoveTo(x+20, rowY(y, 1)), // not onto a disabled item
+		input.Click(x+10, rowY(y, 0)),  // a click moves and chooses
+		input.Idle(1),
+		input.Click(x-5, rowY(y, 2)), // beside the menu: nothing
+		input.Idle(1),
+		input.Step{Wheel: -1, Ticks: 1}, // the wheel moves the cursor, skipping
+		input.Press(ebiten.KeyArrowUp),  // keys still work with the pointer at rest
+	)
+	type state struct {
+		cursor int
+		chosen string
+	}
+	want := []state{{2, ""}, {2, ""}, {0, "Apple"}, {0, "Apple"}, {0, "Apple"}, {0, "Apple"}, {2, "Apple"}, {0, "Apple"}}
+	for i, w := range want {
+		in.Update()
+		m.Place(mouseFont, x, y)
+		m.Update(in)
+		if got := (state{m.Cursor, chosen}); got != w {
+			t.Fatalf("tick %d: %+v, want %+v", i, got, w)
+		}
+	}
+	if moves != 4 || confirms != 1 {
+		t.Errorf("OnMove %d times and OnConfirm %d, want 4 and 1", moves, confirms)
+	}
+}
+
+func TestMenuIgnoresTheMouseUntilPlaced(t *testing.T) {
+	chosen := false
+	m := &Menu{Items: []Item{{Label: "Go", Confirm: func() { chosen = true }}}}
+	in := feed(input.Click(5, 5))
+	in.Update()
+	m.Update(in)
+	if chosen {
+		t.Error("an unplaced menu took a click")
+	}
+}
+
+// TestMenuSliderByMouse: a click on a slider's bar sets it, dragging moves
+// it, and a click on its label only moves the cursor.
+func TestMenuSliderByMouse(t *testing.T) {
+	v := 0.2
+	m := &Menu{Items: []Item{
+		{Label: "Back"},
+		{Label: "Vol", Slider: func() float64 { return v }, SetSlider: func(x float64) { v = x }},
+	}}
+	const x, y = 100, 50
+	cell := mouseFont.CellWidth()
+	bx := x + 2*cell + mouseFont.Width("Vol") + cell // the bar's left edge
+	bw := SliderCells * cell
+	held := func(px int) input.Step {
+		return input.Step{Pointer: &image.Point{px, rowY(y, 1)}, Mouse: []ebiten.MouseButton{ebiten.MouseButtonLeft}, Ticks: 1}
+	}
+	in := feed(
+		input.Click(x+cell, rowY(y, 1)), // the label: v unchanged
+		input.Idle(1),
+		input.Click(bx+2+(bw-4)/2, rowY(y, 1)), // the middle of the bar
+		held(bx+bw+cell),                       // dragged past the end
+		held(bx-cell),                          // and back past the start
+		input.MoveTo(bx+bw/2, rowY(y, 1)),      // let go: moving no longer sets it
+	)
+	want := []float64{0.2, 0.2, 0.5, 1, 0, 0}
+	for i, w := range want {
+		in.Update()
+		m.Place(mouseFont, x, y)
+		m.Update(in)
+		if v != w || m.Cursor != 1 {
+			t.Fatalf("tick %d: value %v, cursor %d; want %v, 1", i, v, m.Cursor, w)
+		}
 	}
 }

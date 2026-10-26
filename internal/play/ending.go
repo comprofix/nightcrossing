@@ -47,7 +47,7 @@ func (e *Ending) Update(ctx *scene.Context) error {
 	e.ticks++
 	last := e.rollTop() + float64((len(config.Credits)-1)*endingLinePx)
 	done := last < endingClipY-endingLinePx // the last line has rolled away
-	if done || e.ticks > endingRollFrom && ctx.Input.JustPressed(input.Confirm) {
+	if done || e.ticks > endingRollFrom && (ctx.Input.JustPressed(input.Confirm) || ctx.Input.Clicked()) {
 		ctx.Audio.PlayEffect(scene.MenuConfirm)
 		ctx.Switch(e.next())
 	}

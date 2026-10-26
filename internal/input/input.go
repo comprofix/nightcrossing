@@ -1,9 +1,14 @@
-// Package input maps the keyboard and gamepads to game actions.
+// Package input maps the keyboard, gamepads and mouse to game actions.
 // Each action reports whether it was just pressed, is held, or was just
-// released. Input comes from a Source, so tests can play back a script.
+// released. The mouse pointer is also reported in screen pixels, through
+// the letterbox, for menus and games to point with. Input comes from a
+// Source, so tests can play back a script.
 package input
 
 import (
+	"image"
+	"math"
+
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
@@ -60,11 +65,15 @@ const (
 const StickDeadZone = 0.5
 
 // Frame is the raw input state for one tick: keys down, gamepad buttons
-// down, and the left stick, with every connected gamepad combined.
+// down, and the left stick, with every connected gamepad combined; and the
+// mouse: the pointer in window pixels, its buttons down, and the wheel.
 type Frame struct {
 	Keys           [ebiten.KeyMax + 1]bool
 	Buttons        [ebiten.StandardGamepadButtonMax + 1]bool
 	StickX, StickY float64 // -1–1; down and right are positive
+	MouseX, MouseY float64
+	Mouse          [ebiten.MouseButtonMax + 1]bool
+	WheelY         float64 // positive away from the player
 }
 
 // Source fills in the raw input for the current tick.
@@ -105,6 +114,12 @@ func (e *Ebiten) Read(f *Frame) {
 			f.StickY = y
 		}
 	}
+	x, y := ebiten.CursorPosition()
+	f.MouseX, f.MouseY = float64(x), float64(y)
+	for b := range f.Mouse {
+		f.Mouse[b] = ebiten.IsMouseButtonPressed(ebiten.MouseButton(b))
+	}
+	_, f.WheelY = ebiten.Wheel()
 }
 
 func abs(v float64) float64 {
@@ -129,6 +144,16 @@ type Input struct {
 	held       []int  // ticks each action has been held
 	extra      []Binding
 	altEntered bool // Enter went down with Alt held; Confirm waits for its release
+	view       View
+}
+
+// View is where the screen is shown in the window, for turning the pointer
+// into screen pixels: the screen, Width×Height pixels, fills the rectangle
+// at (X, Y) of size W×H in window pixels. The zero View is one window pixel
+// per screen pixel, with no limit to the screen's size.
+type View struct {
+	X, Y, W, H    float64
+	Width, Height int
 }
 
 // Binding maps a game-specific action to keys and buttons.
@@ -175,8 +200,10 @@ func (in *Input) Update() {
 	set(Left, k[ebiten.KeyArrowLeft] || letter(ebiten.KeyA) || b[PadLeft] || in.now.StickX < -StickDeadZone)
 	set(Right, k[ebiten.KeyArrowRight] || letter(ebiten.KeyD) || b[PadRight] || in.now.StickX > StickDeadZone)
 	set(Confirm, ((enter && !alt && !in.altEntered) || k[ebiten.KeySpace]) || b[PadA])
-	set(Back, k[ebiten.KeyEscape] || k[ebiten.KeyBackspace] || b[PadB])
-	set(Pause, k[ebiten.KeyEscape] || letter(ebiten.KeyP) || b[PadStart])
+	// The right mouse button is Esc on the mouse: Back and Pause.
+	right := in.now.Mouse[ebiten.MouseButtonRight]
+	set(Back, k[ebiten.KeyEscape] || k[ebiten.KeyBackspace] || b[PadB] || right)
+	set(Pause, k[ebiten.KeyEscape] || letter(ebiten.KeyP) || b[PadStart] || right)
 	set(Sound, ctrl && k[ebiten.KeyS])
 	set(Restart, ctrl && k[ebiten.KeyR])
 	set(Menu, (ctrl && k[ebiten.KeyM]) || b[PadSelect])
@@ -222,9 +249,48 @@ func (in *Input) Repeat(a Action) bool {
 	return h == 1 || (h > RepeatDelay && (h-RepeatDelay)%RepeatEvery == 0)
 }
 
-// AnyJustPressed reports whether any key or gamepad button went down this
-// tick, for "press any key". Modifiers, the window keys (F9–F11), Ctrl
-// commands and Alt+Enter don't count.
+// SetView sets where the screen is shown in the window, for Pointer. Call it
+// before Update whenever the window or scale mode may have changed.
+func (in *Input) SetView(v View) { in.view = v }
+
+// Pointer is the mouse pointer in screen pixels, and whether it is over the
+// screen (not the letterbox around it).
+func (in *Input) Pointer() (p image.Point, ok bool) {
+	return in.toScreen(in.now.MouseX, in.now.MouseY)
+}
+
+func (in *Input) toScreen(wx, wy float64) (image.Point, bool) {
+	v := in.view
+	x, y := wx, wy
+	if v.W > 0 && v.H > 0 {
+		x = (wx - v.X) * float64(v.Width) / v.W
+		y = (wy - v.Y) * float64(v.Height) / v.H
+	}
+	p := image.Pt(int(math.Floor(x)), int(math.Floor(y)))
+	ok := p.X >= 0 && p.Y >= 0 && (v.Width == 0 || p.X < v.Width) && (v.Height == 0 || p.Y < v.Height)
+	return p, ok
+}
+
+// PointerMoved reports whether the pointer moved this tick.
+func (in *Input) PointerMoved() bool {
+	return in.now.MouseX != in.prev.MouseX || in.now.MouseY != in.prev.MouseY
+}
+
+// Clicked reports whether the left mouse button went down this tick.
+func (in *Input) Clicked() bool {
+	return in.now.Mouse[ebiten.MouseButtonLeft] && !in.prev.Mouse[ebiten.MouseButtonLeft]
+}
+
+// MouseHeld reports whether the left mouse button is down, for dragging.
+func (in *Input) MouseHeld() bool { return in.now.Mouse[ebiten.MouseButtonLeft] }
+
+// Wheel is how far the mouse wheel turned this tick: positive away from the
+// player (up), negative towards.
+func (in *Input) Wheel() float64 { return in.now.WheelY }
+
+// AnyJustPressed reports whether any key, gamepad button or mouse button
+// went down this tick, for "press any key". Modifiers, the window keys
+// (F9–F11), Ctrl commands and Alt+Enter don't count.
 func (in *Input) AnyJustPressed() bool {
 	k := &in.now.Keys
 	if k[ebiten.KeyControl] || k[ebiten.KeyControlLeft] || k[ebiten.KeyControlRight] {
@@ -253,15 +319,24 @@ func (in *Input) AnyJustPressed() bool {
 			return true
 		}
 	}
+	for btn, down := range in.now.Mouse {
+		if down && !in.prev.Mouse[btn] {
+			return true
+		}
+	}
 	return false
 }
 
-// Step is one entry of a Script: keys and buttons held for Ticks ticks
-// (at least one).
+// Step is one entry of a Script: keys, buttons and mouse buttons held for
+// Ticks ticks (at least one). Pointer, if set, moves the mouse pointer
+// there, in window pixels, where it stays for the steps after.
 type Step struct {
 	Keys           []ebiten.Key
 	Buttons        []Button
 	StickX, StickY float64
+	Pointer        *image.Point
+	Mouse          []ebiten.MouseButton
+	Wheel          float64
 	Ticks          int
 }
 
@@ -270,6 +345,7 @@ type Script struct {
 	Steps []Step
 	step  int
 	tick  int
+	ptr   image.Point
 }
 
 // Read implements Source.
@@ -285,6 +361,14 @@ func (s *Script) Read(f *Frame) {
 		f.Buttons[b] = true
 	}
 	f.StickX, f.StickY = st.StickX, st.StickY
+	if st.Pointer != nil {
+		s.ptr = *st.Pointer
+	}
+	f.MouseX, f.MouseY = float64(s.ptr.X), float64(s.ptr.Y)
+	for _, b := range st.Mouse {
+		f.Mouse[b] = true
+	}
+	f.WheelY = st.Wheel
 	s.tick++
 	if s.tick >= max(st.Ticks, 1) {
 		s.step, s.tick = s.step+1, 0
@@ -299,3 +383,13 @@ func Press(keys ...ebiten.Key) Step { return Step{Keys: keys, Ticks: 1} }
 
 // Idle is a Step with nothing held for n ticks.
 func Idle(n int) Step { return Step{Ticks: n} }
+
+// MoveTo is a Step that moves the pointer to (x, y), in window pixels, for
+// one tick.
+func MoveTo(x, y int) Step { return Step{Pointer: &image.Point{x, y}, Ticks: 1} }
+
+// Click is a Step that moves the pointer to (x, y) and holds the left
+// button for one tick.
+func Click(x, y int) Step {
+	return Step{Pointer: &image.Point{x, y}, Mouse: []ebiten.MouseButton{ebiten.MouseButtonLeft}, Ticks: 1}
+}

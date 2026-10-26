@@ -48,8 +48,18 @@ func (m *Mastered) Update(ctx *scene.Context) error {
 	if ctx.Input.JustPressed(input.Back) {
 		return nil // the choice has to be made
 	}
+	if f := ctx.Fonts; f.Small != nil && f.Large != nil { // headless tests have no fonts
+		m.menu.PlaceCentred(f.Small, masteredMenuTop(f))
+	}
 	m.menu.Update(ctx.Input)
 	return nil
+}
+
+// masteredTop is the top of the MASTERED screen's first heading, and
+// masteredMenuTop of its menu, below the headings and the next mode's line.
+func masteredTop(f gfx.Fonts) int { return config.Project.ScreenHeight/4 - f.Large.LineHeight() }
+func masteredMenuTop(f gfx.Fonts) int {
+	return masteredTop(f) + 2*f.Large.LineHeight() + ui.LineGap + 5*f.Small.LineHeight()
 }
 
 // finish adds the life bonus, counted up on its own tally, then goes on
@@ -96,7 +106,7 @@ func (m *Mastered) Draw(ctx *scene.Context, dst *ebiten.Image) {
 	sc, f := ctx.Scheme, ctx.Fonts
 	h := config.Project.ScreenHeight
 	dst.Fill(gfx.RGBA(sc.Backdrop))
-	y := h/4 - f.Large.LineHeight()
+	y := masteredTop(f)
 	ui.TextCentred(dst, f.Large, "YOU'VE MASTERED", y, sc.Text, sc.Shadow)
 	y += f.Large.LineHeight() + ui.LineGap
 	ui.TextCentred(dst, f.Large, strings.ToUpper(ctx.Session.Mode.Name), y, sc.Title, sc.Shadow)
@@ -106,7 +116,7 @@ func (m *Mastered) Draw(ctx *scene.Context, dst *ebiten.Image) {
 		next = strings.ToUpper(ctx.ModeList()[i].Name) + " AWAITS"
 	}
 	ui.TextCentred(dst, f.Small, next, y, sc.Highlight, sc.Shadow)
-	y += 3 * f.Small.LineHeight()
+	y = masteredMenuTop(f)
 
 	mw, mh := m.menu.Size(f.Small)
 	ui.Panel(dst, ui.PanelAround(mw, mh, y, panelPad), sc.Panel, sc.Border)

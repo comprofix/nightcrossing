@@ -28,7 +28,7 @@ func (s *Intro) Update(ctx *Context) error {
 	switch {
 	case ctx.Input.JustPressed(input.Back):
 		ctx.Switch(NewModeSelectAt(s.mode))
-	case ctx.Input.JustPressed(input.Confirm):
+	case ctx.Input.JustPressed(input.Confirm), ctx.Input.Clicked():
 		ctx.Audio.PlayEffect(MenuConfirm)
 		ctx.Switch(ctx.NewPlay(ctx, ctx.ModeList()[s.mode]))
 	}

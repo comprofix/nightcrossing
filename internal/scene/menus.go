@@ -23,14 +23,25 @@ func menuPad(f gfx.Fonts) int { return f.Small.LineHeight() }
 func drawMenuScreen(ctx *Context, dst *ebiten.Image, heading string, m *ui.Menu, help string) {
 	sc, f := ctx.Scheme, ctx.Fonts
 	dst.Fill(gfx.RGBA(sc.Backdrop))
-	y := f.Large.LineHeight()
-	ui.TextCentred(dst, f.Large, heading, y, sc.Title, sc.Shadow)
-	// The panel's border sits a line gap below the heading, so long menus
-	// still fit on a 200-pixel screen.
-	drawMenuPanel(ctx, dst, m, y+f.Large.LineHeight()+ui.LineGap+menuPad(f))
+	ui.TextCentred(dst, f.Large, heading, f.Large.LineHeight(), sc.Title, sc.Shadow)
+	drawMenuPanel(ctx, dst, m, menuTop(f))
 	if help != "" {
 		ui.TextCentred(dst, f.Small, help, config.Project.ScreenHeight-2*f.Small.LineHeight(), sc.Dim, sc.Shadow)
 	}
+}
+
+// menuTop is the top of a menu screen's menu: the panel's border sits a
+// line gap below the heading, so long menus still fit on a 200-pixel
+// screen.
+func menuTop(f gfx.Fonts) int { return 2*f.Large.LineHeight() + ui.LineGap + menuPad(f) }
+
+// updateMenu runs m for one tick, placed as drawMenuPanel draws it with its
+// top at y, so the mouse works. Headless tests have no fonts and no mouse.
+func updateMenu(ctx *Context, m *ui.Menu, y func(gfx.Fonts) int) {
+	if f := ctx.Fonts; f.Small != nil && f.Large != nil {
+		m.PlaceCentred(f.Small, y(f))
+	}
+	m.Update(ctx.Input)
 }
 
 // menuRows is how many lines of a menu fit on a menu screen: from the
@@ -42,7 +53,7 @@ func menuRows(ctx *Context) int {
 	if f.Small == nil || f.Large == nil {
 		return 0
 	}
-	top := 2*f.Large.LineHeight() + ui.LineGap + menuPad(f)
+	top := menuTop(f)
 	bottom := config.Project.ScreenHeight - 2*f.Small.LineHeight() - ui.LineGap - menuPad(f)
 	return (bottom - top + ui.LineGap) / (f.Small.LineHeight() + ui.LineGap)
 }
@@ -79,7 +90,7 @@ func (s *MainMenu) Update(ctx *Context) error {
 		ctx.Switch(NewTitle())
 		return nil
 	}
-	s.menu.Update(ctx.Input)
+	updateMenu(ctx, &s.menu, menuTop)
 	return nil
 }
 
@@ -151,7 +162,7 @@ func (s *ModeSelect) Update(ctx *Context) error {
 		ctx.Switch(NewMainMenu())
 		return nil
 	}
-	s.menu.Update(ctx.Input)
+	updateMenu(ctx, &s.menu, menuTop)
 	return nil
 }
 
@@ -183,7 +194,7 @@ func (s *Options) Update(ctx *Context) error {
 		ctx.Switch(s.back())
 		return nil
 	}
-	s.menu.Update(ctx.Input)
+	updateMenu(ctx, &s.menu, menuTop)
 	return nil
 }
 
@@ -193,11 +204,18 @@ func (s *Options) items(ctx *Context) []ui.Item {
 		return func(int) { *v = !*v; ctx.SettingsChanged() }
 	}
 	// volume is a slider for v, dimmed and skipped while its sound is off.
+	// The mouse sets it to the nearest step.
 	volume := func(label string, on *bool, v *float64) ui.Item {
 		return ui.Item{
 			Label:      label,
 			Slider:     func() float64 { return *v },
 			DisabledIf: func() bool { return !*on },
+			SetSlider: func(x float64) {
+				if n := float64(steps(x)) / VolumeSteps; n != *v {
+					*v = n
+					ctx.SettingsChanged()
+				}
+			},
 			Adjust: func(d int) {
 				*v = float64(min(max(steps(*v)+d, 0), VolumeSteps)) / VolumeSteps
 				ctx.SettingsChanged()
@@ -297,16 +315,20 @@ func (p *Pause) Update(ctx *Context) error {
 		ctx.Cut(p.under)
 		return nil
 	}
-	p.menu.Update(ctx.Input)
+	updateMenu(ctx, &p.menu, pauseMenuTop)
 	return nil
 }
+
+// pauseTop is the top of the pause screen's heading, and pauseMenuTop the
+// top of its menu, under the heading: the two sit around the middle.
+func pauseTop(f gfx.Fonts) int     { return config.Project.ScreenHeight/2 - 3*f.Large.LineHeight()/2 }
+func pauseMenuTop(f gfx.Fonts) int { return pauseTop(f) + 2*f.Large.LineHeight() }
 
 // Draw implements Scene.
 func (p *Pause) Draw(ctx *Context, dst *ebiten.Image) {
 	sc, f := ctx.Scheme, ctx.Fonts
 	p.under.Draw(ctx, dst)
 	Dim(dst, sc.Shadow, 0.6)
-	y := config.Project.ScreenHeight/2 - 3*f.Large.LineHeight()/2
-	ui.TextCentred(dst, f.Large, "PAUSED", y, sc.Title, sc.Shadow)
-	drawMenuPanel(ctx, dst, &p.menu, y+2*f.Large.LineHeight())
+	ui.TextCentred(dst, f.Large, "PAUSED", pauseTop(f), sc.Title, sc.Shadow)
+	drawMenuPanel(ctx, dst, &p.menu, pauseMenuTop(f))
 }

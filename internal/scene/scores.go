@@ -59,7 +59,7 @@ func (t *Tally) Total() int {
 // Update implements Scene.
 func (t *Tally) Update(ctx *Context) error {
 	t.ticks++
-	if ctx.Input.JustPressed(input.Confirm) {
+	if ctx.Input.JustPressed(input.Confirm) || ctx.Input.Clicked() {
 		if t.Done() {
 			ctx.Audio.PlayEffect(MenuConfirm)
 			ctx.Switch(t.next())
@@ -175,10 +175,10 @@ func (e *HighScoreEntry) Update(ctx *Context) error {
 	in := ctx.Input
 	n := len(score.Letters)
 	switch {
-	case in.Repeat(input.Up):
+	case in.Repeat(input.Up), in.Wheel() > 0:
 		e.letters[e.slot] = (e.letters[e.slot] + 1) % n
 		ctx.Audio.PlayEffect(MenuMove)
-	case in.Repeat(input.Down):
+	case in.Repeat(input.Down), in.Wheel() < 0:
 		e.letters[e.slot] = (e.letters[e.slot] + n - 1) % n
 		ctx.Audio.PlayEffect(MenuMove)
 	case in.JustPressed(input.Left), in.JustPressed(input.Back):
@@ -186,7 +186,7 @@ func (e *HighScoreEntry) Update(ctx *Context) error {
 			e.slot--
 			ctx.Audio.PlayEffect(MenuMove)
 		}
-	case in.JustPressed(input.Right), in.JustPressed(input.Confirm):
+	case in.JustPressed(input.Right), in.JustPressed(input.Confirm), in.Clicked():
 		ctx.Audio.PlayEffect(MenuConfirm)
 		if e.slot < config.InitialsLen-1 {
 			e.slot++
@@ -256,13 +256,13 @@ func (t *HighScoreTable) Update(ctx *Context) error {
 	modes := ctx.ModeList()
 	n, i := len(modes), modeIndex(modes, t.mode)
 	switch {
-	case in.JustPressed(input.Left):
+	case in.JustPressed(input.Left), in.Wheel() > 0:
 		t.mode, t.mark = modes[(i+n-1)%n].ID, -1
 		ctx.Audio.PlayEffect(MenuMove)
-	case in.JustPressed(input.Right):
+	case in.JustPressed(input.Right), in.Wheel() < 0:
 		t.mode, t.mark = modes[(i+1)%n].ID, -1
 		ctx.Audio.PlayEffect(MenuMove)
-	case in.JustPressed(input.Confirm), in.JustPressed(input.Back):
+	case in.JustPressed(input.Confirm), in.JustPressed(input.Back), in.Clicked():
 		ctx.Audio.PlayEffect(MenuConfirm)
 		if t.then != nil {
 			ctx.Switch(t.then())

@@ -39,7 +39,7 @@ func (s *SoundTest) Update(ctx *Context) error {
 		s.leave(ctx)
 		return nil
 	}
-	s.menu.Update(ctx.Input)
+	updateMenu(ctx, &s.menu, menuTop)
 	return nil
 }
 

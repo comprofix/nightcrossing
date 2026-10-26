@@ -8,9 +8,12 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 
 	"github.com/comprofix/nightcrossing/internal/config"
+	"github.com/comprofix/nightcrossing/internal/gfx"
+	"github.com/comprofix/nightcrossing/internal/input"
 	"github.com/comprofix/nightcrossing/internal/scene"
 	"github.com/comprofix/nightcrossing/internal/scene/scenetest"
 	"github.com/comprofix/nightcrossing/internal/session"
+	"github.com/comprofix/nightcrossing/internal/ui"
 	"github.com/comprofix/nightcrossing/internal/world"
 )
 
@@ -132,6 +135,20 @@ func TestCarryOn(t *testing.T) {
 	newLevel(h.Ctx, config.SchoolRun.Levels, 10)
 	if e := entry(h.Ctx.Session); e.Continued != 10 {
 		t.Errorf("entry %+v: want continued to 10", e)
+	}
+}
+
+// TestCarryOnByMouse: the MASTERED screen's menu works by mouse, a click
+// on Carry on going to level 9 (D81).
+func TestCarryOnByMouse(t *testing.T) {
+	h := bonusHarness(t, unbuilt(config.SchoolRun))
+	f := gfx.SmoothFonts(config.Project.ScreenHeight) // the mouse needs the menu measured
+	h.Ctx.Fonts = f
+	y := masteredMenuTop(f) + f.Small.LineHeight() + ui.LineGap + f.Small.LineHeight()/2
+	h.Run(input.Click(config.Project.ScreenWidth/2, y), input.Idle(1))
+	h.Ticks(2 * scene.FadeTicks)
+	if p := scenetest.Current[*Play](h); p.World().Level.Number != 9 {
+		t.Errorf("a click on Carry on went to level %d, want 9", p.World().Level.Number)
 	}
 }
 

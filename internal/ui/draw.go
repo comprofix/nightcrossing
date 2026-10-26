@@ -114,8 +114,11 @@ func percent(v float64) string {
 // DrawCentred draws the menu centred across the screen with its top at y.
 func (m *Menu) DrawCentred(dst *ebiten.Image, font gfx.Font, y int, sc gfx.Scheme) {
 	w, _ := m.Size(font)
-	m.Draw(dst, font, (config.Project.ScreenWidth-w)/2, y, sc)
+	m.Draw(dst, font, centredX(w), y, sc)
 }
+
+// centredX is the x that centres something w pixels wide on the screen.
+func centredX(w int) int { return (config.Project.ScreenWidth - w) / 2 }
 
 // Panel fills r with palette colour fill inside a one-pixel border.
 func Panel(dst *ebiten.Image, r image.Rectangle, fill, border int) {

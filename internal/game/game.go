@@ -126,6 +126,11 @@ func New(seed uint64, saved Saved, synth *audio.Synth) (*Game, error) {
 // Update handles the window keys and runs the scenes for one tick.
 func (g *Game) Update() error {
 	in := g.ctx.Input
+	// The pointer is turned into screen pixels through where present will
+	// show the screen.
+	sw, sh := g.preset.ScreenWidth, g.preset.ScreenHeight
+	r := gfx.Fit(g.settings.ScaleMode, sw, sh, g.outW, g.outH)
+	in.SetView(input.View{X: r.X, Y: r.Y, W: r.W, H: r.H, Width: sw, Height: sh})
 	in.Update()
 	g.ctx.Audio.Now(g.ctx.Tick)
 	s := &g.settings

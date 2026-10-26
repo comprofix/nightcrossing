@@ -155,3 +155,30 @@ func TestFontHasTheMarks(t *testing.T) {
 		}
 	}
 }
+
+// TestScoresByMouse: the wheel turns letters and tables, and a click moves
+// on, so initials and the tables need no keys.
+func TestScoresByMouse(t *testing.T) {
+	entry := NewHighScoreEntry(config.Modes[0], score.Entry{Score: 420}, nil)
+	h := newHarness(t, entry)
+	wheel := func(dy float64) {
+		h.in.Steps = append(h.in.Steps, input.Step{Wheel: dy, Ticks: 1}, input.Idle(1))
+		h.ticks(2)
+	}
+	wheel(1)
+	wheel(1) // C
+	h.mouse(input.Click(0, 0))
+	wheel(-1) // Z, wrapping
+	h.mouse(input.Click(0, 0))
+	h.mouse(input.Click(0, 0)) // A, the last
+	if got := entry.Initials(); got != "CZA" {
+		t.Fatalf("initials %q, want CZA", got)
+	}
+	table := current[*HighScoreTable](t, h)
+	wheel(-1)
+	if want := config.Modes[1%len(config.Modes)].ID; table.mode != want {
+		t.Errorf("the wheel went to mode %q, want %q", table.mode, want)
+	}
+	h.mouse(input.Click(0, 0))
+	current[*MainMenu](t, h)
+}

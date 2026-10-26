@@ -307,7 +307,7 @@ func newEnded(p *Play) *Ended { return &Ended{play: p} }
 // Update implements scene.Scene.
 func (e *Ended) Update(ctx *scene.Context) error {
 	e.ticks++
-	if e.ticks >= gameOverTicks || (e.ticks > config.TPS/2 && ctx.Input.JustPressed(input.Confirm)) {
+	if e.ticks >= gameOverTicks || (e.ticks > config.TPS/2 && (ctx.Input.JustPressed(input.Confirm) || ctx.Input.Clicked())) {
 		s := ctx.Session
 		ctx.Switch(scene.AfterGame(ctx, s.Mode, entry(s), nil))
 	}
