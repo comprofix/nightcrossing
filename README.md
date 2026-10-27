@@ -3,6 +3,10 @@
 An arcade lane-crossing game. A toad crosses the edge of town at night, over
 a busy road, a railway and a river, to five nooks on the far bank.
 
+It has two looks, chosen under Options: a smooth look, drawn in code at
+1280×720 and scaled smoothly to any window, and the pixel art, 640×360 in
+sharp whole pixels. The game plays exactly the same in both.
+
 ![The title screen, with the game playing itself behind it](docs/screenshots/title.png)
 
 ![Night on the road and the river](docs/screenshots/night.png)
@@ -150,11 +154,16 @@ far a run carried on.
 | Fullscreen | F11 or Alt+Enter | |
 | Quit | F10 | |
 
+The menus also work with the mouse: point, click, and scroll the wheel. The
+game itself is played with keys or a gamepad.
+
 ## Options
 
-Fullscreen, sound, music and effects with their volumes, a sound test, reduced
-motion, smooth or pixel light, glow, a CRT look and high contrast (outlined
-hazards and a lighter night).
+The look (smooth or pixel; it can be changed mid-game from the pause menu's
+Options), scale, fullscreen, sound, music and effects with their volumes, a
+sound test, reduced motion, smooth or pixel light, glow, a CRT look and high
+contrast (outlined hazards and a lighter night). Scale, pixel light and the
+CRT look belong to the pixel look, and are dimmed under the smooth one.
 
 ![The options menu](docs/screenshots/options.png)
 
@@ -228,6 +237,8 @@ go generate ./assets                               # rebuild the sprite sheets
 - A game by Matthew McKinnon.
 - Colours: the [Resurrect 64](https://lospec.com/palette-list/resurrect-64)
   palette by Kerrie Lake.
+- Text in the smooth look: Go Mono Bold, from the
+  [Go fonts](https://go.dev/blog/go-fonts) (BSD licence).
 - Built with [Ebitengine](https://ebitengine.org), from the
   [gameskeleton](https://github.com/comprofix/gameskeleton) template.
 - All art, music and sound are original and made for this game; the music and
