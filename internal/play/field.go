@@ -107,7 +107,7 @@ func (p *Play) drawField(ctx *scene.Context, dst *ebiten.Image) {
 				p.drawSmoothNookToads(ctx, field, k, r)
 			}
 		}
-		p.drawSmoothMoving(ctx, lit, field, bounds, k)
+		p.drawSmoothMoving(ctx, field, k)
 		p.eachToad(func(pl *world.Player, name string, dx float64) { p.drawSmoothToad(ctx, field, k, pl, name, dx) })
 	}
 
@@ -174,11 +174,9 @@ func (p *Play) drawGround(ctx *scene.Context, field *ebiten.Image) {
 }
 
 // drawSmoothMoving draws what drawMoving does, and the nooks' other things,
-// in the smooth look on field, lit's field at scale k: the vehicles,
-// platforms, predators, fruit, the emergency vehicle and the train in their
-// smooth art, and between them, in the same order, what is still pixel
-// art, enlarged.
-func (p *Play) drawSmoothMoving(ctx *scene.Context, lit, field *ebiten.Image, bounds image.Rectangle, k int) {
+// in the smooth look on field, the lit screen's field at scale k, in the
+// same order.
+func (p *Play) drawSmoothMoving(ctx *scene.Context, field *ebiten.Image, k int) {
 	w := p.world
 	draw := func(pc piece) { p.drawSmoothPiece(ctx, field, pc, k) }
 	for r := range w.Lanes {
@@ -186,19 +184,16 @@ func (p *Play) drawSmoothMoving(ctx *scene.Context, lit, field *ebiten.Image, bo
 	}
 	for r := range w.Lanes {
 		if w.Lanes[r].Kind == config.Bank {
-			p.inPixels(lit, k, func(art *ebiten.Image) { p.drawSchoolSigns(ctx, art.SubImage(bounds).(*ebiten.Image), r) })
+			p.eachSchoolSign(ctx, r, draw)
 			p.eachNookThing(ctx, draw)
 		}
 		p.eachHeron(r, draw)
 	}
 	p.drawSmoothProwl(ctx, field, k)
-	p.inPixels(lit, k, func(art *ebiten.Image) {
-		field := art.SubImage(bounds).(*ebiten.Image)
-		p.drawParked(ctx, field)
-		p.drawYard(ctx, field)
-	})
+	p.eachParked(ctx, draw)
+	p.eachRakePiece(ctx, draw)
 	p.eachPick(ctx, draw)
-	p.inPixels(lit, k, func(art *ebiten.Image) { p.drawSweepers(ctx, art.SubImage(bounds).(*ebiten.Image)) })
+	p.eachSweeper(ctx, draw)
 	p.eachSiren(ctx, draw)
 	p.eachTrainPiece(ctx, draw)
 	p.drawFog(field, k)
@@ -216,10 +211,10 @@ func (p *Play) drawMoving(ctx *scene.Context, field *ebiten.Image) {
 		p.eachHeron(r, draw)
 	}
 	p.drawProwl(ctx, field) // the water rats and the snake (D69, D70)
-	p.drawParked(ctx, field)
-	p.drawYard(ctx, field)
+	p.eachParked(ctx, draw)
+	p.eachRakePiece(ctx, draw)
 	p.eachPick(ctx, draw)
-	p.drawSweepers(ctx, field)
+	p.eachSweeper(ctx, draw)
 	p.drawSiren(ctx, field) // an emergency vehicle coming through (DESIGN §6.9)
 	p.drawTrain(ctx, field)
 	p.drawFog(field, 1)
@@ -536,8 +531,9 @@ func (p *Play) drawBank(ctx *scene.Context, dst *ebiten.Image, r int) {
 		nook.Draw(dst, 0, cellX(c), cellY(r), false)
 	}
 	p.drawNookToads(ctx, dst, r)
-	p.drawSchoolSigns(ctx, dst, r)
-	p.eachNookThing(ctx, func(pc piece) { drawPiece(ctx, dst, pc) })
+	draw := func(pc piece) { drawPiece(ctx, dst, pc) }
+	p.eachSchoolSign(ctx, r, draw)
+	p.eachNookThing(ctx, draw)
 }
 
 // drawNookToads draws a toad sitting in each nook of bank row r that has
@@ -561,15 +557,15 @@ func (p *Play) homeToads(w int) []float64 {
 	return xs
 }
 
-// drawSchoolSigns draws a school sign by each nook of bank row r on the
-// school gates' bonus level (DESIGN §6.7).
-func (p *Play) drawSchoolSigns(ctx *scene.Context, dst *ebiten.Image, r int) {
+// eachSchoolSign calls draw with a school sign by each nook of bank row r
+// on the school gates' bonus level (DESIGN §6.7).
+func (p *Play) eachSchoolSign(ctx *scene.Context, r int, draw func(pc piece)) {
 	if b := p.world.Level.Bonus; b == nil || !b.Gates {
 		return
 	}
 	sign := ctx.Sheet(Sheet).Sprite("schoolsign")
 	for _, c := range config.Nooks {
-		sign.Draw(dst, 0, cellX(c)-float64(sign.W+1), cellY(r)+float64(config.Cell-sign.H), false)
+		draw(piece{name: "schoolsign", x: cellX(c) - float64(sign.W+1), y: cellY(r) + float64(config.Cell-sign.H)})
 	}
 }
 
@@ -683,10 +679,10 @@ func wheelFrame(e world.Entity) int {
 	return e.U / (wheelStepPx * config.SubPx) % 2
 }
 
-// drawParked draws a bonus level's parked cars, each in the middle of the
-// cells it takes, facing the way its lane would run, its wheels still
-// (D61).
-func (p *Play) drawParked(ctx *scene.Context, dst *ebiten.Image) {
+// eachParked calls draw with each piece of a bonus level's parked cars,
+// each in the middle of the cells it takes, facing the way its lane would
+// run, its wheels still (D61).
+func (p *Play) eachParked(ctx *scene.Context, draw func(pc piece)) {
 	b := p.world.Level.Bonus
 	if b == nil {
 		return
@@ -702,9 +698,8 @@ func (p *Play) drawParked(ctx *scene.Context, dst *ebiten.Image) {
 				if flip {
 					name = names[len(names)-1-i]
 				}
-				sp := sheet.Sprite(name)
-				sp.Draw(dst, 0, x, cellY(r), flip)
-				x += float64(sp.W)
+				draw(piece{name: name, x: x, y: cellY(r), flip: flip})
+				x += float64(sheet.Sprite(name).W)
 			}
 		}
 	}

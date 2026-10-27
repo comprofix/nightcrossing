@@ -3,8 +3,6 @@ package play
 import (
 	"math"
 
-	"github.com/hajimehoshi/ebiten/v2"
-
 	"github.com/comprofix/nightcrossing/internal/config"
 	"github.com/comprofix/nightcrossing/internal/fx"
 	"github.com/comprofix/nightcrossing/internal/gfx"
@@ -30,14 +28,14 @@ func sweeperX(s *world.Sweeper) float64 {
 	return float64(config.FieldX) + math.Floor(float64(s.X)/config.SubPx)
 }
 
-// drawSweepers draws the street sweepers still sweeping, each facing the
-// way it goes.
-func (p *Play) drawSweepers(ctx *scene.Context, dst *ebiten.Image) {
+// eachSweeper calls draw with each street sweeper still sweeping, facing
+// the way it goes.
+func (p *Play) eachSweeper(ctx *scene.Context, draw func(pc piece)) {
 	sp := ctx.Sheet(Sheet).Sprite("sweeper")
 	frame := int(p.world.Tick/sweeperFrameTicks) % sp.Frames()
 	for i := range p.world.Sweepers {
 		if s := &p.world.Sweepers[i]; s.On {
-			sp.Draw(dst, frame, sweeperX(s), cellY(s.Row), s.Dir < 0)
+			draw(piece{name: "sweeper", frame: frame, x: sweeperX(s), y: cellY(s.Row), flip: s.Dir < 0})
 		}
 	}
 }

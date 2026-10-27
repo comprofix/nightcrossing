@@ -3,8 +3,6 @@ package play
 import (
 	"math"
 
-	"github.com/hajimehoshi/ebiten/v2"
-
 	"github.com/comprofix/nightcrossing/internal/config"
 	"github.com/comprofix/nightcrossing/internal/fx"
 	"github.com/comprofix/nightcrossing/internal/gfx"
@@ -64,10 +62,9 @@ func (p *Play) rakeX(k *world.Rake) float64 {
 	return x
 }
 
-// drawYard draws the rakes standing and shunting in the yard, mirrored
-// when they face left.
-func (p *Play) drawYard(ctx *scene.Context, dst *ebiten.Image) {
-	sheet := ctx.Sheet(Sheet)
+// eachRakePiece calls draw with each piece of the rakes standing and
+// shunting in the yard, mirrored when they face left.
+func (p *Play) eachRakePiece(ctx *scene.Context, draw func(pc piece)) {
 	for i := range p.world.Yard {
 		k := &p.world.Yard[i]
 		names := rakePieces(k)
@@ -78,7 +75,7 @@ func (p *Play) drawYard(ctx *scene.Context, dst *ebiten.Image) {
 			if flip {
 				name = names[len(names)-1-j]
 			}
-			sheet.Sprite(name).Draw(dst, 0, x+float64(j*config.Cell), y, flip)
+			draw(piece{name: name, x: x + float64(j*config.Cell), y: y, flip: flip})
 		}
 	}
 }
