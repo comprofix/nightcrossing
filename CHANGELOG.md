@@ -5,6 +5,25 @@ All notable changes to Night Crossing are listed here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.0](https://github.com/comprofix/nightcrossing/compare/v1.11.0...v1.12.0) - 2026-10-27
+
+### Added
+
+- A smooth look: the whole game drawn in code at 1280×720 and scaled
+  smoothly to any window, with text in Go Mono Bold. The toad, the
+  traffic, the river, the predators, the weather, the bonus levels and
+  every screen have their own smooth art. The game plays exactly the
+  same as in the pixel look.
+- Look: Smooth / Pixel, first in Options, and changeable mid-game from
+  the pause menu. Scale, pixel light and the CRT look belong to the pixel
+  look and are dimmed under the smooth one.
+- The menus work with the mouse: point, click and scroll the wheel.
+
+### Changed
+
+- The game starts on the smooth look, for players upgrading from 1.11
+  too. The pixel art is one setting away.
+
 ## [1.11.0](https://github.com/comprofix/nightcrossing/compare/v1.10.0...v1.11.0) - 2026-10-25
 
 ### Added
