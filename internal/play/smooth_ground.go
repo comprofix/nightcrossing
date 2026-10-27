@@ -192,9 +192,12 @@ func (p *Play) smoothRoad(pn pen, r int) {
 
 // smoothBank draws row r as the far bank: courses of stone blocks, each
 // course a half block along from the one below, and the nooks in it.
-func (p *Play) smoothBank(pn pen, r int) {
-	w := p.world
-	y, width := cellY(r), float64(w.Cols*config.Cell)
+func (p *Play) smoothBank(pn pen, r int) { smoothBankRow(pn, cellY(r), p.world.Cols) }
+
+// smoothBankRow draws the far bank, cols cells wide, with its top at y:
+// the stone quay and its nooks.
+func smoothBankRow(pn pen, y float64, cols int) {
+	width := float64(cols * config.Cell)
 	pn.rect(cellX(0), y, width, config.Cell, resurrect64.Shadow)
 	for course := range 4 {
 		cy := y + float64(course*6)

@@ -4,6 +4,7 @@ import (
 	"math"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/vector"
 
 	"github.com/comprofix/nightcrossing/internal/config"
 	"github.com/comprofix/nightcrossing/internal/gfx"
@@ -19,10 +20,15 @@ import (
 // slowly up, to the title tune. Confirm goes on once the roll has begun,
 // and the roll's end goes on by itself, to the MASTERED screen.
 type Ending struct {
-	ticks int
-	all   bool // every straggler brought home
-	next  func() scene.Scene
+	ticks  int
+	all    bool // every straggler brought home
+	next   func() scene.Scene
+	stamps stamps // the smooth look's art, drawn once
 }
+
+// Native implements scene.Native: the ending is drawn in either look, in
+// the game's coordinates shown k times the size (DESIGN §3.6).
+func (*Ending) Native() {}
 
 // newEnding is the ending, then next; all is whether every straggler
 // was brought home.
@@ -36,7 +42,8 @@ const (
 	endingClipY    = 200            // the credits show below this, under the heading and the thanks
 	endingLinePx   = 16             // a line of the credits
 	endingStars    = 60
-	endingTwinkle  = 40 // ticks a star takes to twinkle
+	endingTwinkle  = 40  // ticks a star takes to twinkle
+	endingStarR    = 0.6 // a star's radius in the smooth look
 )
 
 // Update implements scene.Scene.
@@ -54,17 +61,19 @@ func (e *Ending) Update(ctx *scene.Context) error {
 	return nil
 }
 
-// rollTop is where the credits' first line is: below the screen until the
-// roll begins, then rising.
+// rollTop is where the credits' first line is, in the game's coordinates:
+// below the screen until the roll begins, then rising.
 func (e *Ending) rollTop(ctx *scene.Context) float64 {
-	h := float64(ctx.Preset.ScreenHeight)
+	h := float64(gamePreset(ctx).ScreenHeight)
 	return h - math.Max(0, float64(e.ticks-endingRollFrom))*endingRollPx
 }
 
 // Draw implements scene.Scene.
 func (e *Ending) Draw(ctx *scene.Context, dst *ebiten.Image) {
 	sc, f := ctx.Scheme, ctx.Fonts
-	pr := ctx.Preset
+	pr := gamePreset(ctx)
+	k := max(ctx.Preset.ScreenWidth/pr.ScreenWidth, 1)
+	kf := float64(k)
 	dst.Fill(gfx.RGBA(resurrect64.Ink))
 	for i := range endingStars { // stars, each in its own place, twinkling in its own time
 		x := float64(noise(int64(i), 1, 7) % uint32(pr.ScreenWidth))
@@ -73,25 +82,47 @@ func (e *Ending) Draw(ctx *scene.Context, dst *ebiten.Image) {
 		if (e.ticks+int(noise(int64(i), 3, 7)%endingTwinkle))/endingTwinkle%3 == 0 {
 			c = resurrect64.White
 		}
-		dst.Set(int(x), int(y), gfx.RGBA(c))
+		if k == 1 {
+			dst.Set(int(x), int(y), gfx.RGBA(c))
+		} else {
+			vector.FillCircle(dst, float32(kf*(x+0.5)), float32(kf*(y+0.5)), float32(kf*endingStarR), gfx.RGBA(c), true)
+		}
 	}
 
 	sheet := ctx.Sheet(Sheet)
-	bank, nook := sheet.Sprite("bank"), sheet.Sprite("nook")
-	for c := range config.Cols {
-		bank.Draw(dst, 0, float64(config.FieldX+c*config.Cell), endingBankY, false)
-	}
 	home := config.Nooks[len(config.Nooks)/2]
-	for _, c := range config.Nooks {
-		nook.Draw(dst, 0, float64(config.FieldX+c*config.Cell), endingBankY, false)
-	}
 	toad, young := sheet.Sprite(Toad.Sprite), sheet.Sprite(Toad.SchoolYoung)
 	nx := float64(config.FieldX + home*config.Cell)
-	toad.Draw(dst, frameRest, nx+float64(config.NookWidth*config.Cell-toad.W)/2, endingBankY, false)
-	young.Draw(dst, frameRest, nx-float64(young.W)/2, endingBankY+float64(config.Cell-young.H), false)
-	young.Draw(dst, frameRest, nx+float64(config.NookWidth*config.Cell)-float64(young.W)/2, endingBankY+float64(config.Cell-young.H), false)
+	toadX := nx + float64(config.NookWidth*config.Cell-toad.W)/2
+	youngY := endingBankY + float64(config.Cell-young.H)
+	youngXs := []float64{nx - float64(young.W)/2, nx + float64(config.NookWidth*config.Cell) - float64(young.W)/2}
+	if k == 1 {
+		bank, nook := sheet.Sprite("bank"), sheet.Sprite("nook")
+		for c := range config.Cols {
+			bank.Draw(dst, 0, float64(config.FieldX+c*config.Cell), endingBankY, false)
+		}
+		for _, c := range config.Nooks {
+			nook.Draw(dst, 0, float64(config.FieldX+c*config.Cell), endingBankY, false)
+		}
+		toad.Draw(dst, frameRest, toadX, endingBankY, false)
+		for _, x := range youngXs {
+			young.Draw(dst, frameRest, x, youngY, false)
+		}
+	} else {
+		w := float64(config.FieldX + config.Cols*config.Cell)
+		lay(dst, e.stamps.get("bank", k, w, config.Cell, func(pn pen) {
+			smoothBankRow(pn, 0, config.Cols)
+		}), k, 0, endingBankY, 1)
+		art := func(sp *gfx.Sprite, name string) *ebiten.Image {
+			return e.stamps.get(name, k, float64(sp.W), float64(sp.H), func(pn pen) { smoothArts[name](pn, frameRest) })
+		}
+		lay(dst, art(toad, Toad.Sprite), k, toadX, endingBankY, 1)
+		for _, x := range youngXs {
+			lay(dst, art(young, Toad.SchoolYoung), k, x, youngY, 1)
+		}
+	}
 
-	y := endingBankY + config.Cell + 2*f.Small.LineHeight()
+	y := k*(endingBankY+config.Cell) + 2*f.Small.LineHeight()
 	heading := config.EndingHeading
 	if e.all {
 		heading = config.EndingHeadingAll
@@ -102,8 +133,8 @@ func (e *Ending) Draw(ctx *scene.Context, dst *ebiten.Image) {
 
 	ry := e.rollTop(ctx)
 	for i, line := range config.Credits {
-		ly := int(ry) + i*endingLinePx
-		if line == "" || ly < endingClipY || ly > pr.ScreenHeight {
+		ly := k * (int(ry) + i*endingLinePx)
+		if line == "" || ly < k*endingClipY || ly > ctx.Preset.ScreenHeight {
 			continue
 		}
 		c := sc.Text

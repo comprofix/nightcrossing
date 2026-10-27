@@ -24,6 +24,10 @@ type Mastered struct {
 	menu   ui.Menu
 }
 
+// Native implements scene.Native: MASTERED is laid out in the shown look's
+// own screen and fonts (DESIGN §3.6).
+func (*Mastered) Native() {}
+
 // newMastered is the MASTERED screen for the game in progress, which has
 // played levels. Reaching it marks the run and the mode mastered,
 // whichever is chosen next; a test game marks no mode (D62–D64).
@@ -122,10 +126,11 @@ func (m *Mastered) Draw(ctx *scene.Context, dst *ebiten.Image) {
 	y = masteredMenuTop(ctx)
 
 	mw, mh := m.menu.Size(f.Small)
-	ui.Panel(dst, ui.PanelAround(ctx.Preset.ScreenWidth, mw, mh, y, panelPad), sc.Panel, sc.Border)
+	ui.Panel(dst, ui.PanelAround(ctx.Preset.ScreenWidth, mw, mh, y, panelPad*max(ctx.Preset.ScreenWidth/gamePreset(ctx).ScreenWidth, 1)), sc.Panel, sc.Border)
 	m.menu.DrawCentred(dst, f.Small, y, sc)
 	ui.TextCentred(dst, f.Small, "Finish banks your lives; carry on risks them for more", h-2*f.Small.LineHeight(), sc.Dim, sc.Shadow)
 }
 
-// panelPad is the margin inside the MASTERED screen's panel.
+// panelPad is the margin inside the MASTERED screen's panel, in the game's
+// pixels.
 const panelPad = 8

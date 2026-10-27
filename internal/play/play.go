@@ -379,7 +379,7 @@ func (p *Play) drawHUD(ctx *scene.Context, dst *ebiten.Image, k int) {
 	life := ctx.Sheet(Sheet).Sprite("life")
 	ly := float64((config.HUDHeight - life.H) / 2)
 	for i := range min(s.Lives, config.MaxLives) {
-		drawSprite(dst, life, 0, float64(hudLivesX+i*(life.W+hudLifeGap)), ly, k)
+		p.drawIcon(ctx, dst, "life", 0, float64(hudLivesX+i*(life.W+hudLifeGap)), ly, k)
 	}
 
 	barX := p.size.X - config.FieldMargin - timeBarW
@@ -408,17 +408,18 @@ func (p *Play) drawCaught(ctx *scene.Context, dst *ebiten.Image, ty, k int) {
 		return
 	}
 	sc, f := ctx.Scheme, ctx.Fonts
-	sp, frame := ctx.Sheet(Sheet).Sprite(p.hero.Pickup), 0
+	name, frame := p.hero.Pickup, 0
 	switch {
 	case b.Stragglers > 0:
-		sp = ctx.Sheet(Sheet).Sprite(p.young())
+		name = p.young()
 	case b.Fireflies == 0:
-		sp = ctx.Sheet(Sheet).Sprite("fruit")
-		frame = sp.Frames() - 1 // the watermelon, the best of them
+		name = "fruit"
+		frame = ctx.Sheet(Sheet).Sprite(name).Frames() - 1 // the watermelon, the best of them
 	case b.Dawn:
-		sp = ctx.Sheet(Sheet).Sprite(p.hero.DayPickup)
+		name = p.hero.DayPickup
 	}
-	drawSprite(dst, sp, frame, hudComboX, float64((config.HUDHeight-sp.H)/2), k)
+	sp := ctx.Sheet(Sheet).Sprite(name)
+	p.drawIcon(ctx, dst, name, frame, hudComboX, float64((config.HUDHeight-sp.H)/2), k)
 	count := fmt.Sprintf("%d/%d", p.world.Collected(), b.Size())
 	x := k * (hudComboX + sp.W + hudLifeGap)
 	f.Small.DrawShadowed(dst, count, x, ty, sc.Highlight, sc.Shadow)

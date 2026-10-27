@@ -8,12 +8,11 @@ import (
 	"github.com/comprofix/nightcrossing/internal/scene"
 )
 
-// The play scene, the title's demo and GAME OVER draw in either look
-// (DESIGN §3.6): the game is in the pixel look's coordinates, and the
-// smooth look shows them twice the size. The field's art is still the pixel
-// sprites, drawn at their own size and enlarged with sharp pixels; the
-// light, glow, rain, wind and particles are drawn at the screen's size, and
-// the status bar and hint strip in the shown look's font.
+// The play scene, the title's demo, GAME OVER, MASTERED and the ending
+// draw in either look (DESIGN §3.6): the game is in the pixel look's
+// coordinates, and the smooth look shows them twice the size, its art
+// drawn in code at the screen's size (see smooth.go), its text in the
+// shown look's font.
 
 // Native implements scene.Native.
 func (*Play) Native()  {}
@@ -56,6 +55,20 @@ func enlarge(dst, src *ebiten.Image, k int) {
 	op := &ebiten.DrawImageOptions{Filter: ebiten.FilterNearest}
 	op.GeoM.Scale(float64(k), float64(k))
 	dst.DrawImage(src, op)
+}
+
+// drawIcon draws frame i of sprite name with its top-left corner at x, y
+// in the game's coordinates, k times its size: in its smooth art in the
+// smooth look, as the HUD's icons are.
+func (p *Play) drawIcon(ctx *scene.Context, dst *ebiten.Image, name string, i int, x, y float64, k int) {
+	sp := ctx.Sheet(Sheet).Sprite(name)
+	if k > 1 {
+		if img := p.artStamp(name, i, k, sp.W, sp.H); img != nil {
+			lay(dst, img, k, x, y, 1)
+			return
+		}
+	}
+	drawSprite(dst, sp, i, x, y, k)
 }
 
 // drawSprite draws frame i of sp with its top-left corner at x, y in the

@@ -203,6 +203,11 @@ func init() {
 	smoothArts["toadlet"] = func(pn pen, f int) { smoothToadlet(pn, f, false) }
 	smoothArts["toadlet_cap"] = func(pn pen, f int) { smoothToadlet(pn, f, true) }
 	smoothArts["splash"] = smoothSplash
+	smoothArts["life"] = func(pn pen, _ int) { // the HUD's lives: the toad at rest, half its size
+		pn.k /= 2
+		pn.ox, pn.oy = pn.ox*2, pn.oy*2
+		smoothToad(pn, toadPoses[frameRest], toadColour, false)
+	}
 }
 
 // smoothToadlet draws frame f of a toadlet, the toad two thirds the size in
